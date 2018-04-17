@@ -30,18 +30,19 @@ public wake_model_estimator_t
 
 type :: wake_model_estimator_t
     type(wake_model_t), dimension(:), allocatable :: ensemble
-    type(wake_model_t)                            :: wm
-    real(rprec)                                :: sigma_du, sigma_k, sigma_Phat
-    integer                                    :: Ne, Nm, Ns
-    real(rprec), dimension(:,:), allocatable   :: A, Aprime, Ahat, Ahatprime, E, D, Dprime
-    real(rprec), dimension(:), allocatable     :: Abar, Ahatbar
-    real(rprec)                                :: tau_U_infty = 300
+    type(wake_model_t) :: wm
+    real(rprec) :: sigma_du, sigma_k, sigma_Phat
+    integer :: Ne, Nm, Ns
+    real(rprec), dimension(:,:), allocatable :: A, Aprime, Ahat, Ahatprime
+    real(rprec), dimension(:,:), allocatable ::  E, D, Dprime
+    real(rprec), dimension(:), allocatable :: Abar, Ahatbar
+    real(rprec) :: tau_U_infty = 300
 contains
     procedure, private :: initialize_val
     procedure, private :: initialize_file
-    procedure, public  :: write_to_file
-    procedure, public  :: generateInitialEnsemble
-    procedure, public  :: advance
+    procedure, public :: write_to_file
+    procedure, public :: generateInitialEnsemble
+    procedure, public :: advance
     procedure, private :: advanceEnsemble
 end type wake_model_estimator_t
 
@@ -54,49 +55,50 @@ contains
 
 ! Constructor for wake model
 !*******************************************************************************
-function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,                &
-                         i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau) result(this)
+function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,      &
+    i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau) result(this)
 !*******************************************************************************
 implicit none
-type(wake_model_estimator_t)              :: this
-real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
+type(wake_model_estimator_t) :: this
+real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia
 real(rprec), dimension(:), intent(in) :: i_s, i_k
-integer, intent(in)                   :: i_Nx
-integer, intent(in)                   :: i_Ne
-real(rprec), intent(in)               :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
+integer, intent(in) :: i_Nx
+integer, intent(in) :: i_Ne
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
 
-call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,            &
+call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,      &
                          i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
 
 end function constructor_val
 
 ! Constructor for wake model that reads from file
 !*******************************************************************************
-function constructor_file(fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau) result(this)
+function constructor_file(fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)   &
+    result(this)
 !*******************************************************************************
 use param, only : CHAR_BUFF_LENGTH
 implicit none
 
 type(wake_model_estimator_t) :: this
 character(*), intent(in) :: fpath
-real(rprec), intent(in)  :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
 
 call this%initialize_file(fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
 
 end function constructor_file
 
 !*******************************************************************************
-subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,         &
-                          i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
+subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx,     &
+    i_Ne, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
 !*******************************************************************************
 implicit none
-class(wake_model_estimator_t), intent(inout)    :: this
-real(rprec), intent(in)                     :: i_sigma_du, i_U_infty, i_Delta, i_Dia
-real(rprec), dimension(:), intent(in)       :: i_s, i_k
-integer, intent(in)                         :: i_Nx
-integer, intent(in)                         :: i_Ne
-real(rprec), intent(in)                     :: i_sigma_k, i_sigma_Phat, i_tau
-integer                                     :: i
+class(wake_model_estimator_t), intent(inout) :: this
+real(rprec), intent(in) :: i_sigma_du, i_U_infty, i_Delta, i_Dia
+real(rprec), dimension(:), intent(in) :: i_s, i_k
+integer, intent(in) :: i_Nx
+integer, intent(in) :: i_Ne
+real(rprec), intent(in) :: i_sigma_k, i_sigma_Phat, i_tau
+integer :: i
 
 ! Set std deviations for noise
 this%sigma_du   = i_sigma_du
@@ -132,17 +134,18 @@ allocate( this%Dprime(this%Nm, this%Ne) )
 end subroutine initialize_val
 
 !*******************************************************************************
-subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
+subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat,   &
+    i_tau)
 !*******************************************************************************
 use param, only : CHAR_BUFF_LENGTH
 use string_util, only : string_splice
 implicit none
 
-class(wake_model_estimator_t)   :: this
-character(*), intent(in)    :: fpath
+class(wake_model_estimator_t) :: this
+character(*), intent(in) :: fpath
 character(CHAR_BUFF_LENGTH) :: fstring
-integer                     :: i, fid
-real(rprec), intent(in)     :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
+integer :: i, fid
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
 
 ! Set std deviations for noise
 this%sigma_du   = i_sigma_du
@@ -153,7 +156,7 @@ this%sigma_Phat = i_sigma_Phat
 this%tau_U_infty = i_tau
 
 fstring = fpath // '/wm_est.dat'
-open(newunit=fid, file=fstring, status='unknown', form='unformatted',        &
+open(newunit=fid, file=fstring, status='unknown', form='unformatted',          &
     position='rewind')
 read(fid) this%Ne, this%Nm, this%Ns
 
@@ -196,14 +199,14 @@ use param, only : CHAR_BUFF_LENGTH
 use string_util, only : string_splice
 implicit none
 
-class(wake_model_estimator_t)   :: this
-character(*), intent(in)    :: fpath
+class(wake_model_estimator_t) :: this
+character(*), intent(in) :: fpath
 character(CHAR_BUFF_LENGTH) :: fstring
-integer                     :: i, fid
+integer :: i, fid
 
 call system('mkdir -vp ' // fpath)
 fstring = fpath // '/wm_est.dat'
-open(newunit=fid, file=fstring, status='unknown', form='unformatted',      &
+open(newunit=fid, file=fstring, status='unknown', form='unformatted',          &
     position='rewind')
 write(fid) this%Ne, this%Nm, this%Ns
 write(fid) this%A
@@ -232,15 +235,16 @@ subroutine generateInitialEnsemble(this, Ctp)
 !*******************************************************************************
 use util, only : random_normal
 implicit none
-class(wake_model_estimator_t), intent(inout)    :: this
-real(rprec), dimension(:)                   :: Ctp
-real(rprec)                                 :: dt
-real(rprec), parameter                      :: cfl = 0.99
-real(rprec)                                 :: FTT
-integer                                     :: i, j, N, Nx, jstart, jend
+class(wake_model_estimator_t), intent(inout) :: this
+real(rprec), dimension(:) :: Ctp
+real(rprec) :: dt
+real(rprec), parameter :: cfl = 0.99
+real(rprec) :: FTT
+integer :: i, j, N, Nx, jstart, jend
 
 if (size(Ctp) /= this%ensemble(1)%N) then
-    call error('wake_model_estimator_t.generateInitialEnsemble','Ctp must be of size N')
+    call error('wake_model_estimator_t.generateInitialEnsemble',               &
+        'Ctp must be of size N')
 end if
 
 write(*,*) 'Generating initial wake model filter ensemble...'
@@ -286,11 +290,11 @@ subroutine advance(this, dt, Pm, Ctp)
 !*******************************************************************************
 use util, only : random_normal, inverse
 implicit none
-class(wake_model_estimator_t), intent(inout)    :: this
-real(rprec), intent(in)                     :: dt
-real(rprec), dimension(:), intent(in)       :: Pm, Ctp
-integer                                     :: i, j, N, Nx, jstart, jend
-real(rprec)                                 :: alpha, Uinftyi, r1_if
+class(wake_model_estimator_t), intent(inout) :: this
+real(rprec), intent(in) :: dt
+real(rprec), dimension(:), intent(in) :: Pm, Ctp
+integer :: i, j, N, Nx, jstart, jend
+real(rprec) :: alpha, Uinftyi, r1_if
 
 N = this%wm%N
 Nx = this%wm%Nx
@@ -313,10 +317,11 @@ end do
 this%Dprime = this%D - this%Ahat
 
 ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
-! Since the dimension is small, we don't bother doing the SVD. If the matrix becomes
-! singular, then this should be considered as in section 4.3.2 of Everson(2003)
-this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),            &
-matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +                   &
+! Since the dimension is small, we don't bother doing the SVD. If the matrix
+! becomes singular, then this should be considered as in section 4.3.2 of
+! Everson(2003)
+this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),      &
+matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +             &
 matmul(this%E, transpose(this%E))), this%Dprime))
 
 ! Compute mean
@@ -389,18 +394,18 @@ use param, only : pi
 use util, only  : random_normal
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
-real(rprec), dimension(:), intent(in)    :: Ctp
-real(rprec), intent(in)                  :: dt
-integer                                  :: i, j, N
+real(rprec), dimension(:), intent(in) :: Ctp
+real(rprec), intent(in) :: dt
+integer :: i, j, N
 
 ! Advance step for objects
 N = this%wm%N
 do i = 1, this%Ne
     do j = 1,N
-        this%ensemble(i)%k(j) = this%ensemble(i)%k(j)                                &
+        this%ensemble(i)%k(j) = this%ensemble(i)%k(j)                          &
                               + sqrt(dt) * this%sigma_k * random_normal()
-        this%ensemble(i)%du(j,:) = this%ensemble(i)%du(j,:)                          &
-            + sqrt(dt) * this%sigma_du * random_normal()                             &
+        this%ensemble(i)%du(j,:) = this%ensemble(i)%du(j,:)                    &
+            + sqrt(dt) * this%sigma_du * random_normal()                       &
             * this%ensemble(i)%G(j,:) * sqrt(2*pi) * this%ensemble(i)%Delta
     end do
     this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)

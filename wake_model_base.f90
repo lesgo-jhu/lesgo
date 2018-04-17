@@ -29,21 +29,37 @@ private
 public wake_model_base_t
 
 type wake_model_base_t
-    real(rprec), dimension(:), allocatable :: s    ! turbine location
-    real(rprec), dimension(:), allocatable :: k    ! wake expansion coefficient
-    real(rprec), dimension(:), allocatable :: x    ! streamwise coordinate
-    real(rprec), dimension(:,:), allocatable :: G    ! Gaussian forcing function (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: d    ! dimensionless wake diameter (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: dp   ! d/dx of d (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: w    ! wake expansion function (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: fp   ! forcing prefactor f = fp*Ctp/(4+Ctp)  (turbine, space)
-    real(rprec) :: U_infty = 0                       ! inlet velocity
-    real(rprec) :: Delta   = 0                       ! Gaussian forcing width
-    real(rprec) :: Dia     = 0                       ! rotor diameter
-    real(rprec) :: dx      = 0                       ! rotor diameter
-    integer     :: Nx      = 0                       ! Number of streamwise points
-    integer     :: N       = 0                       ! Number of turbines
+    ! turbine location
+    real(rprec), dimension(:), allocatable :: s
+    ! wake expansion coefficient
+    real(rprec), dimension(:), allocatable :: k
+    ! streamwise coordinate
+    real(rprec), dimension(:), allocatable :: x
+    ! Gaussian forcing function (turbine, space)
+    real(rprec), dimension(:,:), allocatable :: G
+    ! dimensionless wake diameter (turbine, space)
+    real(rprec), dimension(:,:), allocatable :: d
+    ! d/dx of d (turbine, space)
+    real(rprec), dimension(:,:), allocatable :: dp
+    ! wake expansion function (turbine, space)
+    real(rprec), dimension(:,:), allocatable :: w
+    ! forcing prefactor f = fp*Ctp/(4+Ctp)  (turbine, space)
+    real(rprec), dimension(:,:), allocatable :: fp
+    ! inlet velocity
+    real(rprec) :: U_infty = 0
+    ! Gaussian forcing width
+    real(rprec) :: Delta = 0
+    ! rotor diameter
+    real(rprec) :: Dia = 0
+    ! rotor diameter
+    real(rprec) :: dx = 0
+    ! Number of streamwise points
+    integer     :: Nx = 0
+    ! Number of turbines
+    integer     :: N = 0
+    ! Keep track of whether model is dimensionless or not
     logical     :: isDimensionless = .false.
+    ! Dimensional values
     real(rprec) :: LENGTH=0, VELOCITY=0, TIME=0, FORCE=0
 contains
     procedure, public :: initialize_val

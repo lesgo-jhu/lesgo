@@ -72,7 +72,8 @@ real(rprec), dimension(:), intent(in)  :: i_s, i_k
 integer, intent(in)                    :: i_Nx
 
 ! Call base class initializer
-call this%wake_model_base_t%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
+call this%wake_model_base_t%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia,&
+    i_Nx)
 
 allocate( this%dustar(this%N, this%Nx) )
 
@@ -117,8 +118,10 @@ real(rprec), dimension(:), intent(inout) :: g
 integer                                  :: i
 
 do i = 1, this%N
-    this%dustar(i,:) = this%dustar(i,:) - this%rhs(this%dustar(i,:), fstar(i,:), i) * dt
-    g(i) = sum(this%G(i,:) * this%dustar(i,:) / this%d(i,:) / this%d(i,:)) * this%dx
+    this%dustar(i,:) = this%dustar(i,:) - this%rhs(this%dustar(i,:),           &
+        fstar(i,:), i) * dt
+    g(i) = sum(this%G(i,:) * this%dustar(i,:) / this%d(i,:) / this%d(i,:))     &
+        * this%dx
 end do
 
 end subroutine retract

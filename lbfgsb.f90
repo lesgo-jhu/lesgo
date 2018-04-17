@@ -184,130 +184,102 @@ implicit none
 class(lbfgsb_t), intent(inout) :: this
 integer, intent(in) :: n, m
 real(rprec), dimension(n), intent(inout) :: x
-real(rprec), dimension(:), allocatable, save :: l, u, g
+real(rprec), dimension(n) :: l, u, g
 ! real(rprec), dimension((2*m + 5)*n + 11*m*m + 8*m) :: wa
-real(rprec), dimension(:,:), allocatable, save :: ws, wy
-real(rprec), dimension(:,:), allocatable, save :: sy
+real(rprec), dimension(n, m) :: ws, wy
+real(rprec), dimension(m, m) :: sy
 ! integer, dimension(3*n) :: iwa
-integer, dimension(:), allocatable, save :: nbd
-real(rprec), save :: f, factr, pgtol
+integer, dimension(n) :: nbd
+real(rprec) :: f, factr, pgtol
 character*60 :: task
 integer :: iprint
-real(rprec), dimension(:), allocatable, save :: wa
-real(rprec), dimension(:, :), allocatable, save :: ss, wt
-real(rprec), dimension(:, :), allocatable, save :: wn, snd
-real(rprec), dimension(:), allocatable, save :: z, r, d, t, xp
-integer, dimension(:), allocatable, save :: index, iwhere, indx2
-logical, save :: prjctd,cnstnd,boxed,updatd,wrk
-character*3, save :: word
-integer, save :: i,k,nintol,iback,nskip,head,col,iter,itail,iupdat
-integer, save :: nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter
-real(rprec), save :: theta,fold,dr,rr,tol,xstep,sbgnrm,ddum,dnorm,dtd,epsmch
-real(rprec), save :: cpu1,cpu2,cachyt,sbtime,lnscht,time1,time2,gd,gdold,stp,stpmx,time
-real(rprec), save :: a1,a2
+real(rprec), dimension(8*m) :: wa
+real(rprec), dimension(m, m) :: ss, wt
+real(rprec), dimension(2*m, 2*m) :: wn, snd
+real(rprec), dimension(n) :: z, r, d, t, xp
+integer, dimension(n) :: index, iwhere, indx2
+logical :: prjctd,cnstnd,boxed,updatd,wrk
+character*3 :: word
+integer :: i,k,nintol,iback,nskip,head,col,iter,itail,iupdat
+integer :: nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter
+real(rprec) :: theta,fold,ddot,dr,rr,tol,xstep,sbgnrm,ddum,dnorm,dtd,epsmch
+real(rprec) :: cpu1,cpu2,cachyt,sbtime,lnscht,time1,time2,gd,gdold,stp,stpmx
+real(rprec) :: time,a1,a2
 real(rprec), parameter :: big = 1.0E10_rprec
-integer, save :: dummy
-! procedures
-real(rprec) :: ddot
+integer :: dummy
 
-!if (.not.(size(l) == n)) then
-    ! If already allocate, deallocate
-    if (allocated(l)) then
-        deallocate(l, u, g)
-        deallocate(wa)
-        deallocate(ws, wy)
-        deallocate(sy)
-        deallocate(nbd)
-        deallocate(ss, wt)
-        deallocate(wn, snd)
-        deallocate(z, r, d, t, xp)
-        deallocate(index, iwhere, indx2)
-    end if
+! Initialize
+if (allocated(this%lb)) then
+    l = this%lb
+else
+    l = -1000000000._rprec
+end if
+if (allocated(this%ub)) then
+    u = this%ub
+else
+    u = 1000000000._rprec
+end if
+nbd = 2
+epsmch = epsilon(1._rprec)
+factr = this%tol/epsmch
+pgtol = 0._rprec
+task = 'START'
+iprint = -1
+call cpu_time(time1)
 
-    ! Allocate
-    allocate(wa(8*m))
-    allocate(l(n), u(n), g(n))
-    allocate(ws(n,m), wy(n,m))
-    allocate(sy(m,m))
-    allocate(nbd(n))
-    allocate(ss(m,m), wt(m,m))
-    allocate(wn(2*m,2*m), snd(2*m,2*m))
-    allocate(z(n), r(n), d(n), t(n), xp(n))
-    allocate(index(n), iwhere(n), indx2(n))
+! Initialize counters and scalars when task='START'.
+! for the limited memory BFGS matrices:
+col    = 0
+head   = 1
+theta  = 1._rprec
+iupdat = 0
+updatd = .false.
+iback  = 0
+itail  = 0
+iword  = 0
+nact   = 0
+ileave = 0
+nenter = 0
+fold   = 0._rprec
+dnorm  = 0._rprec
+cpu1   = 0._rprec
+gd     = 0._rprec
+stpmx  = 0._rprec
+sbgnrm = 0._rprec
+stp    = 0._rprec
+gdold  = 0._rprec
+dtd    = 0._rprec
+! for operation counts:
+iter   = 0
+nfgv   = 0
+nseg   = 0
+nintol = 0
+nskip  = 0
+nfree  = n
+ifun   = 0
+! for stopping tolerance:
+tol = factr*epsmch
 
-    ! Initialize
-    if (allocated(this%lb)) then
-        l = this%lb
-    else
-        l = -1000000000._rprec
-    end if
-    if (allocated(this%ub)) then
-        u = this%ub
-    else
-        u = 1000000000._rprec
-    end if
-    nbd = 2
-    epsmch = epsilon(1._rprec)
-    factr = this%tol/epsmch
-    pgtol = 0._rprec
-    task = 'START'
-    iprint = -1
-    call cpu_time(time1)
+! for measuring running time:
+cachyt = 0
+sbtime = 0
+lnscht = 0
 
-    ! Initialize counters and scalars when task='START'.
-    ! for the limited memory BFGS matrices:
-    col    = 0
-    head   = 1
-    theta  = 1._rprec
-    iupdat = 0
-    updatd = .false.
-    iback  = 0
-    itail  = 0
-    iword  = 0
-    nact   = 0
-    ileave = 0
-    nenter = 0
-    fold   = 0._rprec
-    dnorm  = 0._rprec
-    cpu1   = 0._rprec
-    gd     = 0._rprec
-    stpmx  = 0._rprec
-    sbgnrm = 0._rprec
-    stp    = 0._rprec
-    gdold  = 0._rprec
-    dtd    = 0._rprec
-    ! for operation counts:
-    iter   = 0
-    nfgv   = 0
-    nseg   = 0
-    nintol = 0
-    nskip  = 0
-    nfree  = n
-    ifun   = 0
-    ! for stopping tolerance:
-    tol = factr*epsmch
+! 'word' records the status of subspace solutions.
+word = '---'
 
-    ! for measuring running time:
-    cachyt = 0
-    sbtime = 0
-    lnscht = 0
+! 'info' records the termination information.
+info = 0
 
-    ! 'word' records the status of subspace solutions.
-    word = '---'
+! Check the input arguments for errors.
+call errclb(n,m,factr,l,u,nbd,task,info,k)
+    if (task(1:5) .eq. 'ERROR') then
+        call mesg('lbfgs:minimize','routine detected an error')
+    return
+endif
 
-    ! 'info' records the termination information.
-    info = 0
-
-    ! Check the input arguments for errors.
-    call errclb(n,m,factr,l,u,nbd,task,info,k)
-        if (task(1:5) .eq. 'ERROR') then
-            call mesg('lbfgs:minimize','routine detected an error')
-        return
-    endif
-
-    ! Initialize iwhere & project x onto the feasible set.
-    call active(n,l,u,nbd,x,iwhere,iprint,prjctd,cnstnd,boxed)
-!end if
+! Initialize iwhere & project x onto the feasible set.
+call active(n,l,u,nbd,x,iwhere,iprint,prjctd,cnstnd,boxed)
 
 ! set iteration counter, evaluate function and derivative, and begin
 task = 'FG_START'
