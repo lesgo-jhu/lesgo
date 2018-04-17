@@ -49,16 +49,19 @@ set(CMAKE_Fortran_COMPILER ${compiler_path})
 enable_language (Fortran)
 project (lesgo)
 set(exec_name "lesgo")
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
 
 # Library links
 link_libraries(fftw3)
+find_path(include_dir fftw3.f)
+include_directories(${include_dir})
 
 # Common include and link directories
-include_directories(/usr/local/include)
+#include_directories(/usr/local/include)
 link_directories(/usr/local/lib)
 if ( NOT(${hostname} STREQUAL "darwin-brew") )
     # include_directories($ENV{HOME}/include /usr/include)
-    include_directories(/usr/include)
+    # include_directories(/usr/include)
     link_directories($ENV{HOME}/lib /usr/lib64)
 endif ()
 
@@ -99,35 +102,20 @@ elseif (${hostname} STREQUAL "default")
     endif ()
 endif ()
 
-# List common sources
-set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
-     divstress_w.f90 emul_complex.f90 fft.f90 finalize.f90
-     forcing.f90 fringe_util.f90 functions.f90 grid.f90
-     initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90
-     interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90
-     messages.f90 param.f90 param_output.f90
-     press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90
-     sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90
-     std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90
-     time_average.f90 types.f90 wallstress.f90 init_random_seed.f90
-     iwmles.f90)
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
     set (CMAKE_Fortran_COMPILER mpif90)
-    set(Sources ${Sources} mpi_transpose_mod.f90 mpi_defs.f90)
     set(exec_name "${exec_name}-mpi")
 endif (USE_MPI)
 
 if (USE_CPS)
     add_definitions(-DPPCPS)
-    set(Sources ${Sources} concurrent_precursor.f90)
     set(exec_name "${exec_name}-cps")
 endif (USE_CPS)
 
 if (USE_HIT)
     add_definitions(-DPPHIT)
-    set(Sources ${Sources} hit_inflow.f90)
     set(exec_name "${exec_name}-HIT")
 endif (USE_HIT)
 
@@ -138,22 +126,16 @@ endif (USE_STREAKS)
 
 if (USE_LVLSET)
     add_definitions(-DPPLVLSET)
-    set(Sources ${Sources} level_set_base.f90 level_set.f90 linear_simple.f90
-        trees_pre_ls.f90 trees_base_ls.f90 trees_setup_ls.f90 trees_io_ls.f90
-        trees_global_fmask_ls.f90)
     set(exec_name "${exec_name}-ls")
 endif (USE_LVLSET)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbine_indicator.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 
 if (USE_ATM)
     add_definitions(-DPPATM)
-    set(Sources ${Sources} atm_base.f90 atm_input_util.f90
-        actuator_turbine_model.f90 atm_lesgo_interface.f90)
     set(exec_name "${exec_name}-ATM")
 endif (USE_ATM)
 
@@ -203,5 +185,5 @@ else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall -fcheck=all")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
-# main lesgo executable
-add_executable(${exec_name} ${Sources})
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
+add_subdirectory(src)
