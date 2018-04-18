@@ -69,3 +69,17 @@ continuous as expected when the simulation would have been completed within one
 run. The total time counter is jt_total. Some variables need to be calculated at
 the beginning of a simulation, which requires the local jt counter. In order to 
 reset the counter one needs to change the file total_time.dat.
+
+### Running on Panoramix
+Use the slurm system to submit the job. Here is an example submit.sh script:
+```
+#!/bin/bash
+#SBATCH --job-name=lesgo
+#SBATCH --output=lesgo.out
+#SBATCH --ntasks=4
+#SBATCH --time=4:00:00
+
+module load mpich/gcc-4.7.2 fftw3/mpich/gcc-4.7.2 hdf5-1.8.15/mpich/gcc-4.7.2 cgns-3.2.1/mpich/gcc-4.7.2
+
+mpirun ./lesgo-mpi-cgns
+```
