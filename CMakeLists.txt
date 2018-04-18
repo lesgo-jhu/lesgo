@@ -8,11 +8,6 @@ cmake_minimum_required(VERSION 2.8.9)
 # Options: Intel and GNU
 set(CMAKE_Fortran_COMPILER_ID "GNU")
 
-# Set the name of the computer you are compiling on.
-# Supported computers: panoramix, njord, marcc, darwin-brew
-# Otherwise, default settings are used
-set(hostname "default")
-
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
 set(WRITE_ENDIAN "DEFAULT")
@@ -48,142 +43,49 @@ set(CMAKE_Fortran_COMPILER ${compiler_path})
 # Project details
 enable_language (Fortran)
 project (lesgo)
-set(exec_name "lesgo")
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
 
-# Library links
-link_libraries(fftw3)
-find_path(include_dir fftw3.f)
-include_directories(${include_dir})
-
-# Common include and link directories
-#include_directories(/usr/local/include)
-link_directories(/usr/local/lib)
-if ( NOT(${hostname} STREQUAL "darwin-brew") )
-    # include_directories($ENV{HOME}/include /usr/include)
-    # include_directories(/usr/include)
-    link_directories($ENV{HOME}/lib /usr/lib64)
-endif ()
-
-# Include host-specific paths
-#  panoramix
-if (${hostname} STREQUAL "panoramix")
-    include_directories(/opt/cgns-3.2.1-hdf5-mpi/include
-    /opt/hdf5-1.8.12-mpi/include /usr/local/hdf5/include /usr/local/cgns/include
+# Search paths
+set(include_search_paths /cm/shared/apps/Intel/fftw/3.3.4/include
+    /opt/cgns-3.2.1-hdf5-mpi/include /opt/hdf5-1.8.12-mpi/include
+    /usr/local/hdf5/include /usr/local/cgns/include
     /act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include
-    /act/cgns-3.3.0/mpich/gcc-4.7.2/include)
-    link_directories(/opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib
-    /usr/local/hdf5/lib  /usr/local/cgns/lib /act/fftw3/mpich/gcc-4.7.2/lib
-    /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.3.0/mpich/gcc-4.7.2/lib)
-#  marcc
-elseif (${hostname} STREQUAL "marcc")
-    # Intel
-    if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-        include_directories(/cm/shared/apps/Intel/fftw/3.3.4/include)
-        link_directories(/cm/shared/apps/Intel/fftw/3.3.4/lib)
-    # GNU -- These have to be installed locally for now.
-    elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-        if (USE_CGNS)
-            include_directories($ENV{HOME}/cgns/include/)
-            link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
-        endif ()
-    endif ()
-#  njord
-elseif (${hostname} STREQUAL "njord")
-    # nothing yet, but can add if needed
-#  all other systems
-elseif (${hostname} STREQUAL "default")
-    # include_directories($ENV{HOME}/codes/fftw3/include)
-    # link_directories($ENV{HOME}/codes/fftw3/lib)
-    # nothing yet, but can add if needed
-    if (USE_CGNS)
-        include_directories($ENV{HOME}/cgns/include/)
-        link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
-    endif ()
-endif ()
+    /act/cgns-3.3.0/mpich/gcc-4.7.2/include $ENV{HOME}/cgns/include/)
+set(library_search_paths /cm/shared/apps/Intel/fftw/3.3.4/lib
+    /opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib /usr/local/hdf5/lib
+    /usr/local/cgns/lib /act/fftw3/mpich/gcc-4.7.2/lib
+    /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.3.0/mpich/gcc-4.7.2/lib
+    $ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
 
+# FFTW
+find_path(fftw_include fftw3.f ${include_search_paths})
+include_directories(${fftw_include})
+find_library(fftw3_library fftw3 ${library_search_paths})
+link_libraries(${fftw3_library})
 
-if (USE_MPI)
-    add_definitions(-DPPMPI)
-    set (CMAKE_Fortran_COMPILER mpif90)
-    set(exec_name "${exec_name}-mpi")
-endif (USE_MPI)
-
-if (USE_CPS)
-    add_definitions(-DPPCPS)
-    set(exec_name "${exec_name}-cps")
-endif (USE_CPS)
-
-if (USE_HIT)
-    add_definitions(-DPPHIT)
-    set(exec_name "${exec_name}-HIT")
-endif (USE_HIT)
-
-if (USE_STREAKS)
-    add_definitions(-DPPSTREAKS)
-    set(exec_name "${exec_name}-streaks")
-endif (USE_STREAKS)
-
-if (USE_LVLSET)
-    add_definitions(-DPPLVLSET)
-    set(exec_name "${exec_name}-ls")
-endif (USE_LVLSET)
-
-if (USE_TURBINES)
-    add_definitions(-DPPTURBINES)
-    set(exec_name "${exec_name}-turbines")
-endif (USE_TURBINES)
-
-if (USE_ATM)
-    add_definitions(-DPPATM)
-    set(exec_name "${exec_name}-ATM")
-endif (USE_ATM)
-
-if (OUTPUT_EXTRA)
-    add_definitions(-DPPOUTPUT_EXTRA)
-    set(exec_name "${exec_name}-exout")
-endif (OUTPUT_EXTRA)
-
-if (USE_DYN_TN)
-    add_definitions(-DPPDYN_TN)
-    set(exec_name "${exec_name}-dyntn")
-endif (USE_DYN_TN)
-
-if (USE_SAFETYMODE)
-    add_definitions(-DPPSAFETYMODE)
-else (USE_SAFETYMODE)
-    set(exec_name "${exec_name}-safety_off")
-endif (USE_SAFETYMODE)
-
+# CGNS
 if (USE_CGNS)
-    add_definitions(-DPPCGNS)
-    link_libraries(cgns hdf5)
-    set(exec_name "${exec_name}-cgns")
+    find_path(cgns_include cgns.mod ${include_search_paths})
+    include_directories(${cgns_include})
+    find_library(cgns_library cgns ${library_search_paths})
+    link_libraries(${cgns_library})
+    find_library(hdf5_library hdf5 ${library_search_paths})
+    link_libraries(${hdf5_library})
 endif (USE_CGNS)
 
-if (WRITE_ENDIAN STREQUAL "LITTLE")
-    add_definitions(-DPPWRITE_LITTLE_ENDIAN)
-endif (WRITE_ENDIAN STREQUAL "LITTLE")
+# MPI
+if (USE_MPI)
+    set (CMAKE_Fortran_COMPILER mpif90)
+endif (USE_MPI)
 
-if (WRITE_ENDIAN STREQUAL "BIG")
-    add_definitions(-DPPWRITE_BIG_ENDIAN)
-endif (WRITE_ENDIAN STREQUAL "BIG")
-
-if (READ_ENDIAN STREQUAL "LITTLE")
-    add_definitions(-DPPREAD_LITTLE_ENDIAN)
-endif (READ_ENDIAN STREQUAL "LITTLE")
-
-if (READ_ENDIAN STREQUAL "BIG")
-    add_definitions(-DPPREAD_BIG_ENDIAN)
-endif (READ_ENDIAN STREQUAL "BIG")
-
-# Intel
+# Compiler flags
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    # Intel
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
-# GNU
-else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+else ()
+    # GNU
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall -fcheck=all")
-endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+endif ()
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
 add_subdirectory(src)

@@ -718,25 +718,24 @@ character (64) :: fname
 integer :: n, i, j, k
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 real(rprec), pointer, dimension(:) :: x, y, z, zw
-#ifndef PPCGNS
-character(64) :: bin_ext
-
+! Total force
 #ifdef PPLVLSET
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 #endif
-
 ! Vorticity
 real(rprec), dimension (:,:,:), allocatable :: vortx, vorty, vortz
-
 ! Pressure
 real(rprec), dimension(:,:,:), allocatable :: pres_real
-
+#ifndef PPCGNS
+character(64) :: bin_ext
 #ifdef PPMPI
 call string_splice(bin_ext, '.c', coord, '.bin')
 #else
 bin_ext = '.bin'
 #endif
 #endif
+
+
 
 ! Nullify pointers
 nullify(x,y,z,zw)
