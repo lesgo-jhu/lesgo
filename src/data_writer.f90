@@ -207,6 +207,9 @@ call mpi_type_commit(this%subarray_t, ierr)
 #endif
 #endif
 
+! Mark file as opened
+this%opened = .true.
+
 end subroutine open_file
 
 !*******************************************************************************
@@ -262,9 +265,6 @@ write(this%fid, rec=this%counter) field
 
 ! Increment counter
 this%counter = this%counter+1
-
-! Mark file as opened
-this%opened = .true.
 
 end subroutine write_field
 
