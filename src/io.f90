@@ -353,23 +353,17 @@ subroutine inst_write(itype)
 ! If additional instantenous values are
 ! desired to be written, they should be done so using this subroutine.
 !
-use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
-use param, only : point_nloc, point_loc
-use param, only : xplane_nloc, xplane_loc
-use param, only : yplane_nloc, yplane_loc
-use param, only : zplane_nloc, zplane_loc
-use param, only : dx, dy
-use param, only : write_endian
 use grid_m
-use sim_param, only : u, v, w, p
-use sim_param, only : dwdy, dwdx, dvdx, dudy
+use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
+use param, only : point_nloc, point_loc, xplane_nloc, xplane_loc
+use param, only : yplane_nloc, yplane_loc, zplane_nloc, zplane_loc
+use param, only : dx, dy, dz, write_endian
+use sim_param, only : u, v, w, p, dwdy, dwdx, dvdx, dudy
 use functions, only : interp_to_w_grid
+use stat_defs, only : xplane, yplane, zplane, point
 use data_writer
-
-use stat_defs, only : xplane, yplane
 #ifdef PPMPI
-use stat_defs, only : zplane, point
-use param, only : ny, nz, dz
+use param, only : ny, nz
 #endif
 #ifdef PPLVLSET
 use level_set_base, only : phi
@@ -562,10 +556,13 @@ elseif (itype==5) then
 
 #ifdef PPCGNS
         call string_concat(fname, '.cgns')
+#else
+        call string_concat(fname, '.bin')
 #endif
 
 #ifdef PPMPI
         if(zplane(k) % coord == coord) then
+#endif
             do j = 1, Ny
                 do i = 1, Nx
                     ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),       &
@@ -589,7 +586,6 @@ elseif (itype==5) then
 !                (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                   &
 !                (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /) )
 #else
-            call string_concat(fname, bin_ext)
             open(unit=13,file=fname,form='unformatted',convert=write_endian,   &
                             access='direct',recl=nx*ny*1*rprec)
             write(13,rec=1) ui(1:nx,1:ny,1)
@@ -608,6 +604,7 @@ elseif (itype==5) then
 !            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                            &
 !            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
 !#endif
+#ifdef PPMPI
         end if
 #endif
     end do

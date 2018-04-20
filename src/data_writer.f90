@@ -235,10 +235,12 @@ if (this%counter > this%num_fields) call error('data_write_t%write_field',     &
 
 #ifdef PPMPI
 #ifdef PPCGNS
+! Create the field
 call cgp_field_write_f(this%fid, this%base, this%zone, this%sol, RealDouble,   &
     field_name, sec, ierr)
 if (ierr .ne. CG_OK) call cgp_error_exit_f
 
+! Write data field
 call cgp_field_write_data_f(this%fid, this%base, this%zone, this%sol, sec,     &
     this%start_n, this%end_n, field(:,:,:this%nz_end), ierr)
 if (ierr .ne. CG_OK) call cgp_error_exit_f
@@ -250,16 +252,16 @@ offset = (this%counter-1)*this%nx*this%ny*nz_tot*rprec
 call mpi_file_set_view(this%fid, offset, MPI_RPREC, this%subarray_t,&
     write_endian, MPI_INFO_NULL, ierr)
 
-! Write data collectively and increment counter
+! Write data collectively
 call mpi_file_write_all(this%fid, field(:,:,:this%nz_end),                     &
     this%nx*this%ny*this%nz_end, MPI_RPREC, MPI_STATUS_IGNORE, ierr)
-this%counter = this%counter+1
 #endif
 #else
-! Write and increment counter
 write(this%fid, rec=this%counter) field
-this%counter = this%counter+1
 #endif
+
+! Increment counter
+this%counter = this%counter+1
 
 end subroutine write_field
 
