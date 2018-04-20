@@ -41,7 +41,7 @@ type data_writer_t
     integer :: nx, ny
     integer :: counter
 #ifdef PPMPI
-integer :: nz_end
+    integer :: nz_end
 #ifdef PPCGNS
     integer :: base = 1
     integer :: zone = 1
