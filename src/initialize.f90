@@ -24,9 +24,7 @@ subroutine initialize()
 ! This subroutine is a driver that calls all top-level initialization
 ! subroutines.
 !
-use param, only : rprec
-use param, only : path
-use param, only : USE_MPI, coord, dt, jt_total, nsteps
+use param, only : rprec, path, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use iwmles
 use param, only : lbc_mom
@@ -84,10 +82,6 @@ call initialize_mpi()
 #else
 if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
-    stop
-end if
-if (USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and CPP MPI flag'
     stop
 end if
 chcoord = ''

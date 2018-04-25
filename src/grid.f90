@@ -47,9 +47,8 @@ subroutine build(this)
 
 use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, lbz
 #ifdef PPMPI
-use param,only:nproc,coord
+use param, only : nproc, coord
 #endif
-implicit none
 
 class(grid_t) :: this
 integer :: i,j,k

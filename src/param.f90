@@ -66,10 +66,8 @@ character(*), parameter :: read_endian = 'NATIVE'
 !---------------------------------------------------
 #ifdef PPMPI
 integer :: status(MPI_STATUS_SIZE)
-logical, parameter :: USE_MPI = .true.
 integer, parameter :: lbz = 0  ! overlap level for MPI transfer
 #else
-logical, parameter :: USE_MPI = .false.
 integer, parameter :: lbz = 1  ! no overlap level necessary
 #endif
 

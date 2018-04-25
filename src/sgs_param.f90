@@ -21,6 +21,7 @@
 module sgs_param
 !*******************************************************************************
 use param, only : rprec
+implicit none
 
 save
 private rprec
@@ -29,11 +30,11 @@ public
 ! For all sgs models
 integer ::jt_count
 real(rprec) :: delta, nu
-real(rprec), dimension(:,:,:),allocatable :: S11, S12, S22, S33, S13, S23
+real(rprec), dimension(:,:,:), allocatable :: S11, S12, S22, S33, S13, S23
 ! eddy viscosity
-real(rprec), dimension(:,:,:),allocatable :: Nu_t
+real(rprec), dimension(:,:,:), allocatable :: Nu_t
 ! (C_s)^2, Dynamic Smag coeff
-real(rprec), dimension(:,:,:),allocatable :: Cs_opt2
+real(rprec), dimension(:,:,:), allocatable :: Cs_opt2
 real(rprec), dimension(:,:),  allocatable :: S
 
 ! For all dynamic models (2-5)
@@ -81,7 +82,6 @@ subroutine sgs_param_init ()
 use param, only : ld, ny, nz, lbz, molec, nu_molec, u_star,                    &
     z_i, dx, dy, dz, sgs_model
 use test_filtermodule, only : filter_size
-implicit none
 
 ! For all sgs models:
 allocate ( S11(ld,ny,nz) ); S11 = 0._rprec

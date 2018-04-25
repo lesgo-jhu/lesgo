@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2010-2017  Johns Hopkins University
+!!  Copyright (C) 2010-2018  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -24,10 +24,9 @@ module cfl_util
 ! This module provides the subroutines/functions for getting CFL related
 ! quantities
 !
-use param, only : rprec
-save
-private
+implicit none
 
+private
 public get_max_cfl, get_cfl_dt
 
 contains
@@ -39,19 +38,14 @@ function get_max_cfl() result(cfl)
 ! This function provides the value of the maximum CFL in the entire
 ! domain
 !
-use param, only : dt, dx, dy, dz, nx, ny, nz
-use sim_param, only : u,v,w
-
+use param, only : rprec, dt, dx, dy, dz, nx, ny, nz
+use sim_param, only : u, v, w
 #ifdef PPMPI
 use mpi
 use param, only : ierr, MPI_RPREC
 #endif
 
-implicit none
-real(rprec) :: cfl
-
-real(rprec) :: cfl_u, cfl_v, cfl_w
-
+real(rprec) :: cfl, cfl_u, cfl_v, cfl_w
 #ifdef PPMPI
 real(rprec) :: cfl_buf
 #endif
@@ -76,21 +70,14 @@ function get_cfl_dt() result(dt)
 ! This functions determines the maximum allowable time step based on the CFL
 ! value specified in the param module
 !
-use param, only : cfl, dx, dy, dz, nx, ny, nz
+use param, only : rprec, cfl, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
-
 #ifdef PPMPI
 use mpi
 use param, only : ierr, MPI_RPREC
 #endif
 
-implicit none
-
-real(rprec) :: dt
-
-! dt inverse
-real(rprec) :: dt_inv_u, dt_inv_v, dt_inv_w
-
+real(rprec) :: dt, dt_inv_u, dt_inv_v, dt_inv_w
 #ifdef PPMPI
 real(rprec) :: dt_buf
 #endif
