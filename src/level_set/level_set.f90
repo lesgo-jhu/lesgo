@@ -18,10 +18,9 @@
 !!
 
 module level_set
-use types, rp => rprec
 use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, path, L_x, L_y,   &
     vonK, lbc_mom, coord, nproc, up, down, ierr, comm, MPI_RPREC, rank,        &
-    total_time, rank, rank_of_coord
+    total_time, rank, rank_of_coord, rp=>rprec
 #ifdef PPMPI
 use param, only : status
 use mpi
@@ -271,7 +270,7 @@ subroutine level_set_vel_err()
 !  with respect to the desired IBM velocity (here zero). The averaged
 !  value is written to file
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : nx, ny, nz, total_time
 use sim_param, only : u, v, w
 #ifdef PPMPI

@@ -36,7 +36,7 @@ subroutine fringe_init( istart, iplateau, iend )
 ! Sets the beginning, ending and plateau index within the fringe
 ! region. Provides a common routine to do this.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : nx, fringe_region_end, fringe_region_len
 implicit none
 
@@ -62,7 +62,7 @@ function fringe_weighting( i, istart, iend ) result( w )
 ! velocity and u is the unmodulated velocity in the fringe region right
 ! after the projection step.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : pi
 implicit none
 

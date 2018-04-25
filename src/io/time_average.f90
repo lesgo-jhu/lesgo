@@ -19,7 +19,7 @@
 !*******************************************************************************
 module time_average
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : nx, ny, nz, lbz
 use data_writer
 #ifdef PPCGNS
@@ -95,7 +95,7 @@ allocate( this%fy(nx,ny,lbz:nz) )
 allocate( this%fz(nx,ny,lbz:nz) )
 allocate( this%cs_opt2(nx,ny,lbz:nz) )
 
-! Initialize the derived types tavg
+! Initialize the derived param tavg
 do k = 1, Nz
     do j = 1, Ny
     do i = 1, Nx
@@ -130,7 +130,7 @@ fname = ftavg_in
 call string_concat(fname, MPI_suffix, coord)
 #endif
 
-inquire (file=fname, exist=exst)
+inquire(file=fname, exist=exst)
 if (.not. exst) then
     !  Nothing to read in
     if (coord == 0) then

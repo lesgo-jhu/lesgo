@@ -26,7 +26,7 @@ subroutine convec
 ! Uses 3/2-rule for dealiasing for more info see Canuto 1991 Spectral Methods,
 ! chapter 7
 !
-use types, only : rprec
+use param, only : rprec
 use param
 use sim_param, only : u, v, w, dudy, dudz, dvdx, dvdz, dwdx, dwdy
 use sim_param, only : RHSx, RHSy, RHSz

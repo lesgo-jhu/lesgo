@@ -33,7 +33,7 @@ subroutine interpolag_Sdep()
 !   Lag. CFL in the x-direction is less than one this should generally
 !   be satisfied.
 
-use types, only : rprec
+use param, only : rprec
 use param
 use sgs_param, only: F_LM, F_MM, F_QN, F_NN, lagran_dt
 #ifdef PPDYN_TN

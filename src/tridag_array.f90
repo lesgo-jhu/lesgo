@@ -21,7 +21,6 @@
 !*******************************************************************************
 subroutine tridag_array (a, b, c, r, u)
 !*******************************************************************************
-use types, only : rprec
 use param
 implicit none
 
@@ -121,7 +120,7 @@ do q = 1, nchunks
         call mpi_send (bet(1, cstart), lh*chunksize, MPI_RPREC, up, tag0+2,    &
                        comm, ierr)
         call mpi_send (u(1, cstart, n-1), ld*chunksize, MPI_RPREC, up, tag0+3, &
-                       comm, ierr)                   
+                       comm, ierr)
     end if
 end do
 
@@ -130,7 +129,7 @@ do q = 1, nchunks
     cend = cstart + chunksize - 1
     tag0 = 0 + 10 * (q - 1)
 
-    if (coord /= nproc - 1) then  
+    if (coord /= nproc - 1) then
         ! wait for u(n), gam(n) from "up"
         call mpi_recv (u(1, cstart, n), ld*chunksize, MPI_RPREC, up, tag0+4,   &
                        comm, status, ierr)
@@ -165,7 +164,6 @@ end subroutine tridag_array
 !*******************************************************************************
 subroutine tridag_array(a, b, c, r, u)
 !*******************************************************************************
-use types, only : rprec
 use param
 implicit none
 

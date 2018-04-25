@@ -20,7 +20,7 @@
 !*******************************************************************************
 module concurrent_precursor
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 implicit none
 
 save
@@ -170,7 +170,7 @@ end subroutine initialize_cps
 !*******************************************************************************
 subroutine synchronize_cps()
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use messages
 use param, only : ny, nz
 use param, only : coord, rank_of_coord, status, ierr, MPI_RPREC
@@ -233,7 +233,7 @@ subroutine inflow_cond_cps ()
 !  generated from a precursor simulation. The inflow condition is
 !  enforced by direct modulation on the velocity in the fringe region.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : nx, ny, nz
 use sim_param, only : u, v, w
 use messages, only : error

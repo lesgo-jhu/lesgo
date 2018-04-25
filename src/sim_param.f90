@@ -19,7 +19,7 @@
 !*******************************************************************************
 module sim_param
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, ny, nz, lbz
 implicit none
 
@@ -34,6 +34,7 @@ real(rprec), dimension(:,:,:), allocatable :: u, v, w,                         &
     dpdx, dpdy, dpdz, txx, txy, tyy,                                           &
     txz, tyz, tzz, divtx, divty, divtz,                                        &
     fx, fy, fz, fxa, fya, fza
+real(rprec) :: ke
 real(rprec), target, dimension(:,:,:), allocatable :: p
 
 contains

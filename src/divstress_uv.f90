@@ -24,7 +24,7 @@ subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
 ! This subroutine provides divt for 1:nz. MPI provides 1:nz-1,
 ! except at top, where 1:nz is provided
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, ny, nz, BOGUS, lbz
 use derivatives, only : ddx, ddy, ddz_w,ddxy
 implicit none

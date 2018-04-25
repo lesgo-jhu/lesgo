@@ -24,7 +24,7 @@ subroutine std_dynamic(Cs_1D)
 ! Subroutine uses the standard dynamic model to calculate the Smagorinsky
 ! coefficient Cs_1D and |S|. This is done layer-by-layer to save memory.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, ny, nz, coord
 use test_filtermodule
 use sim_param, only : u, v, w

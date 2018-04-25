@@ -18,8 +18,8 @@
 !!
 
 module level_set_base
-use types, only : rp => rprec
-use types, only : rprec
+use param, only : rp => rprec
+use param, only : rprec
 use param, only : ld, ny, nz, dx, lbz
 implicit none
 
@@ -35,13 +35,13 @@ private :: rp, ld, ny, nz, dx, lbz
 logical :: global_CA_calc = .false. ! Compute global CA based on inflow velocity
 integer :: global_CA_nskip = 10     ! Number of time steps to skip between global CA writes
 
-!logical, parameter :: vel_BC = .false. 
+!logical, parameter :: vel_BC = .false.
 logical :: vel_BC = .false. !--means we are forcing velocity for
-                            !  level set BC  
+                            !  level set BC
                             !  (default = .false.)
 ! logical, parameter :: use_log_profile = .false.       !  (default = .false.)
 ! logical, parameter :: use_enforce_un = .false.        !  (default = .false.)
-! logical, parameter :: physBC = .true.                 !  (default = .true.)        
+! logical, parameter :: physBC = .true.                 !  (default = .true.)
 ! logical, parameter :: use_smooth_tau = .true.         !  (default = .true.)
 ! logical, parameter :: use_extrap_tau_log = .false.    !  (default = .false.)
 ! logical, parameter :: use_extrap_tau_simple = .true.  !  (default = .true.)
@@ -50,7 +50,7 @@ logical :: vel_BC = .false. !--means we are forcing velocity for
 !                                                   !  (default = .false.)
 logical :: use_log_profile = .false.       !  (default = .false.)
 logical :: use_enforce_un = .false.        !  (default = .false.)
-logical :: physBC = .true.                 !  (default = .true.)        
+logical :: physBC = .true.                 !  (default = .true.)
 logical :: use_smooth_tau = .true.         !  (default = .true.)
 logical :: use_extrap_tau_log = .false.    !  (default = .false.)
 logical :: use_extrap_tau_simple = .true.  !  (default = .true.)

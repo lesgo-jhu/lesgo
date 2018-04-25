@@ -27,7 +27,7 @@ module messages
 !   error:      writes an error message and aborts the program
 !   mesg:       writes a simple message
 !
-use types, only : rprec
+use param, only : rprec
 #ifdef PPMPI
 use mpi
 #endif

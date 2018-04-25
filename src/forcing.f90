@@ -51,7 +51,7 @@ subroutine forcing_random()
 ! trigger transition at low Re DNS. The forces are applied to RHS in
 ! evaluation of u* (not at wall) so that mass conservation is preserved.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : nx,ny,nz,rms_random_force
 use sim_param, only : RHSy, RHSz
 
@@ -84,7 +84,7 @@ subroutine forcing_applied()
 !  which are explicitly applied forces. These forces are applied to RHS
 !  in the evaluation of u* so that mass conservation is preserved.
 !
-use types, only : rprec
+use param, only : rprec
 
 #ifdef PPTURBINES
 use sim_param, only : fxa, fya, fza
@@ -127,7 +127,7 @@ subroutine forcing_induced()
 !  non-induced forces such as explicitly applied forces they should be
 !  placed in forcing_applied.
 !
-use types, only : rprec
+use param, only : rprec
 #ifdef PPLVLSET
 use level_set, only : level_set_forcing
 use sim_param, only : fx, fy, fz
@@ -152,7 +152,7 @@ subroutine inflow_cond ()
 !  Enforces prescribed inflow condition based on an uniform inflow
 !  velocity.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : inflow_velocity, nx, ny, nz
 use sim_param, only : u, v, w
 use messages, only : error

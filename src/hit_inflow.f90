@@ -23,7 +23,7 @@ module hit_inflow
 ! This module provides homogenous isotrophic inflow for lesgo
 
 ! Real precision from LESGO
-use types, only : rprec
+use param, only : rprec
 
 ! Data from LESGO
 use param, only : ny, nz, dt

@@ -40,7 +40,7 @@ subroutine ddx(f,dfdx,lbz)
 ! This subroutine computes the partial derivative of f with respect to
 ! x using spectral decomposition.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, nx, ny, nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
@@ -82,7 +82,7 @@ subroutine ddy(f,dfdy, lbz)
 ! This subroutine computes the partial derivative of f with respect to
 ! y using spectral decomposition.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, nx, ny, nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
@@ -124,7 +124,7 @@ subroutine ddxy (f, dfdx, dfdy, lbz)
 ! This subroutine computes the partial derivative of f with respect to
 ! x and y using spectral decomposition.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, nx, ny, nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
@@ -169,7 +169,7 @@ subroutine filt_da(f,dfdx,dfdy, lbz)
 ! This subroutine kills the oddball components in f and computes the partial
 ! derivative of f with respect to x and y using spectral decomposition.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, nx, ny, nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
@@ -220,7 +220,7 @@ subroutine ddz_uv(f, dfdz, lbz)
 ! touched. The MPI version provides dfdz(:,:,1:nz), except at the bottom
 ! process it only supplies 2:nz
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : nx, ny, nz, dz, BOGUS
 #ifdef PPSAFETYMODE
 use param, only : nproc, coord
@@ -273,7 +273,7 @@ subroutine ddz_w(f, dfdz, lbz)
 ! touched. The MPI version provides dfdz(:,:,0:nz-1), except at the top and
 ! bottom processes, which each has has 0:nz, and 1:nz-1, respectively.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : nx, ny, nz, dz, BOGUS
 #ifdef PPSAFETYMODE
 #ifdef PPMPI

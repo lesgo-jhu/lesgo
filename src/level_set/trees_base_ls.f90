@@ -20,7 +20,7 @@
 !**********************************************************************
 module trees_base_ls
 !**********************************************************************
-use types, only : rp => rprec
+use param, only : rp => rprec
 !use precision
 use messages
 implicit none
@@ -221,7 +221,7 @@ contains
 function cross_product (a, b)
 !**********************************************************************
 !
-!  This function computes the cross product of vectors a and b (a x b) 
+!  This function computes the cross product of vectors a and b (a x b)
 !  with dimensions nd.
 !
 
@@ -335,8 +335,8 @@ end subroutine grid_initialize
 !**********************************************************************
 function grid_nearest_of_pt (x, d, node)
 !**********************************************************************
-! 
-! This function finds nearest grid point corresponding to real position 
+!
+! This function finds nearest grid point corresponding to real position
 ! x must be a better way to combine the following 2 routines.
 !
 
@@ -420,8 +420,8 @@ end function mag
 function pt_of_grid (i, d, node)
 !***************************************************************
 !  This subroutine computes the x,y,z location for the entire domain.
-!  The partitions in the z direction are handled by passing in the 
-!  global node value in the z direction. 
+!  The partitions in the z direction are handled by passing in the
+!  global node value in the z direction.
 !
 !  Inputs:
 !

@@ -25,7 +25,7 @@ module iwmles
 ! See Yang et al. 2015 for more details
 !
 
-use types, only : rprec
+use param, only : rprec
 
 implicit none
 
@@ -131,7 +131,7 @@ subroutine iwm_init
 ! This subroutine allocates memory and initializes everything with plug flow
 ! conditions
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : nx, ny, dz, vonk, zo, cfl, L_x
 
 implicit none
@@ -272,7 +272,7 @@ subroutine iwm_calc_lhs()
 ! Ths subroutine calculates the left hand side of the iwm system.
 !
 use grid_m, only : grid
-use types,only : rprec
+use param,only : rprec
 use param,only : nx,ny,dx,dy,ld
 use sim_param,only : u,v,w,p
 use test_filtermodule
@@ -423,7 +423,7 @@ end subroutine iwm_calc_lhs
 !*******************************************************************************
 subroutine iwm_slv(lhsx,lhsy,Ux,Uy,Dz,z0,utx,uty,fx,fy)
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : vonk
 implicit none
 
@@ -444,7 +444,7 @@ end subroutine iwm_slv
 !*******************************************************************************
 subroutine iwm_calc_wallstress
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : vonk, nx, ny
 use test_filtermodule
 

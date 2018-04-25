@@ -32,7 +32,7 @@ subroutine interpolag_Ssim ()
 !   the Lagrangian CFL in the z-direction will never exceed 1.  If the
 !   Lag. CFL in the x-direction is less than one this should generally
 !   be satisfied.
-use types, only : rprec
+use param, only : rprec
 use param
 use sgs_param, only: F_LM, F_MM, lagran_dt
 #ifdef PPDYN_TN

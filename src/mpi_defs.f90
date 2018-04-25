@@ -44,7 +44,7 @@ contains
 !*******************************************************************************
 subroutine initialize_mpi()
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param
 #ifdef PPCPS
 use concurrent_precursor
@@ -139,7 +139,7 @@ subroutine mpi_sync_real_array( var, lbz, isync )
 !         MPI_SYNC_DOWN, MPI_SYNC_UP, or MPI_SYNC_DOWNUP from the MPI_DEFS
 !         module.
 !
-use types, only : rprec
+use param, only : rprec
 use mpi
 use param, only : MPI_RPREC, down, up, comm, status, ierr, nz
 use messages

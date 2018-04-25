@@ -19,8 +19,7 @@
 !*******************************************************************************
 module data_writer
 !*******************************************************************************
-use types, only : rprec
-use param, only : write_endian, nz, nz_tot
+use param, only : rprec, write_endian, nz, nz_tot
 use messages
 #ifdef PPMPI
 use mpi

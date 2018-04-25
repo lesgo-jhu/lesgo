@@ -23,7 +23,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module linear_simple
 !use precision
-use types, only : rp => rprec
+use param, only : rp => rprec
 use messages
 implicit none
 
@@ -143,12 +143,12 @@ end if
 END FUNCTION assert_eq4
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Given an N × N input matrix a, this routine replaces it by the LU 
-! decomposition of a rowwise permutation of itself. On output, a is 
+! Given an N × N input matrix a, this routine replaces it by the LU
+! decomposition of a rowwise permutation of itself. On output, a is
 ! arranged as in equation (2.3.14); indx is an output vector of
 ! length N that records the row permutation effected by the partial
-! pivoting: d is output as ±1 depending on whether the number of row 
-! interchanges was even or odd, respectively. This routine is used in 
+! pivoting: d is output as ±1 depending on whether the number of row
+! interchanges was even or odd, respectively. This routine is used in
 ! combination with lubksb to solve linear equations or invert a matrix.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine ludcmp (a, indx, d)
@@ -188,7 +188,7 @@ do j = 1, n
   ! do we need to interchange rows?
   if (j /= imax) then  ! yes
 
-    ! interchange row, change d, and interchange scale factor 
+    ! interchange row, change d, and interchange scale factor
     call swap (a(imax, :), a(j, :))
     d = -d
     vv(imax) = vv(j)
@@ -199,7 +199,7 @@ do j = 1, n
 
   ! If the pivot element is zero the matrix is singular (at least
   ! to the precision of the algorithm). For some applications on
-  ! singular matrices, it is desirable to substitute TINY for zero. 
+  ! singular matrices, it is desirable to substitute TINY for zero.
   if (a(j, j) == 0.0_rp) a(j, j) = TINY
 
   ! divide by the pivot element
@@ -216,9 +216,9 @@ end subroutine ludcmp
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Solves the set of N linear equations AX = B. Here the N × N matrix a
 ! is input, not as the original matrix A, but rather as its LU
-! decomposition, determined by the routine ludcmp. 
+! decomposition, determined by the routine ludcmp.
 ! indx is input as the permutation vector of length N returned by ludcmp
-! b is input as the right-hand-side vector B, also of length N, and 
+! b is input as the right-hand-side vector B, also of length N, and
 ! returns with the solution vector X.
 ! a and indx are not modified by this routine and can be left in place
 ! for successive calls with di
@@ -228,7 +228,7 @@ IMPLICIT NONE
 
 REAL(RP), DIMENSION(:,:), INTENT(IN) :: a
 INTEGER, DIMENSION(:), INTENT(IN) :: indx
-REAL(RP), DIMENSION(:), INTENT(INOUT) :: b 
+REAL(RP), DIMENSION(:), INTENT(INOUT) :: b
 
 INTEGER :: i,n,ii,ll
 REAL(RP) :: summ
@@ -237,8 +237,8 @@ REAL(RP) :: summ
 
 n=assert_eq(size(a,1),size(a,2),size(indx),'lubksb')
 
-ii=0 
-! When ii is set to a positive value, it will become the index of the 
+ii=0
+! When ii is set to a positive value, it will become the index of the
 ! first nonvanishing element of b. We now do the forward substitution,
 ! equation (2.3.6). The only new wrinkle is to unscramble the
 ! permutation as we go.
@@ -255,8 +255,8 @@ do i=1,n
 
   else if (summ /= 0.0) then
 
-    ii=i 
-    ! a nonzero element was encountered, so from now on we will have 
+    ii=i
+    ! a nonzero element was encountered, so from now on we will have
     ! to do the dot product above
 
   end if
@@ -265,7 +265,7 @@ do i=1,n
 
 end do
 
-do i=n,1,-1 
+do i=n,1,-1
 
   ! now we do the backsubstitution, equation (2.3.7)
   b(i) = (b(i) - dot_product(a(i,i+1:n),b(i+1:n))) / a(i,i)

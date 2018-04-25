@@ -24,7 +24,7 @@ subroutine initialize()
 ! This subroutine is a driver that calls all top-level initialization
 ! subroutines.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : path
 use param, only : USE_MPI, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star

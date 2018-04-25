@@ -19,12 +19,12 @@
 !*******************************************************************************
 module io
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, nx, ny, nz, nz_tot, path, coord, rank, nproc, jt_total
 use param, only : total_time, total_time_dim, lbz, jzmin, jzmax
 use param, only : cumulative_time, fcumulative_time
-use sim_param , only : w, dudz, dvdz
-use sgs_param , only : Cs_opt2
+use sim_param, only : w, dudz, dvdz
+use sgs_param, only : Cs_opt2
 use string_util
 use messages
 use time_average
@@ -43,14 +43,35 @@ implicit none
 save
 private
 
-public jt_total, openfiles, energy, output_loop, output_final, output_init,    &
+public jt_total, openfiles, output_loop, output_final, output_init,            &
     write_tau_wall_bot, write_tau_wall_top
+
+type point_t
+    integer :: istart, jstart, kstart, coord
+    real(rprec) :: xdiff, ydiff, zdiff
+    integer :: fid
+end type point_t
+
+type plane_t
+    integer :: istart
+    real(rprec) :: ldiff
+end type plane_t
+
+type zplane_t
+    integer :: istart, coord
+    real(rprec) :: ldiff
+end type zplane_t
 
 ! Where to end with nz index.
 integer :: nz_end
 
 ! time averaging
 type(tavg_t) :: tavg
+
+! Create param for outputting data
+type(point_t), allocatable, dimension(:) :: point
+type(plane_t), allocatable, dimension(:) :: xplane, yplane
+type(zplane_t), allocatable, dimension(:) :: zplane
 
 contains
 
@@ -90,15 +111,15 @@ end if
 end subroutine openfiles
 
 !*******************************************************************************
-subroutine energy (ke)
+subroutine energy ()
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param
-use sim_param, only : u, v, w
+use sim_param, only : u, v, w, ke
 use messages
 implicit none
 integer :: jx, jy, jz, nan_count
-real(rprec)::KE,temp_w
+real(rprec) :: temp_w
 #ifdef PPMPI
 real(rprec) :: ke_global
 #endif
@@ -137,9 +158,9 @@ end subroutine energy
 !*******************************************************************************
 subroutine write_tau_wall_bot()
 !*******************************************************************************
-use types ,only: rprec
-use param ,only: jt_total, total_time, total_time_dim, dt, dt_dim, wbase
-use param ,only: L_x, z_i, u_star
+use param, only: rprec
+use param, only: jt_total, total_time, total_time_dim, dt, dt_dim, wbase
+use param, only: L_x, z_i, u_star
 use functions ,only: get_tau_wall_bot
 implicit none
 
@@ -150,11 +171,11 @@ turnovers = total_time_dim / (L_x * z_i / u_star)
 open(2,file=path // 'output/tau_wall_bot.dat', status='unknown',               &
     form='formatted', position='append')
 
-!! one time header output
+! one time header output
 if (jt_total==wbase) write(2,*)                                                &
     'jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, tau_wall'
 
-!! continual time-related output
+! continual time-related output
 write(2,*) jt_total, total_time, total_time_dim, turnovers, dt, dt_dim,        &
     1.0, get_tau_wall_bot()
 close(2)
@@ -164,7 +185,7 @@ end subroutine write_tau_wall_bot
 !*******************************************************************************
 subroutine write_tau_wall_top()
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : jt_total, total_time, total_time_dim, dt, dt_dim, wbase
 use param, only : L_x, z_i, u_star
 use functions, only : get_tau_wall_top
@@ -197,6 +218,7 @@ subroutine output_loop()
 !  calculations are performed here.
 !
 use param, only : jt_total, dt
+use param, only : nenergy
 use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
 use param, only : point_calc, point_nstart, point_nend, point_nskip
@@ -211,6 +233,9 @@ if( checkpoint_data ) then
     ! Now check if data should be checkpointed this time step
     if ( modulo (jt_total, checkpoint_nskip) == 0) call checkpoint()
 end if
+
+! Write ke to file
+if (modulo (jt_total, nenergy) == 0) call energy()
 
 !  Determine if time summations are to be calculated
 if (tavg_calc) then
@@ -240,7 +265,7 @@ if (tavg_calc) then
 end if
 
 !  Determine if instantaneous point velocities are to be recorded
-if(point_calc) then
+if (point_calc) then
     if (jt_total >= point_nstart .and. jt_total <= point_nend .and.            &
         ( mod(jt_total-point_nstart,point_nskip)==0) ) then
         if (jt_total == point_nstart) then
@@ -253,12 +278,12 @@ if(point_calc) then
                 write(*,*) '-------------------------------'
             end if
         end if
-        call inst_write(1)
+        call write_points
     end if
 end if
 
 !  Determine if instantaneous domain velocities are to be recorded
-if(domain_calc) then
+if (domain_calc) then
     if (jt_total >= domain_nstart .and. jt_total <= domain_nend .and.          &
         ( mod(jt_total-domain_nstart,domain_nskip)==0) ) then
         if (jt_total == domain_nstart) then
@@ -272,12 +297,12 @@ if(domain_calc) then
             end if
 
         end if
-        call inst_write(2)
+        call write_domain
     end if
 end if
 
 !  Determine if instantaneous x-plane velocities are to be recorded
-if(xplane_calc) then
+if (xplane_calc) then
     if (jt_total >= xplane_nstart .and. jt_total <= xplane_nend .and.          &
         ( mod(jt_total-xplane_nstart,xplane_nskip)==0) ) then
     if (jt_total == xplane_nstart) then
@@ -291,12 +316,12 @@ if(xplane_calc) then
             end if
         end if
 
-        call inst_write(3)
+        call write_xplanes
     end if
 end if
 
 !  Determine if instantaneous y-plane velocities are to be recorded
-if(yplane_calc) then
+if (yplane_calc) then
     if (jt_total >= yplane_nstart .and. jt_total <= yplane_nend .and.          &
         ( mod(jt_total-yplane_nstart,yplane_nskip)==0) ) then
         if (jt_total == yplane_nstart) then
@@ -310,12 +335,12 @@ if(yplane_calc) then
             end if
         end if
 
-        call inst_write(4)
+        call write_yplanes
     end if
 end if
 
 !  Determine if instantaneous z-plane velocities are to be recorded
-if(zplane_calc) then
+if (zplane_calc) then
     if (jt_total >= zplane_nstart .and. jt_total <= zplane_nend .and.          &
         ( mod(jt_total-zplane_nstart,zplane_nskip)==0) ) then
         if (jt_total == zplane_nstart) then
@@ -329,80 +354,22 @@ if(zplane_calc) then
             end if
         end if
 
-        call inst_write(5)
+        call write_zplanes
     end if
 end if
 
 end subroutine output_loop
 
 !*******************************************************************************
-subroutine inst_write(itype)
+subroutine write_points
 !*******************************************************************************
-!
-! This subroutine is used to write all of the instantaneous data from
-! lesgo to file. The types of data written are:
-!
-!   points   : itype=1
-!   domain   : itype=2
-!   x-planes : itype=3
-!   y-planes : itype=4
-!   z-planes : itype=5
-!
-! For the points and planar data, this subroutine writes using the
-! locations specfied from the param module.
-! If additional instantenous values are
-! desired to be written, they should be done so using this subroutine.
-!
-use grid_m
-use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
-use param, only : point_nloc, point_loc, xplane_nloc, xplane_loc
-use param, only : yplane_nloc, yplane_loc, zplane_nloc, zplane_loc
-use param, only : dx, dy, dz, write_endian
-use sim_param, only : u, v, w, p, dwdy, dwdx, dvdx, dudy
-use functions, only : interp_to_w_grid
-use stat_defs, only : xplane, yplane, zplane, point
-use data_writer
-#ifdef PPMPI
-use param, only : ny, nz
-#endif
-#ifdef PPLVLSET
-use level_set_base, only : phi
-use sim_param, only : fx, fy, fz, fxa, fya, fza
-#endif
+use functions, only : interp_to_uv_grid, trilinear_interp
+use param, only : point_nloc, point_loc
+use sim_param, only : u, v, w
 
-implicit none
-
-type(data_writer_t) :: dw
-integer, intent(in) :: itype
+integer :: n
 character (64) :: fname
-integer :: n, i, j, k
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
-real(rprec), pointer, dimension(:) :: x, y, z, zw
-! Total force
-#ifdef PPLVLSET
-real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
-#endif
-! Vorticity
-real(rprec), dimension (:,:,:), allocatable :: vortx, vorty, vortz
-! Pressure
-real(rprec), dimension(:,:,:), allocatable :: pres_real
-#ifndef PPCGNS
-character(64) :: bin_ext
-#ifdef PPMPI
-call string_splice(bin_ext, '.c', coord, '.bin')
-#else
-bin_ext = '.bin'
-#endif
-#endif
-
-! Nullify pointers
-nullify(x,y,z,zw)
-
-! Set grid pointers
-x => grid % x
-y => grid % y
-z => grid % z
-zw => grid % zw
+real(rprec), dimension(:,:,:), allocatable :: w_uv
 
 !  Allocate space for the interpolated w values
 allocate(w_uv(nx,ny,lbz:nz))
@@ -410,188 +377,256 @@ allocate(w_uv(nx,ny,lbz:nz))
 !  Make sure w has been interpolated to uv-grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
-!  Instantaneous velocity sampled at point
-if(itype==1) then
-    do n = 1, point_nloc
-        ! Common file name for all output types
-        call string_splice(fname, path // 'output/vel.x-', point_loc(n)%xyz(1),&
-            '.y-', point_loc(n)%xyz(2), '.z-', point_loc(n)%xyz(3), '.dat')
+do n = 1, point_nloc
+    ! Common file name for all output param
+    call string_splice(fname, path // 'output/vel.x-', point_loc(n)%xyz(1),&
+        '.y-', point_loc(n)%xyz(2), '.z-', point_loc(n)%xyz(3), '.dat')
 
-#ifdef PPMPI
-        if(point(n) % coord == coord) then
-#endif
-            open(unit=13, position="append", file=fname)
-            write(13,*) total_time,                                            &
-            trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),      &
-            trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),      &
-            trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
-            close(13)
-#ifdef PPMPI
-        end if
-#endif
-    end do
-
-!  Instantaneous write for entire domain
-elseif(itype==2) then
-    ! Velocity
-    call string_splice(fname, path //'output/vel.', jt_total)
-    call dw%open_file(fname, nx, ny, x(1:nx), y(1:ny), z(1:nz), 3)
-    call dw%write_field(u(1:nx,1:ny,1:nz), 'VelocityX')
-    call dw%write_field(v(1:nx,1:ny,1:nz), 'VelocityY')
-    call dw%write_field(w_uv(1:nx,1:ny,1:nz), 'VelocityZ')
-    call dw%close_file
-
-    ! Vorticity
-    ! Use vorticityx as an intermediate step for performing uv-w interpolation
-    ! Vorticity is written in w grid
-    allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
-    vortx(1:nx,1:ny,lbz:nz) = 0._rprec
-    vorty(1:nx,1:ny,lbz:nz) = 0._rprec
-    vortz(1:nx,1:ny,lbz:nz) = 0._rprec
-    vortx(1:nx,1:ny,lbz:nz) = dvdx(1:nx,1:ny,lbz:nz) - dudy(1:nx,1:ny,lbz:nz)
-    vortz(1:nx,1:ny,lbz:nz) = interp_to_w_grid( vortx(1:nx,1:ny,lbz:nz), lbz)
-    vortx(1:nx,1:ny,lbz:nz) = dwdy(1:nx,1:ny,lbz:nz) - dvdz(1:nx,1:ny,lbz:nz)
-    vorty(1:nx,1:ny,lbz:nz) = dudz(1:nx,1:ny,lbz:nz) - dwdx(1:nx,1:ny,lbz:nz)
-    if (coord == 0) then
-        vortz(1:nx,1:ny, 1) = 0._rprec
+    if (point(n)%coord == coord) then
+        open(unit=13, position="append", file=fname)
+        write(13,*) total_time,                                                &
+        trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+        trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+        trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
+        close(13)
     end if
+end do
 
-    call string_splice(fname, path //'output/vort.', jt_total)
-    call dw%open_file(fname, nx, ny, x(1:nx), y(1:ny), z(1:nz), 3)
-    call dw%write_field(u(1:nx,1:ny,1:nz), 'VorticityX')
-    call dw%write_field(v(1:nx,1:ny,1:nz), 'VorticityY')
-    call dw%write_field(w_uv(1:nx,1:ny,1:nz), 'VorticityZ')
-    call dw%close_file
+deallocate(w_uv)
 
-    deallocate(vortx, vorty, vortz)
+end subroutine write_points
 
-    ! Real pressure
-    allocate(pres_real(nx,ny,lbz:nz))
-    pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
-    pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                          &
-        - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2                                       &
-        + interp_to_uv_grid( w(1:nx,1:ny,lbz:nz), lbz)**2                      &
-        + v(1:nx,1:ny,lbz:nz)**2 )
+!*******************************************************************************
+subroutine write_domain
+!*******************************************************************************
+use grid_m
+use functions, only : interp_to_w_grid, interp_to_uv_grid, trilinear_interp
+use sim_param, only : u, v, w, dvdx, dudy, dwdy, dvdz, dudz, dwdx, p
+use data_writer
 
-        call string_splice(fname, path //'output/pres.', jt_total)
-    call dw%open_file(fname, nx, ny, x(1:nx), y(1:ny), z(1:nz), 1)
-    call dw%write_field(u(1:nx,1:ny,1:nz), 'Pressure')
-    call dw%close_file
+character (64) :: fname
+real(rprec), dimension(:,:,:), allocatable :: w_uv
+type(data_writer_t) :: dw
+! Vorticity
+real(rprec), dimension (:,:,:), allocatable :: vortx, vorty, vortz
+! Pressure
+real(rprec), dimension(:,:,:), allocatable :: pres_real
 
-    call string_splice(fname, path //'output/pres.', jt_total)
+!  Allocate space for the interpolated w values
+allocate(w_uv(nx,ny,lbz:nz))
 
-    deallocate(pres_real)
+!  Make sure w has been interpolated to uv-grid
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
-!  Write instantaneous x-plane values
-elseif(itype==3) then
+! Velocity
+call string_splice(fname, path //'output/vel.', jt_total)
+call dw%open_file(fname, nx, ny, grid%x(1:nx), grid%y(1:ny), grid%z(1:nz), 3)
+call dw%write_field(u(1:nx,1:ny,1:nz), 'VelocityX')
+call dw%write_field(v(1:nx,1:ny,1:nz), 'VelocityY')
+call dw%write_field(w_uv(1:nx,1:ny,1:nz), 'VelocityZ')
+call dw%close_file
 
-    allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
+! Vorticity
+! Use vorticityx as an intermediate step for performing uv-w interpolation
+! Vorticity is written in w grid
+allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
+vortx(1:nx,1:ny,lbz:nz) = 0._rprec
+vorty(1:nx,1:ny,lbz:nz) = 0._rprec
+vortz(1:nx,1:ny,lbz:nz) = 0._rprec
+vortx(1:nx,1:ny,lbz:nz) = dvdx(1:nx,1:ny,lbz:nz) - dudy(1:nx,1:ny,lbz:nz)
+vortz(1:nx,1:ny,lbz:nz) = interp_to_w_grid( vortx(1:nx,1:ny,lbz:nz), lbz)
+vortx(1:nx,1:ny,lbz:nz) = dwdy(1:nx,1:ny,lbz:nz) - dvdz(1:nx,1:ny,lbz:nz)
+vorty(1:nx,1:ny,lbz:nz) = dudz(1:nx,1:ny,lbz:nz) - dwdx(1:nx,1:ny,lbz:nz)
+if (coord == 0) then
+    vortz(1:nx,1:ny, 1) = 0._rprec
+end if
 
-    !  Loop over all xplane locations
-    do i = 1, xplane_nloc
-        do k = 1, nz
-            do j = 1, ny
-                ui(1,j,k) = linear_interp(u(xplane(i) % istart,j,k),    &
-                     u(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
-                vi(1,j,k) = linear_interp(v(xplane(i) % istart,j,k),    &
-                     v(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
-                wi(1,j,k) = linear_interp(w_uv(xplane(i) % istart,j,k), &
-                     w_uv(xplane(i) % istart+1,j,k), dx, &
-                     xplane(i) % ldiff)
-            end do
+call string_splice(fname, path //'output/vort.', jt_total)
+call dw%open_file(fname, nx, ny, grid%x(1:nx), grid%y(1:ny), grid%z(1:nz), 3)
+call dw%write_field(u(1:nx,1:ny,1:nz), 'VorticityX')
+call dw%write_field(v(1:nx,1:ny,1:nz), 'VorticityY')
+call dw%write_field(w_uv(1:nx,1:ny,1:nz), 'VorticityZ')
+call dw%close_file
+
+deallocate(vortx, vorty, vortz)
+
+! Real pressure
+allocate(pres_real(nx,ny,lbz:nz))
+pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
+pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz) - 0.5*(u(1:nx,1:ny,lbz:nz)**2&
+    + interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)**2 + v(1:nx,1:ny,lbz:nz)**2)
+call string_splice(fname, path //'output/pres.', jt_total)
+call dw%open_file(fname, nx, ny, grid%x(1:nx), grid%y(1:ny), grid%z(1:nz), 1)
+call dw%write_field(u(1:nx,1:ny,1:nz), 'Pressure')
+call dw%close_file
+
+call string_splice(fname, path //'output/pres.', jt_total)
+
+deallocate(pres_real, w_uv)
+
+end subroutine write_domain
+
+!*******************************************************************************
+subroutine write_xplanes
+!*******************************************************************************
+use grid_m
+use functions, only : linear_interp, interp_to_uv_grid
+use data_writer
+use param, only : dx, nx, ny, nz, xplane_nloc, xplane_loc
+use sim_param, only : u, v, w
+
+type(data_writer_t) dw
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, w_uv
+integer :: i, j, k
+character (64) :: fname
+
+! Allocate space for the interpolated values
+allocate(w_uv(nx,ny,lbz:nz))
+allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
+
+! Make sure w has been interpolated to uv-grid
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+
+! Loop over all xplane locations
+do i = 1, xplane_nloc
+    do k = 1, nz
+        do j = 1, ny
+            ui(1,j,k) = linear_interp(u(xplane(i)%istart,j,k),                 &
+                 u(xplane(i)%istart+1,j,k), dx, xplane(i)%ldiff)
+            vi(1,j,k) = linear_interp(v(xplane(i)%istart,j,k),                 &
+                 v(xplane(i)%istart+1,j,k), dx, xplane(i)%ldiff)
+            wi(1,j,k) = linear_interp(w_uv(xplane(i)%istart,j,k),              &
+                 w_uv(xplane(i)%istart+1,j,k), dx, xplane(i)%ldiff)
         end do
-
-        ! Write
-        call string_splice(fname, path // 'output/vel.x-', xplane_loc(i), '.', &
-            jt_total)
-        call dw%open_file(fname, 1, ny, xplane_loc(i:i), y(1:ny), z(1:nz), 3)
-        call dw%write_field(ui(1:1,1:ny,1:nz), 'VelocityX')
-        call dw%write_field(vi(1:1,1:ny,1:nz), 'VelocityY')
-        call dw%write_field(wi(1:1,1:ny,1:nz), 'VelocityZ')
-        call dw%close_file
     end do
 
-    deallocate(ui,vi,wi)
+    ! Write
+    call string_splice(fname, path // 'output/vel.x-', xplane_loc(i), '.', &
+        jt_total)
+    call dw%open_file(fname, 1, ny, xplane_loc(i:i), grid%y(1:ny),             &
+        grid%z(1:nz), 3)
+    call dw%write_field(ui(1:1,1:ny,1:nz), 'VelocityX')
+    call dw%write_field(vi(1:1,1:ny,1:nz), 'VelocityY')
+    call dw%write_field(wi(1:1,1:ny,1:nz), 'VelocityZ')
+    call dw%close_file
+end do
 
-!  Write instantaneous y-plane values
-elseif(itype==4) then
+deallocate(ui, vi, wi, w_uv)
 
-    allocate(ui(nx,1,nz), vi(nx,1,nz), wi(nx,1,nz))
+end subroutine write_xplanes
 
-    !  Loop over all yplane locations
-    do j = 1, yplane_nloc
-        do k = 1, nz
-            do i = 1, nx
-                ui(i,1,k) = linear_interp(u(i,yplane(j) % istart,k),           &
-                     u(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
-                vi(i,1,k) = linear_interp(v(i,yplane(j) % istart,k),           &
-                     v(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
-                wi(i,1,k) = linear_interp(w_uv(i,yplane(j) % istart,k),        &
-                     w_uv(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
-            end do
+!*******************************************************************************
+subroutine write_yplanes
+!*******************************************************************************
+use grid_m
+use functions, only : linear_interp, interp_to_uv_grid
+use data_writer
+use param, only : dy, nx, ny, nz, yplane_nloc, yplane_loc
+use sim_param, only : u, v, w
+
+type(data_writer_t) dw
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, w_uv
+integer :: i, j, k
+character (64) :: fname
+
+!  Allocate space for the interpolated values
+allocate(w_uv(nx,ny,lbz:nz))
+allocate(ui(nx,1,nz), vi(nx,1,nz), wi(nx,1,nz))
+
+!  Make sure w has been interpolated to uv-grid
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+
+!  Loop over all xplane locations
+do j = 1, yplane_nloc
+    do k = 1, nz
+        do i = 1, nx
+            ui(i,1,k) = linear_interp(u(i,yplane(j)%istart,k),                 &
+                     u(i,yplane(j)%istart+1,k), dy, yplane(j)%ldiff)
+            vi(i,1,k) = linear_interp(v(i,yplane(j)%istart,k),                 &
+                 v(i,yplane(j)%istart+1,k), dy, yplane(j)%ldiff)
+            wi(i,1,k) = linear_interp(w_uv(i,yplane(j)%istart,k),              &
+                 w_uv(i,yplane(j)%istart+1,k), dy, yplane(j)%ldiff)
         end do
-
-        ! Write
-        call string_splice(fname, path // 'output/vel.y-', yplane_loc(j), '.', &
-             jt_total)
-        call dw%open_file(fname, nx, 1, x(1:nx), yplane_loc(j:j), z(1:nz), 3)
-        call dw%write_field(ui(1:nx,1:1,1:nz), 'VelocityX')
-        call dw%write_field(vi(1:nx,1:1,1:nz), 'VelocityY')
-        call dw%write_field(wi(1:nx,1:1,1:nz), 'VelocityZ')
-        call dw%close_file
     end do
 
-    deallocate(ui,vi,wi)
+    ! Write
+    call string_splice(fname, path // 'output/vel.y-', yplane_loc(j), '.',     &
+         jt_total)
+    call dw%open_file(fname, nx, 1, grid%x(1:nx), yplane_loc(j:j),             &
+        grid%z(1:nz), 3)
+    call dw%write_field(ui(1:nx,1:1,1:nz), 'VelocityX')
+    call dw%write_field(vi(1:nx,1:1,1:nz), 'VelocityY')
+    call dw%write_field(wi(1:nx,1:1,1:nz), 'VelocityZ')
+    call dw%close_file
+end do
+deallocate(ui, vi, wi, w_uv)
 
-!  Write instantaneous z-plane values
-elseif (itype==5) then
+end subroutine write_yplanes
 
-    allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
+!*******************************************************************************
+subroutine write_zplanes
+!*******************************************************************************
+use grid_m
+use functions, only : linear_interp, interp_to_uv_grid
+use data_writer
+use param, only : dz, nx, ny, nz, zplane_nloc, zplane_loc, write_endian
+use sim_param, only : u, v, w
 
-    !  Loop over all zplane locations
-    do k = 1, zplane_nloc
-        ! Common file name portion for all output types
-        call string_splice(fname, path // 'output/vel.z-',                     &
-                zplane_loc(k), '.', jt_total)
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, w_uv
+integer :: i, j, k
+character (64) :: fname
+
+!  Allocate space for the interpolated values
+allocate(w_uv(nx,ny,lbz:nz))
+allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
+
+!  Make sure w has been interpolated to uv-grid
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+
+!  Loop over all zplane locations
+do k = 1, zplane_nloc
+    ! Common file name portion for all output param
+    call string_splice(fname, path // 'output/vel.z-', zplane_loc(k), '.',     &
+        jt_total)
 
 #ifdef PPCGNS
-        call string_concat(fname, '.cgns')
+    call string_concat(fname, '.cgns')
 #else
-        call string_concat(fname, '.bin')
+    call string_concat(fname, '.bin')
 #endif
 
 #ifdef PPMPI
-        if(zplane(k) % coord == coord) then
+    if(zplane(k)%coord == coord) then
 #endif
-            do j = 1, Ny
-                do i = 1, Nx
-                    ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),       &
-                         u(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                    vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),       &
-                         v(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                    wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),    &
-                         w_uv(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                end do
+        do j = 1, Ny
+            do i = 1, Nx
+                ui(i,j,1) = linear_interp(u(i,j,zplane(k)%istart),             &
+                     u(i,j,zplane(k)%istart+1), dz, zplane(k)%ldiff)
+                vi(i,j,1) = linear_interp(v(i,j,zplane(k)%istart),             &
+                     v(i,j,zplane(k)%istart+1), dz, zplane(k)%ldiff)
+                wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k)%istart),          &
+                     w_uv(i,j,zplane(k)%istart+1), dz, zplane(k)%ldiff)
             end do
+        end do
 
 #ifdef PPCGNS
-            call warn("inst_write","Z plane writting is currently disabled.")
+        call warn("inst_write","Z plane writting is currently disabled.")
 !            ! Write CGNS Data
 !            ! Only the processor with data writes, the other one is written
 !            ! using null arguments with 'write_null_cgns'
-!            call write_parallel_cgns (fname ,nx, ny, 1, 1,                     &
-!                (/ 1, 1,   1 /),                                               &
-!                (/ nx, ny, 1 /),                                               &
-!                x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                        &
-!                (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                   &
+!            call write_parallel_cgns (fname ,nx, ny, 1, 1,                    &
+!                (/ 1, 1,   1 /),                                              &
+!                (/ nx, ny, 1 /),                                              &
+!                x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                       &
+!                (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                  &
 !                (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /) )
 #else
-            open(unit=13,file=fname,form='unformatted',convert=write_endian,   &
-                            access='direct',recl=nx*ny*1*rprec)
-            write(13,rec=1) ui(1:nx,1:ny,1)
-            write(13,rec=2) vi(1:nx,1:ny,1)
-            write(13,rec=3) wi(1:nx,1:ny,1)
-            close(13)
+        open(unit=13,file=fname,form='unformatted',convert=write_endian,       &
+                        access='direct',recl=nx*ny*1*rprec)
+        write(13,rec=1) ui(1:nx,1:ny,1)
+        write(13,rec=2) vi(1:nx,1:ny,1)
+        write(13,rec=3) wi(1:nx,1:ny,1)
+        close(13)
 #endif
 !
 ! #ifdef PPMPI
@@ -605,117 +640,13 @@ elseif (itype==5) then
 !            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
 !#endif
 #ifdef PPMPI
-        end if
+    end if
 #endif
-    end do
-    deallocate(ui,vi,wi)
-else
-    write(*,*) 'Error: itype not specified properly to inst_write!'
-    stop
-end if
+end do
 
-deallocate(w_uv)
-nullify(x,y,z,zw)
+deallocate(ui,vi,wi)
 
-#ifdef PPLVLSET
-contains
-!*******************************************************************************
-subroutine force_tot()
-!*******************************************************************************
-#ifdef PPMPI
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-#endif
-implicit none
-
-! Zero bogus values
-fx(:,:,nz) = 0._rprec
-fy(:,:,nz) = 0._rprec
-fz(:,:,nz) = 0._rprec
-
-!  Sum both the induced and applied forces
-allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
-
-#ifdef PPTURBINES
-fx_tot = fxa(1:nx,1:ny,1:nz)
-fy_tot = fya(1:nx,1:ny,1:nz)
-fz_tot = fza(1:nx,1:ny,1:nz)
-
-#elif PPATM
-fx_tot = fxa(1:nx,1:ny,1:nz)
-fy_tot = fya(1:nx,1:ny,1:nz)
-fz_tot = fza(1:nx,1:ny,1:nz)
-
-#elif PPLVLSET
-fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
-fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
-fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
-#else
-fx_tot = 0._rprec
-fy_tot = 0._rprec
-fz_tot = 0._rprec
-#endif
-
-#ifdef PPMPI
-!  Sync forces
-call mpi_sync_real_array( fx_tot, 1, MPI_SYNC_DOWN )
-call mpi_sync_real_array( fy_tot, 1, MPI_SYNC_DOWN )
-call mpi_sync_real_array( fz_tot, 1, MPI_SYNC_DOWN )
-#endif
-
-! Put fz_tot on uv-grid
-fz_tot(1:nx,1:ny,1:nz) = interp_to_uv_grid( fz_tot(1:nx,1:ny,1:nz), 1 )
-
-return
-end subroutine force_tot
-#endif
-
-!*******************************************************************************
-!subroutine pressure_sync()
-!!*******************************************************************************
-!use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-!use param, only : ld
-!implicit none
-!
-!! Reset bogus values
-!p(:,:,nz) = p(:,:,nz-1)
-!dpdx(:,:,nz) = dpdx(:,:,nz-1)
-!dpdy(:,:,nz) = dpdy(:,:,nz-1)
-!dpdz(:,:,nz) = dpdz(:,:,nz-1)
-!
-!#ifdef PPMPI
-!!  Sync pressure
-!call mpi_sync_real_array( p, 0 , MPI_SYNC_DOWN )
-!call mpi_sync_real_array( dpdx, 1 , MPI_SYNC_DOWN )
-!call mpi_sync_real_array( dpdy, 1 , MPI_SYNC_DOWN )
-!call mpi_sync_real_array( dpdz, 1 , MPI_SYNC_DOWN )
-!#endif
-!
-!return
-!end subroutine pressure_sync
-!
-!!*******************************************************************************
-!subroutine RHS_sync()
-!!*******************************************************************************
-!use param, only : ld
-!use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-!implicit none
-!
-!! Reset bogus values
-!RHSx(:,:,nz) = RHSx(:,:,nz-1)
-!RHSy(:,:,nz) = RHSy(:,:,nz-1)
-!RHSz(:,:,nz) = RHSz(:,:,nz-1)
-!
-!#ifdef PPMPI
-!!  Sync RHS
-!call mpi_sync_real_array( RHSx, 0 , MPI_SYNC_DOWN )
-!call mpi_sync_real_array( RHSy, 0 , MPI_SYNC_DOWN )
-!call mpi_sync_real_array( RHSz, 0 , MPI_SYNC_DOWN )
-!#endif
-!
-!return
-!end subroutine RHS_sync
-
-end subroutine inst_write
+end subroutine write_zplanes
 
 !*******************************************************************************
 subroutine checkpoint ()
@@ -727,8 +658,8 @@ use param, only : comm, ierr
 #endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-use param, only : jt_total, total_time, total_time_dim, dt,                    &
-    use_cfl_dt, cfl, write_endian
+use param, only : jt_total, total_time, total_time_dim, dt, use_cfl_dt, cfl
+use param, only : write_endian
 use cfl_util, only : get_max_cfl
 use string_util, only : string_concat
 #if PPUSE_TURBINES
@@ -798,7 +729,7 @@ end if
 end subroutine checkpoint
 
 !*******************************************************************************
-subroutine output_final()
+subroutine output_final
 !*******************************************************************************
 use param, only : tavg_calc
 implicit none
@@ -812,20 +743,19 @@ if (tavg_calc .and. tavg%initialized ) call tavg%finalize()
 end subroutine output_final
 
 !*******************************************************************************
-subroutine output_init ()
+subroutine output_init
 !*******************************************************************************
 !
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
 !
-use param, only : dx, dy, dz, nz, lbz
+use param, only : dx, dy, dz, lbz
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
 use param, only : zplane_calc, zplane_nloc, zplane_loc
 use grid_m
 use functions, only : cell_indx
-use stat_defs, only : point, xplane, yplane, zplane
 implicit none
 
 integer :: i,j,k
@@ -847,33 +777,33 @@ nz_end = 0
 
 nullify(x,y,z)
 
-x => grid % x
-y => grid % y
-z => grid % z
+x => grid%x
+y => grid%y
+z => grid%z
 
 ! Initialize information for x-planar stats/data
 if (xplane_calc) then
     allocate(xplane(xplane_nloc))
-    xplane(:) % istart = -1
-    xplane(:) % ldiff = 0.
+    xplane(:)%istart = -1
+    xplane(:)%ldiff = 0.
 
     !  Compute istart and ldiff
     do i = 1, xplane_nloc
-        xplane(i) % istart = cell_indx('i', dx, xplane_loc(i))
-        xplane(i) % ldiff = xplane_loc(i) - x(xplane(i) % istart)
+        xplane(i)%istart = cell_indx('i', dx, xplane_loc(i))
+        xplane(i)%ldiff = xplane_loc(i) - x(xplane(i)%istart)
     end do
 end if
 
 ! Initialize information for y-planar stats/data
 if (yplane_calc) then
     allocate(yplane(yplane_nloc))
-    yplane(:) % istart = -1
-    yplane(:) % ldiff = 0.
+    yplane(:)%istart = -1
+    yplane(:)%ldiff = 0.
 
     !  Compute istart and ldiff
     do j = 1, yplane_nloc
-        yplane(j) % istart = cell_indx('j', dy, yplane_loc(j))
-        yplane(j) % ldiff = yplane_loc(j) - y(yplane(j) % istart)
+        yplane(j)%istart = cell_indx('j', dy, yplane_loc(j))
+        yplane(j)%ldiff = yplane_loc(j) - y(yplane(j)%istart)
     end do
 end if
 
@@ -882,23 +812,23 @@ if(zplane_calc) then
     allocate(zplane(zplane_nloc))
 
     !  Initialize
-    zplane(:) % istart = -1
-    zplane(:) % ldiff = 0.
-    zplane(:) % coord = -1
+    zplane(:)%istart = -1
+    zplane(:)%ldiff = 0.
+    zplane(:)%coord = -1
 
     !  Compute istart and ldiff
     do k = 1, zplane_nloc
 
 #ifdef PPMPI
         if (zplane_loc(k) >= z(1) .and. zplane_loc(k) < z(nz)) then
-            zplane(k) % coord = coord
-            zplane(k) % istart = cell_indx('k',dz,zplane_loc(k))
-            zplane(k) % ldiff = zplane_loc(k) - z(zplane(k) % istart)
+            zplane(k)%coord = coord
+            zplane(k)%istart = cell_indx('k',dz,zplane_loc(k))
+            zplane(k)%ldiff = zplane_loc(k) - z(zplane(k)%istart)
         end if
 #else
-        zplane(k) % coord = 0
-        zplane(k) % istart = cell_indx('k',dz,zplane_loc(k))
-        zplane(k) % ldiff = zplane_loc(k) - z(zplane(k) % istart)
+        zplane(k)%coord = 0
+        zplane(k)%istart = cell_indx('k',dz,zplane_loc(k))
+        zplane(k)%ldiff = zplane_loc(k) - z(zplane(k)%istart)
 #endif
     end do
 end if
@@ -909,8 +839,8 @@ if (point_calc) then
 
     !  Intialize the coord values
     ! (-1 shouldn't be used as coord so initialize to this)
-    point % coord=-1
-    point % fid = -1
+    point%coord=-1
+    point%fid = -1
 
     do i = 1, point_nloc
         !  Find the processor in which this point lives
@@ -918,15 +848,15 @@ if (point_calc) then
         if (point_loc(i)%xyz(3) >= z(1) .and. point_loc(i)%xyz(3) < z(nz)) then
 #endif
 
-            point(i) % coord = coord
+            point(i)%coord = coord
 
-            point(i) % istart = cell_indx('i',dx,point_loc(i)%xyz(1))
-            point(i) % jstart = cell_indx('j',dy,point_loc(i)%xyz(2))
-            point(i) % kstart = cell_indx('k',dz,point_loc(i)%xyz(3))
+            point(i)%istart = cell_indx('i',dx,point_loc(i)%xyz(1))
+            point(i)%jstart = cell_indx('j',dy,point_loc(i)%xyz(2))
+            point(i)%kstart = cell_indx('k',dz,point_loc(i)%xyz(3))
 
-            point(i) % xdiff = point_loc(i)%xyz(1) - x(point(i) % istart)
-            point(i) % ydiff = point_loc(i)%xyz(2) - y(point(i) % jstart)
-            point(i) % zdiff = point_loc(i)%xyz(3) - z(point(i) % kstart)
+            point(i)%xdiff = point_loc(i)%xyz(1) - x(point(i)%istart)
+            point(i)%ydiff = point_loc(i)%xyz(2) - y(point(i)%jstart)
+            point(i)%zdiff = point_loc(i)%xyz(3) - z(point(i)%kstart)
 
 #ifdef PPMPI
         end if

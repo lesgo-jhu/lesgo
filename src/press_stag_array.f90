@@ -24,7 +24,7 @@ subroutine press_stag_array()
 ! Calculate the pressure and its derivatives on exit. Everything is in physical
 ! space on exit.
 !
-use types, only : rprec
+use param, only : rprec
 use param
 use messages
 use sim_param, only : u, v, w, divtz, p, dpdx, dpdy, dpdz

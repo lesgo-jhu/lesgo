@@ -24,7 +24,7 @@ module clock_m
 ! This module provides the clock data type (object) and the
 ! subroutines/functions that act on instances of the clock data type.
 !
-use types, only : rprec
+use param, only : rprec
 implicit none
 
 save

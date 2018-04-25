@@ -24,7 +24,7 @@ subroutine lagrange_Ssim()
 ! This subroutine dynamically calculates Cs_opt2. See  Meneveau, Lund, Cabot,
 ! JFM, 319: 353-385 (1996) DOI: 10.1017/S0022112096007379
 !
-use types, only : rprec
+use param, only : rprec
 use param
 use sim_param, only : u, v, w
 use sgs_param, only : F_LM, F_MM, Beta, Cs_opt2, opftime, lagran_dt

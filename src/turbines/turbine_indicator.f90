@@ -20,8 +20,7 @@
 !*******************************************************************************
 module turbine_indicator
 !*******************************************************************************
-use types, only : rprec
-use param, only : nx, ny, nz, lh
+use param, only : rprec, nx, ny, nz, lh
 
 private
 public :: turb_ind_func_t

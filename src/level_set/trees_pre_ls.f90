@@ -22,9 +22,7 @@ module trees_pre_ls_mod
 contains
 
 subroutine trees_pre_ls
-use types, only : rprec
-use param, only : path
-use param, only : nx, ny, nz, BOGUS, nproc
+use param, only : rprec, path, nx, ny, nz, BOGUS, nproc
 use input_util, only : read_input_conf
 use trees_base_ls, only : grid_initialize, pt_of_grid
 use trees_setup_ls, only : fill_tree_array, sdistfcn_tree_array
@@ -97,7 +95,7 @@ else
 
   ipmin = 0
   ipmax = nproc - 1
-  
+
 end if
 
 call grid_initialize ()
@@ -117,7 +115,7 @@ do ip = ipmin, ipmax
 
   write (*, '(1x,a,i0,a,i0)') 'chunk ', ip, ' of ', nproc-1
 
-  !write (*, *) 'nproc = ', nproc 
+  !write (*, *) 'nproc = ', nproc
   !write (*, *) 'trees_pre: size (phi)= ', size (phi, 1), size (phi, 2),  &
   !             size (phi, 3) - 1  !--(-1) since ignore 0-level
 
@@ -133,20 +131,20 @@ do ip = ipmin, ipmax
     !ubz = lbz + (nz - 1) / nproc + 1  !--nz level (local)
 
     write (1) phi(:, :, 0:nz)  !--each file gets 0:nz_local
-      
+
     close (1)
-! 
+!
 !     !--branch index
 !     write (fbrindex_raw_out_MPI, '(a,a,i0)') trim (fbrindex_raw_out),  &
 !                                              MPI_suffix, ip
 !     open (1, file=fbrindex_raw_out_MPI, form='unformatted')
-! 
+!
 !     !--overlap is different from above: brindex is only 1:nz_local-1
 !     !lbz = ip * (nz - 1) / nproc + 1   !--1 level (local)
 !     !ubz = lbz + (nz - 1) / nproc - 1  !--nz-1 level (local)
-! 
+!
 !     write (1) brindex(:, :, 1:nz-1)
-! 
+!
 !     close (1)
 
     if (do_write_ascii) then  !--ascii-files for checking
@@ -170,14 +168,14 @@ do ip = ipmin, ipmax
             x = pt_of_grid (i, 1, 1)
             y = pt_of_grid (j, 2, 1)
             z = pt_of_grid (ktot, 3, 1)
-      
+
             !--when ip == 0, this will write out BOGUS for k = 0
             write (1, '(4(1x,es12.5))') x, y, z, phi(i, j, k)
-         
+
           end do
         end do
       end do
-  
+
       close (1)
 
       !--brindex
@@ -197,18 +195,18 @@ do ip = ipmin, ipmax
 
         do j = 1, ny
           do i = 1, nx
-        
+
             x = pt_of_grid (i, 1, 1)
             y = pt_of_grid (j, 2, 1)
             z = pt_of_grid (ktot, 3, 1)
-      
+
             !--when ip == 0, this will write out BOGUS for k = 0
             write (1, '(3(es12.5,1x),i0)') x, y, z, brindex(i, j, k)
-         
+
           end do
         end do
       end do
-  
+
       close (1)
 
     end if
@@ -236,7 +234,7 @@ do ip = ipmin, ipmax
             x = pt_of_grid (i, 1, 1)
             y = pt_of_grid (j, 2, 1)
             z = pt_of_grid (k, 3, 1)
-      
+
             write (1, '(4(es12.5,1x))') x, y, z, phi(i, j, k)
 
           end do
@@ -256,7 +254,7 @@ do ip = ipmin, ipmax
             x = pt_of_grid (i, 1, 1)
             y = pt_of_grid (j, 2, 1)
             z = pt_of_grid (k, 3, 1)
-      
+
             write (1, '(3(es12.5,1x),i0)') x, y, z, brindex(i, j, k)
 
           end do
@@ -264,7 +262,7 @@ do ip = ipmin, ipmax
       end do
 
       close (1)
-    
+
     end if
 
   end if

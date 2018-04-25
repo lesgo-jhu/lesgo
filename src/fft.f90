@@ -21,7 +21,7 @@
 ! fftw 3.X version
 !*******************************************************************************
 module fft
-use types, only : rprec
+use param, only : rprec
 use param, only : ld, lh, ny, ld_big, ny2
 use iso_c_binding
 implicit none
@@ -44,7 +44,7 @@ subroutine padd (u_big,u)
 !*******************************************************************************
 ! puts arrays into larger, zero-padded arrays
 ! automatically zeroes the oddballs
-use types, only : rprec
+use param, only : rprec
 use param, only : ld,ld_big,nx,ny,ny2
 implicit none
 
@@ -73,7 +73,7 @@ end subroutine padd
 !*******************************************************************************
 subroutine unpadd(cc,cc_big)
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : ld,nx,ny,ny2,ld_big
 implicit none
 

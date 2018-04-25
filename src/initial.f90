@@ -21,7 +21,7 @@
 subroutine initial()
 !*******************************************************************************
 use iwmles
-use types,only:rprec
+use param,only:rprec
 use param
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
@@ -193,7 +193,7 @@ subroutine ic_dns()
 ! This subroutine produces an initial condition for the boundary layer when
 ! using DNS boundary conditions.
 !
-use types,only:rprec
+use param,only:rprec
 use param
 use sim_param,only:u,v,w
 implicit none
@@ -284,7 +284,7 @@ subroutine ic_les()
 ! A log profile is used that flattens at z=z_i. Noise is added to
 ! promote the generation of turbulence
 !
-use types,only:rprec
+use param,only:rprec
 use param
 use sim_param, only : u, v, w
 use messages, only : error

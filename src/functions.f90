@@ -21,7 +21,7 @@
 module functions
 !*******************************************************************************
 use messages
-use types, only : rprec
+use param, only : rprec
 implicit none
 
 save
@@ -64,7 +64,7 @@ function interp_to_uv_grid(var, lbz) result(var_uv)
 !
 !  It is assumed that the array var has been synced if using MPI.
 
-use types, only : rprec
+use param, only : rprec
 use param, only : nz
 use messages
 #ifdef PPMPI
@@ -145,7 +145,7 @@ function interp_to_w_grid(var, lbz) result(var_w)
 !  are exactly zero at this point (k==1 on the w-grid), though, and can
 !  therefore be set manually after this interpolation.
 
-use types, only : rprec
+use param, only : rprec
 use param, only : nz
 use messages
 #ifdef PPMPI
@@ -200,7 +200,7 @@ integer function cell_indx_w(indx,dx,px)
 !  or
 !  lbz <= cell_indx < Nz
 !
-use types, only : rprec
+use param, only : rprec
 use grid_m
 use messages
 use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
@@ -280,7 +280,7 @@ integer function cell_indx(indx,dx,px)
 !  or
 !  lbz <= cell_indx < Nz
 !
-use types, only : rprec
+use param, only : rprec
 use grid_m
 use messages
 use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
@@ -368,7 +368,7 @@ real(rprec) function trilinear_interp_w(var,lbz,xyz)
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
 use grid_m
-use types, only : rprec
+use param, only : rprec
 use param, only : dx, dy, dz, coord, nproc, lbc_mom, ubc_mom, nz
 implicit none
 
@@ -493,7 +493,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
 use grid_m
-use types, only : rprec
+use param, only : rprec
 use param, only : dx, dy, dz
 implicit none
 
@@ -574,7 +574,7 @@ real(rprec) function bilinear_interp_ss(u11,u21,u12,u22,dx,dy,xdiff,ydiff)
 !  xdiff        - distance from the point of interest to the u11 node in x direction
 !  xdiff        - distance from the point of interest to the u11 node in y direction
 !
-use types, only : rprec
+use param, only : rprec
 implicit none
 
 real(rprec), intent(in) :: u11, u12, u21, u22, dx, dy, xdiff, ydiff
@@ -699,7 +699,7 @@ real(rprec) function linear_interp_ss(u1,u2,dx,xdiff)
 !  dx           - length delta for the grid in the correct direction
 !  xdiff        - distance from the point of interest to the u1 node
 !
-use types, only : rprec
+use param, only : rprec
 implicit none
 
 real(rprec), intent(in) :: u1, u2, dx, xdiff
@@ -871,7 +871,7 @@ function get_tau_wall_bot() result(twall)
 !*******************************************************************************
 !
 ! This function provides plane-averaged value of wall stress magnitude
-use types, only: rprec
+use param, only: rprec
 use param, only : nx, ny
 use sim_param, only : txz, tyz
 
@@ -898,7 +898,7 @@ function get_tau_wall_top() result(twall)
 !*******************************************************************************
 !
 ! This function provides plane-averaged value of wall stress magnitude
-use types, only: rprec
+use param, only: rprec
 use param, only : nx, ny, nz
 use sim_param, only : txz, tyz
 

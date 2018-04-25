@@ -20,8 +20,7 @@
 !*******************************************************************************
 module input_util
 !*******************************************************************************
-use types, only : rprec
-use param, only : path, CHAR_BUFF_LENGTH
+use param, only : rprec, path, CHAR_BUFF_LENGTH
 implicit none
 
 save
@@ -128,7 +127,7 @@ contains
 !*******************************************************************************
 subroutine domain_block()
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param
 implicit none
 
@@ -303,7 +302,7 @@ end subroutine model_block
 !*******************************************************************************
 subroutine time_block()
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param
 implicit none
 
@@ -794,7 +793,7 @@ end subroutine readline
 !*******************************************************************************
 subroutine parse_vector_real( string, nelem, vector )
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use messages
 use string_util, only : split_string
 
@@ -829,7 +828,7 @@ end subroutine parse_vector_real
 !*******************************************************************************
 subroutine parse_vector_point3D( string, nelem, vector )
 !*******************************************************************************
-use types, only : rprec, point3D_t
+use param, only : rprec, point3D_t
 use messages
 use string_util, only : split_string
 

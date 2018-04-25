@@ -25,12 +25,12 @@ program main
 ! Contains main time loop
 !
 
-use types, only : rprec
+use param, only : rprec
 use clock_m
 use param
 use sim_param
 use grid_m
-use io, only : energy, output_loop, output_final, jt_total
+use io, only : output_loop, output_final, jt_total
 use io, only : write_tau_wall_bot, write_tau_wall_top
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
@@ -38,7 +38,7 @@ use test_filtermodule
 use cfl_util
 use sgs_stag_util, only : sgs_stag
 use forcing
-use functions, only: get_tau_wall_bot, get_tau_wall_top
+use functions, only : get_tau_wall_bot, get_tau_wall_top
 
 #ifdef PPMPI
 use mpi
@@ -70,7 +70,7 @@ real(rprec), dimension(:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
 character (*), parameter :: prog_name = 'main'
 
 integer :: jt_step, nstart
-real(rprec) :: rmsdivvel, ke, maxcfl, tt
+real(rprec) :: rmsdivvel, maxcfl, tt
 
 type(clock_t) :: clock, clock_total, clock_forcing
 
@@ -341,9 +341,6 @@ time_loop: do jt_step = nstart, nsteps
     !   uses fx,fy,fz calculated above
     !   for MPI: syncs 1 -> Nz and Nz-1 -> 0 nodes info for u,v,w
     call project ()
-
-    ! Write ke to file
-    if (modulo (jt_total, nenergy) == 0) call energy(ke)
 
 #ifdef PPLVLSET
     if (global_CA_calc) call level_set_global_CA()

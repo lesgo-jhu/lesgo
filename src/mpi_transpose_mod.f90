@@ -20,7 +20,7 @@
 !*******************************************************************************
 module mpi_transpose_mod
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 use param, only : nproc, comm, coord, ierr, MPI_CPREC
 use mpi
 implicit none

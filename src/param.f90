@@ -23,16 +23,20 @@ module param
 !
 ! All non-parameter definitions read by the input file must be initialized.
 !
-use types, only : rprec, point3D_t
 #ifdef PPMPI
 use mpi
 #endif
 implicit none
 
 save
-
-private rprec
 public
+
+! rprec is used to specify precision
+integer, parameter :: rprec = kind(1.d0)
+
+type point3D_t
+    real(rprec), dimension(3) :: xyz
+end type point3D_t
 
 !---------------------------------------------------
 ! GLOBAL PARAMETERS

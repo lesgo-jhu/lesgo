@@ -44,7 +44,7 @@ subroutine sgs_stag ()
 !
 ! put everything onto w-nodes, follow original version
 
-use types, only : rprec
+use param, only : rprec
 use param
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
 use sgs_param
@@ -470,7 +470,7 @@ subroutine calc_Sij()
 ! Calculate the resolved strain rate tensor, Sij = 0.5(djui - diuj)
 !   values are stored on w-nodes (1:nz)
 
-use types, only : rprec
+use param, only : rprec
 use param
 use sim_param, only : dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
 use sgs_param
@@ -637,7 +637,7 @@ end subroutine calc_Sij
 !*******************************************************************************
 real(rprec) function rtnewt(A, jz)
 !*******************************************************************************
-use types, only : rprec
+use param, only : rprec
 integer, parameter :: jmax=100
 real(rprec) :: x1, x2, xacc
 real(rprec) :: df,dx,f

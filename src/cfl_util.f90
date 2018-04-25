@@ -24,6 +24,7 @@ module cfl_util
 ! This module provides the subroutines/functions for getting CFL related
 ! quantities
 !
+use param, only : rprec
 save
 private
 
@@ -38,7 +39,6 @@ function get_max_cfl() result(cfl)
 ! This function provides the value of the maximum CFL in the entire
 ! domain
 !
-use types, only : rprec
 use param, only : dt, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
 
@@ -76,7 +76,6 @@ function get_cfl_dt() result(dt)
 ! This functions determines the maximum allowable time step based on the CFL
 ! value specified in the param module
 !
-use types, only : rprec
 use param, only : cfl, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
 

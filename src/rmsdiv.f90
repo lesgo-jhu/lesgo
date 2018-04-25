@@ -24,7 +24,7 @@ subroutine rmsdiv(rms)
 ! This subroutine calculates the velocity divergence metric. Currently using the
 ! L_1 norm ov the velocity divergence.
 !
-use types, only : rprec
+use param, only : rprec
 use param
 use sim_param, only : dudx, dvdy, dwdz
 

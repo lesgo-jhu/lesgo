@@ -24,7 +24,7 @@ subroutine lagrange_Sdep()
 ! This subroutine dynamically calculates Cs_opt2 using Lagrangian scale
 ! dependent model
 !
-use types, only : rprec
+use param, only : rprec
 use param
 use sim_param, only : u, v, w
 use sgs_param, only : F_LM, F_MM, F_QN, F_NN, beta, Cs_opt2, opftime,          &

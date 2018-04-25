@@ -22,13 +22,11 @@ module turbines
 !*******************************************************************************
 ! This module contains all of the subroutines associated with drag-disk turbines
 
-use types, only : rprec
 use param
 use grid_m
 use messages
 use string_util
 use turbine_indicator
-use stat_defs, only : wind_farm
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array
 #endif
@@ -112,6 +110,47 @@ real(rprec) :: eps
 ! Commonly used indices
 integer :: i, j, k, i2, j2, k2, l, s
 integer :: k_start, k_end
+
+! Single turbines
+type turbine_t
+    real(rprec) :: xloc, yloc, height, dia, thk
+    ! term used for volume correction
+    real(rprec) :: vol_c
+    ! angle CCW(from above) from -x direction [degrees]
+    real(rprec) :: theta1
+    ! angle above the horizontal, from -x dir [degrees]
+    real(rprec) :: theta2
+    ! number of nodes associated with each turbine
+    integer :: num_nodes
+    ! location of turbine center (local k)
+    integer :: icp, jcp, kcp
+    ! true if the center is in the processor
+    logical :: center_in_proc
+    ! thrust coefficient
+    real(rprec) :: Ct_prime
+    ! running time-average of mean disk velocity
+    real(rprec) :: u_d, u_d_T
+    ! normal force on turbine disk
+    real(rprec) :: f_n
+    ! (nx,ny,nz) of unit normal for each turbine
+    real(rprec), dimension(3) :: nhat
+    ! indicator function - weighting of each node
+    real(rprec), dimension(10000) :: ind
+    ! object to calculate indicator function
+    type(turb_ind_func_t) :: turb_ind_func
+    ! (i,j,k) of each included node
+    integer, dimension(10000,3) :: nodes
+    ! search area for nearby nodes
+    integer, dimension(6) :: nodes_max
+end type turbine_t
+
+! A collection of wind turbines
+type wind_farm_t
+    type(turbine_t), pointer, dimension(:) :: turbine
+end type wind_farm_t
+
+! The wind farm
+type(wind_farm_t) :: wind_farm
 
 contains
 

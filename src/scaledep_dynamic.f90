@@ -24,7 +24,7 @@ subroutine scaledep_dynamic(Cs_1D)
 ! Subroutine uses the scale dependent dynamic model to calculate the Smagorinsky
 ! coefficient Cs_1D and |S|. This is done layer-by-layer to save memory.
 !
-use types, only : rprec
+use param, only : rprec
 use param, only : path, ld, nx, ny, nz, coord
 use sim_param, only : u, v, w
 use test_filtermodule

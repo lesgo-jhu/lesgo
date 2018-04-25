@@ -26,7 +26,7 @@ module emul_complex
 ! real array is to contain interleaved complex information.
 !
 
-use types, only : rprec
+use param, only : rprec
 use messages, only : error
 implicit none
 
@@ -228,7 +228,7 @@ function mul_real_complex_real_2D( a, a_c ) result(b)
 !
 !  Note: nx_c must be nx_r/2
 !
-use types, only : rprec
+use param, only : rprec
 implicit none
 
 real(rprec), dimension( :, : ), intent(in) :: a
