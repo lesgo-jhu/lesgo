@@ -5,15 +5,12 @@ set(libs core io)
 # Common sources
 set (sources clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
     divstress_w.f90 finalize.f90 forcing.f90 fringe_util.f90 functions.f90
-    initialize.f90 initial.f90 interpolag_Sdep.f90
-    interpolag_Ssim.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90
-    param_output.f90 press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90
-    sgs_stag_util.f90 std_dynamic.f90  tridag_array.f90 wallstress.f90
-    init_random_seed.f90)
+    initialize.f90 initial.f90 main.f90 param_output.f90 press_stag_array.f90
+    rmsdiv.f90 tridag_array.f90 wallstress.f90 init_random_seed.f90)
 
-set (core_sources param.f90 sim_param.f90 messages.f90
-    string_util.f90 sgs_param.f90 test_filtermodule.f90 fft.f90 emul_complex.f90
-    functions.f90 mpi_defs.f90 grid.f90 iwmles.f90 cfl_util.f90 input_util.f90 )
+set (core_sources param.f90 sim_param.f90 messages.f90 string_util.f90
+    test_filtermodule.f90 fft.f90 emul_complex.f90 functions.f90 mpi_defs.f90
+    grid.f90 iwmles.f90 cfl_util.f90 input_util.f90 )
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
@@ -75,7 +72,8 @@ if (READ_ENDIAN STREQUAL "BIG")
     add_definitions(-DPPREAD_BIG_ENDIAN)
 endif (READ_ENDIAN STREQUAL "BIG")
 
-# I/O
+# Basic libraries
+add_subdirectory(sgs)
 add_subdirectory(io)
 
 # Actuator disk model
