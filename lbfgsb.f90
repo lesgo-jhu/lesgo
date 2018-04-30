@@ -553,7 +553,6 @@ do while (iter < this%maxiteri)
     stp = 1._rprec
     this%ls%maxStep = stpmx
     call this%mini%eval(x, f, g)
-    write(*,*) f
     gdold = ddot(n,g,1,d,1)
     if (sum(g*d) > 0.0) cycle
     call this%ls%search(x, f, g, d, stp, dummy)
