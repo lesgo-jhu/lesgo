@@ -14,7 +14,7 @@ set (core_sources param.f90 sim_param.f90 messages.f90 string_util.f90
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
-    set(core_sources ${core_sources} mpi_transpose_mod.f90 mpi_defs.f90)
+    set(core_sources ${core_sources} mpi_defs.f90)
     set(exec_name "${exec_name}-mpi")
 endif (USE_MPI)
 
