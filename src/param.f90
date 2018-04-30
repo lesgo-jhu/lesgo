@@ -84,7 +84,7 @@ integer :: up, down
 integer :: global_rank
 integer :: MPI_RPREC, MPI_CPREC
 integer, allocatable, dimension(:) ::  rank_of_coord, coord_of_rank
-integer :: jzmin, jzmax  ! levels that "belong" to this processor, set w/ grid
+integer :: jzmin, jzmax, njz  ! levels that "belong" to this processor, set w/ grid
 
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS

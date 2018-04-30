@@ -1,27 +1,21 @@
-function [ u,v,w ] = getSnapZ(p,step,loc)
-%UNTITLED3 Summary of this function goes here
-%   Detailed explanation goes here
+function [u,v,w] = getSnapZ(p,step,loc)
+%GETSNAPZ reads z-plane snapshot
+%   getSnapZ(p,step) z-plane snapshot at timestep step and z location loc.
+%   Lesgo parameters are provided as struct p read using p = getParams(...)
 
-for i=1:p.nproc
-    
-    % Open the file
-    fname = ['./output/vel.z-',sprintf('%0.5f',loc),'.',num2str(step),'.bin'];
-    fid=fopen(fname,'r');
-    if (fid < 0) 
-        error('getSnap:fname',['Could not open file ',fname]);
-    end
+% size of record
+N = p.nx*p.ny;
 
-    % Scan the data
-    dummy=fread(fid,p.nx*p.ny, 'double',p.fmt);
-    u=reshape(dummy,p.nx,p.ny);
-    dummy=fread(fid,p.nx*p.ny, 'double',p.fmt); 
-    v=reshape(dummy,p.nx,p.ny);
-    dummy=fread(fid,p.nx*p.ny, 'double',p.fmt); 
-    w=reshape(dummy,p.nx,p.ny);
-    
-    fclose(fid);
-
+% Velocity
+fname = ['./output/vel.z-',sprintf('%0.5f',loc),'.',num2str(step),'.bin'];
+fid = fopen(fname,'r');
+if (fid < 0) 
+    error(['getSnap: Could not open file ',fname]);
 end
+u = reshape(fread(fid,N,'double',p.fmt),p.nx,p.ny);
+v = reshape(fread(fid,N,'double',p.fmt),p.nx,p.ny);
+w = reshape(fread(fid,N,'double',p.fmt),p.nx,p.ny);
+fclose(fid);
 
 end
 

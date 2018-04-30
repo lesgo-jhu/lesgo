@@ -399,17 +399,17 @@ call mpi_sync_real_array( this%cs_opt2(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
 #endif
 
 ! write
-call dw%open_file(fname_vel, nx, ny, x(1:nx), y(1:ny), z(1:nz), 3)
+call dw%open_file(fname_vel, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 3)
 call dw%write_field(this%u(1:nx,1:ny,1:nz), 'VelocityX')
 call dw%write_field(this%v(1:nx,1:ny,1:nz), 'VelocityY')
 call dw%write_field(this%w_uv(1:nx,1:ny,1:nz), 'VelocityZ')
 call dw%close_file
 
-call dw%open_file(fname_velw, nx, ny, x(1:nx), y(1:ny), z(1:nz), 1)
+call dw%open_file(fname_velw, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 1)
 call dw%write_field(this%w(1:nx,1:ny,1:nz), 'VelocityZ')
 call dw%close_file
 
-call dw%open_file(fname_vel2, nx, ny, x(1:nx), y(1:ny), z(1:nz), 6)
+call dw%open_file(fname_vel2, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 6)
 call dw%write_field(this%u2(1:nx,1:ny,1:nz), 'Mean--uu')
 call dw%write_field(this%v2(1:nx,1:ny,1:nz), 'Mean--vv')
 call dw%write_field(this%w2(1:nx,1:ny,1:nz), 'Mean--ww')
@@ -418,7 +418,7 @@ call dw%write_field(this%vw(1:nx,1:ny,1:nz), 'Mean--vw')
 call dw%write_field(this%uv(1:nx,1:ny,1:nz), 'Mean--uv')
 call dw%close_file
 
-call dw%open_file(fname_tau, nx, ny, x(1:nx), y(1:ny), z(1:nz), 6)
+call dw%open_file(fname_tau, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 6)
 call dw%write_field(this%txx(1:nx,1:ny,1:nz), 'Tau-txx')
 call dw%write_field(this%txy(1:nx,1:ny,1:nz), 'Tau-txy')
 call dw%write_field(this%tyy(1:nx,1:ny,1:nz), 'Tau-tyy')
@@ -427,17 +427,17 @@ call dw%write_field(this%tyz(1:nx,1:ny,1:nz), 'Tau-tyz')
 call dw%write_field(this%tzz(1:nx,1:ny,1:nz), 'Tau-txzz')
 call dw%close_file
 
-call dw%open_file(fname_pres, nx, ny, x(1:nx), y(1:ny), z(1:nz), 1)
+call dw%open_file(fname_pres, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 1)
 call dw%write_field(this%p(1:nx,1:ny,1:nz), 'Pressure')
 call dw%close_file
 
-call dw%open_file(fname_f, nx, ny, x(1:nx), y(1:ny), z(1:nz), 3)
+call dw%open_file(fname_f, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 3)
 call dw%write_field(this%fx(1:nx,1:ny,1:nz), 'BodyForX')
 call dw%write_field(this%fy(1:nx,1:ny,1:nz), 'BodyForY')
 call dw%write_field(this%fz(1:nx,1:ny,1:nz), 'BodyForZ')
 call dw%close_file
 
-call dw%open_file(fname_cs, nx, ny, x(1:nx), y(1:ny), z(1:nz), 1)
+call dw%open_file(fname_cs, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 1)
 call dw%write_field(this%cs_opt2(1:nx,1:ny,1:nz), 'Cs_Coeff')
 call dw%close_file
 
@@ -464,7 +464,7 @@ upvp = this%uv - this%u * this%v
 upwp = this%uw - this%u_w * this%w
 vpwp = this%vw - this%v_w * this%w
 
-call dw%open_file(fname_rs, nx, ny, x(1:nx), y(1:ny), z(1:nz), 6)
+call dw%open_file(fname_rs, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 6)
 call dw%write_field(up2(1:nx,1:ny,1:nz), 'Meanupup')
 call dw%write_field(vp2(1:nx,1:ny,1:nz), 'Meanvpvp')
 call dw%write_field(wp2(1:nx,1:ny,1:nz), 'Meanwpwp')

@@ -1,31 +1,21 @@
-function [ u,v,w ] = getSnapX(p,step,loc)
-%UNTITLED3 Summary of this function goes here
-%   Detailed explanation goes here
+function [u,v,w] = getSnapX(p,step,loc)
+%GETSNAPX reads x-plane snapshot
+%   getSnapX(p,step) x-plane snapshot at timestep step and x location loc.
+%   Lesgo parameters are provided as struct p read using p = getParams(...)
 
-for i=1:p.nproc
-    
-    % Open the file
-    fname = ['./output/vel.x-',sprintf('%0.5f',loc),'.',num2str(step),'.c',num2str(i-1),'.bin'];
-    fid=fopen(fname,'r');
-    if (fid < 0) 
-        error('getSnap:fname',['Could not open file ',fname]);
-    end
+% size of record
+N = p.nx*p.nz_tot;
 
-    % Determine the interval of the matrix where the data should be stored
-    zmin=p.zmin_buf(i);
-    zmax=p.zmax_buf(i);
-
-    % Scan the data
-    dummy=fread(fid,p.ny*p.nz2,'double',p.fmt);
-    u(1:p.ny,zmin:zmax)=reshape(dummy,p.ny,p.nz2);
-    dummy=fread(fid,p.ny*p.nz2,'double',p.fmt); 
-    v(1:p.ny,zmin:zmax)=reshape(dummy,p.ny,p.nz2);
-    dummy=fread(fid,p.ny*p.nz2,'double',p.fmt); 
-    w(1:p.ny,zmin:zmax)=reshape(dummy,p.ny,p.nz2);
-    
-    fclose(fid);
-
+% Velocity
+fname = ['./output/vel.x-',sprintf('%0.5f',loc),'.',num2str(step),'.bin'];
+fid = fopen(fname,'r');
+if (fid < 0) 
+    error(['getSnap: Could not open file ',fname]);
 end
+u = reshape(fread(fid,N,'double',p.fmt),p.nx,p.nz_tot);
+v = reshape(fread(fid,N,'double',p.fmt),p.nx,p.nz_tot);
+w = reshape(fread(fid,N,'double',p.fmt),p.nx,p.nz_tot);
+fclose(fid);
 
 end
 

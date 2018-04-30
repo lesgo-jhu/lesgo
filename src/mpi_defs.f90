@@ -110,6 +110,9 @@ cgnsParallelComm = localComm
 
 ! Set the parallel communicator
 call cgp_mpi_comm_f(cgnsParallelComm, ierr)
+
+! Allow independent communication
+call cgp_pio_mode_f(CGP_INDEPENDENT, ierr)
 #endif
 
 end subroutine initialize_mpi

@@ -9,7 +9,7 @@ set (sources clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
     rmsdiv.f90 tridag_array.f90 wallstress.f90 init_random_seed.f90)
 
 set (core_sources param.f90 sim_param.f90 messages.f90 string_util.f90
-    test_filtermodule.f90 fft.f90 emul_complex.f90 functions.f90 mpi_defs.f90
+    test_filtermodule.f90 fft.f90 emul_complex.f90 functions.f90
     grid.f90 iwmles.f90 cfl_util.f90 input_util.f90 )
 
 if (USE_MPI)

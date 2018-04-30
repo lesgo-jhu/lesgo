@@ -19,7 +19,7 @@
 !*******************************************************************************
 module data_writer
 !*******************************************************************************
-use param, only : rprec, write_endian, nz, nz_tot
+use param, only : rprec, write_endian
 use messages
 #ifdef PPMPI
 use mpi
@@ -37,18 +37,16 @@ public :: data_writer_t
 type data_writer_t
     integer :: fid
     logical :: opened = .false.
-    integer :: nx, ny
+    integer :: nx, ny, nz
     integer :: counter
 #ifdef PPMPI
-    integer :: nz_end
+    integer :: nz_tot, nz_below
 #ifdef PPCGNS
     integer :: base = 1
     integer :: zone = 1
     integer :: sol = 1
     integer(cgsize_t) :: start_n(3)
     integer(cgsize_t) :: end_n(3)
-#else
-    integer :: subarray_t
 #endif
 #endif
     integer :: num_fields
@@ -61,14 +59,14 @@ end type data_writer_t
 contains
 
 !*******************************************************************************
-subroutine open_file(this, fname, nx, ny, x, y, z, num_fields)
+subroutine open_file(this, fname, i_nx, i_ny, i_nz, x, y, z, num_fields)
 !*******************************************************************************
 use mpi
 use string_util
 class(data_writer_t), intent(inout) :: this
 character(*), intent(in) :: fname
 ! Size of the plane to write
-integer, intent(in) :: nx, ny
+integer, intent(in) :: i_nx, i_ny, i_nz
 ! Coordinate system
 real(rprec), intent(in), dimension(:) :: x, y, z
 ! Number of fields
@@ -77,7 +75,8 @@ integer :: num_fields
 character(64) :: full_fname
 ! Extension
 character(64) :: ext
-
+#ifdef PPMPI
+integer, dimension(nproc) :: cum_nz, buffer
 #ifdef PPCGNS
 ! Sizes
 integer(cgsize_t) :: sizes(3,3)
@@ -85,6 +84,7 @@ integer(cgsize_t) :: sizes(3,3)
 real(rprec), dimension(:,:,:), allocatable :: xyz
 ! Loop through arrays
 integer :: i
+#endif
 #endif
 
 ! Set the number of fields to write
@@ -99,8 +99,28 @@ ext = '.bin'
 #endif
 call string_concat(full_fname, ext)
 
+! Set record counter
+this%counter = 1
+
+! Set size of record
+this%nx = i_nx
+this%ny = i_ny
+this%nz = i_nz
+
+#ifdef PPMPI
+! Figure out nz_tot and nz_below
+cum_nz = 0
+cum_nz(coord+1:) = this%nz
+call mpi_allreduce(cum_nz, buffer, nproc, MPI_INTEGER, MPI_SUM, comm, ierr)
+this%nz_tot = buffer(nproc)
+this%nz_below = buffer(coord+1)-this%nz
+#endif
+
+write(*,*) coord, this%nz, this%nz_tot, this%nz_below
+
 ! Open file if not already open
 if (this%opened) call error('data_writer_t%open_file', 'File already opened')
+
 #ifdef PPMPI
 #ifdef PPCGNS
 ! Open CGNS file
@@ -114,96 +134,85 @@ call mpi_file_open(comm, full_fname, MPI_MODE_WRONLY + MPI_MODE_CREATE,        &
 #else
 ! Open simple fortran file
 open(newunit=this%fid, file=full_fname, form='unformatted',                    &
-    convert=write_endian, access='direct', recl=nx*ny*nz*rprec)
+    convert=write_endian, access='direct', recl=this%nx*this%ny*this%nz*rprec)
 #endif
-
-! Set size of record
-this%nx = nx
-this%ny = ny
-
-! Set record counter
-this%counter = 1
-
-#ifdef PPMPI
-! Specify overlap ending
-if ( coord == nproc-1 ) then
-    this%nz_end = nz
-else
-    this%nz_end = nz-1
-end if
 
 #ifdef PPCGNS
-! Write this%base
-call cg_base_write_f(this%fid, 'this%base', 3, 3, this%base, ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+    ! Write this%base
+    call cg_base_write_f(this%fid, 'Base', 3, 3, this%base, ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-! Sizes, used to create this%zone
-sizes(:,1) = (/int(nx, cgsize_t),int(ny, cgsize_t),int(nz_tot, cgsize_t)/)
-sizes(:,2) = (/int(nx-1, cgsize_t),int(ny-1, cgsize_t),int(nz_tot-1, cgsize_t)/)
-sizes(:,3) = (/int(0, cgsize_t) , int(0, cgsize_t), int(0, cgsize_t)/)
+    ! Sizes, used to create this%zone
+    sizes(:,1) = (/int(this%nx, cgsize_t), int(this%ny, cgsize_t),             &
+        int(this%nz_tot, cgsize_t)/)
+    sizes(:,2) = (/int(this%nx-1, cgsize_t), int(this%ny-1, cgsize_t),         &
+        int(this%nz_tot-1, cgsize_t)/)
+    sizes(:,3) = (/int(0, cgsize_t) , int(0, cgsize_t), int(0, cgsize_t)/)
 
-! Write this%zone
-call cg_zone_write_f(this%fid, this%base, 'this%zone', sizes, Structured,      &
-    this%zone, ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+    ! Write this%zone
+    call cg_zone_write_f(this%fid, this%base, 'Zone', sizes, Structured,       &
+        this%zone, ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-! Create data nodes for coordinates
-call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,             &
-    'CoordinateX', nx*ny*this%nz_end, ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
-call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,             &
-    'CoordinateY', nx*ny*this%nz_end, ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
-call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,             &
-    'CoordinateZ', nx*ny*this%nz_end,ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+    ! Create data nodes for coordinates
+    call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,         &
+        'CoordinateX', this%nx*this%ny*this%nz, ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
+    call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,         &
+        'CoordinateY', this%nx*this%ny*this%nz, ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
+    call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,         &
+        'CoordinateZ', this%nx*this%ny*this%nz,ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-! Set start and end points
-this%start_n(1) = int(1, cgsize_t)
-this%start_n(2) = int(1, cgsize_t)
-this%start_n(3) = int((nz-1)*coord + 1, cgsize_t)
-this%end_n(1) = int(nx, cgsize_t)
-this%end_n(2) = int(ny, cgsize_t)
-this%end_n(3) = int((nz-1)*coord + this%nz_end, cgsize_t)
+    ! Set start and end points
+    if (this%nz == 0) then
+        this%start_n = int(1, cgsize_t)
+        this%end_n(1) = int(this%nx, cgsize_t)
+        this%end_n(2) = int(this%ny, cgsize_t)
+        this%end_n(3) = int(this%nz_tot, cgsize_t)
+    else
+        this%start_n(1) = int(1, cgsize_t)
+        this%start_n(2) = int(1, cgsize_t)
+        this%start_n(3) = int(this%nz_below + 1, cgsize_t)
+        this%end_n(1) = int(this%nx, cgsize_t)
+        this%end_n(2) = int(this%ny, cgsize_t)
+        this%end_n(3) = int(this%nz_below + this%nz, cgsize_t)
+    end if
 
-! Write local x-mesh
-allocate(xyz(nx, ny, this%nz_end))
-do i = 1, nx
-    xyz(i,:,:) = x(i)
-end do
-call cgp_coord_write_data_f(this%fid, this%base, this%zone, 1, this%start_n,   &
-    this%end_n, xyz(1:nx,1:ny,1:this%nz_end), ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+    ! Write mesh
+    if (this%nz > 0) then
 
-! Write local y-mesh
-do i = 1, ny
-    xyz(:,i,:) = y(i)
-end do
-call cgp_coord_write_data_f(this%fid, this%base, this%zone, 2, this%start_n,   &
-    this%end_n, xyz(1:nx,1:ny,1:this%nz_end), ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+        ! Write local x-mesh
+        allocate(xyz(this%nx, this%ny, this%nz))
+        do i = 1, this%nx
+            xyz(i,:,:) = x(i)
+        end do
+        call cgp_coord_write_data_f(this%fid, this%base, this%zone, 1,         &
+            this%start_n, this%end_n, xyz(:,:,:), ierr)
+        if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-! Write local z-mesh
-do i = 1, this%nz_end
-    xyz(:,:,i) = z(i)
-end do
-call cgp_coord_write_data_f(this%fid, this%base, this%zone, 3, this%start_n,   &
-    this%end_n, xyz(1:nx,1:ny,1:this%nz_end), ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+        ! Write local y-mesh
+        do i = 1, this%ny
+            xyz(:,i,:) = y(i)
+        end do
+        call cgp_coord_write_data_f(this%fid, this%base, this%zone, 2,         &
+            this%start_n, this%end_n, xyz(:,:,:), ierr)
+        if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-! Create a centered solution
-call cg_sol_write_f(this%fid, this%base, this%zone, 'Solution', Vertex,        &
-    this%sol, ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+        ! Write local z-mesh
+        do i = 1, this%nz
+            xyz(:,:,i) = z(i)
+        end do
+        call cgp_coord_write_data_f(this%fid, this%base, this%zone, 3,         &
+            this%start_n, this%end_n, xyz(:,:,:), ierr)
+        if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-#else
-! Set subarray size
-! Note: start array assumes zero indexing (as in C)
-call mpi_type_create_subarray(3, (/ nx, ny, nz_tot /),                         &
-    (/ nx, ny, this%nz_end /), (/ 0, 0,((coord*(nz-1))) /), MPI_ORDER_FORTRAN, &
-    MPI_RPREC, this%subarray_t, ierr)
-call mpi_type_commit(this%subarray_t, ierr)
-#endif
+        ! Create a centered solution
+        call cg_sol_write_f(this%fid, this%base, this%zone, 'Solution',        &
+            Vertex, this%sol, ierr)
+        if (ierr .ne. CG_OK) call cgp_error_exit_f
+    end if
 #endif
 
 ! Mark file as opened
@@ -219,16 +228,16 @@ class(data_writer_t), intent(inout) :: this
 real(rprec), intent(inout), dimension(:,:,:) :: field
 character(*), intent(in) :: field_name
 #ifdef PPMPI
+#ifdef PPCGNS
+integer :: sec
+#else
 integer(MPI_OFFSET_KIND) :: offset
 #endif
-#ifdef PPCGNS
-integer :: i
-integer :: sec
 #endif
 
 ! Check record size
 if (size(field, 1) /= this%nx .or. size(field, 2) /= this%ny .or.              &
-    size(field, 3) /= nz) call error('data_writer_t%write_field',              &
+    size(field, 3) /= this%nz) call error('data_writer_t%write_field',         &
     'Invalid record size')
 
 ! Check field counter
@@ -236,28 +245,26 @@ if (this%counter > this%num_fields) call error('data_write_t%write_field',     &
     'All records already recorded.')
 
 #ifdef PPMPI
+if (this%nz > 0) then
 #ifdef PPCGNS
-! Create the field
-call cgp_field_write_f(this%fid, this%base, this%zone, this%sol, RealDouble,   &
-    field_name, sec, ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+    ! Create the field
+    call cgp_field_write_f(this%fid, this%base, this%zone, this%sol,           &
+        RealDouble, field_name, sec, ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-! Write data field
-call cgp_field_write_data_f(this%fid, this%base, this%zone, this%sol, sec,     &
-    this%start_n, this%end_n, field(:,:,:this%nz_end), ierr)
-if (ierr .ne. CG_OK) call cgp_error_exit_f
+    ! Write data field
+    call cgp_field_write_data_f(this%fid, this%base, this%zone, this%sol, sec, &
+        this%start_n, this%end_n, field(:,:,:), ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
 #else
-! Set the offset for each record
-offset = (this%counter-1)*this%nx*this%ny*nz_tot*rprec
+    ! Set the offset for each record
+    offset = (this%counter-1)*this%nx*this%ny*this%nz_tot*rprec
 
-! Tell each processor what view to take
-call mpi_file_set_view(this%fid, offset, MPI_RPREC, this%subarray_t,&
-    write_endian, MPI_INFO_NULL, ierr)
-
-! Write data collectively
-call mpi_file_write_all(this%fid, field(:,:,:this%nz_end),                     &
-    this%nx*this%ny*this%nz_end, MPI_RPREC, MPI_STATUS_IGNORE, ierr)
+    call mpi_file_write_at(this%fid,                                           &
+        offset+this%nx*this%ny*this%nz_below*rprec, field(:,:,:),              &
+        this%nx*this%ny*this%nz, MPI_RPREC, MPI_STATUS_IGNORE, ierr)
 #endif
+end if
 #else
 write(this%fid, rec=this%counter) field
 #endif

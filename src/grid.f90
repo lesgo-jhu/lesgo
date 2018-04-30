@@ -45,7 +45,7 @@ subroutine build(this)
 !*******************************************************************************
 !  This subroutine creates the uv grid for the domain.
 
-use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, lbz
+use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, lbz, njz
 #ifdef PPMPI
 use param, only : nproc, coord
 #endif
@@ -109,10 +109,7 @@ nullify(autowrap_i,autowrap_j)
 
 ! Set jzmin and jzmax - the levels that this processor "owns"
 #ifdef PPMPI
-if (coord == 0) then
-    jzmin = 0
-    jzmax = nz-1
-elseif (coord == nproc-1) then
+if (coord == nproc-1) then
     jzmin = 1
     jzmax = nz
 else
@@ -123,6 +120,7 @@ endif
 jzmin = 1
 jzmax = nz
 #endif
+njz = jzmax-jzmin+1
 
 end subroutine build
 

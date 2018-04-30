@@ -21,7 +21,7 @@ module io
 !*******************************************************************************
 use param, only : rprec
 use param, only : ld, nx, ny, nz, nz_tot, path, coord, rank, nproc, jt_total
-use param, only : total_time, total_time_dim, lbz, jzmin, jzmax
+use param, only : total_time, total_time_dim, lbz, jzmin, jzmax, njz
 use param, only : cumulative_time, fcumulative_time
 use sim_param, only : w, dudz, dvdz
 use sgs_param, only : Cs_opt2
@@ -420,10 +420,11 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
 ! Velocity
 call string_splice(fname, path //'output/vel.', jt_total)
-call dw%open_file(fname, nx, ny, grid%x(1:nx), grid%y(1:ny), grid%z(1:nz), 3)
-call dw%write_field(u(1:nx,1:ny,1:nz), 'VelocityX')
-call dw%write_field(v(1:nx,1:ny,1:nz), 'VelocityY')
-call dw%write_field(w_uv(1:nx,1:ny,1:nz), 'VelocityZ')
+call dw%open_file(fname, nx, ny, njz, grid%x(1:nx), grid%y(1:ny),              &
+    grid%z(1:nz), 3)
+call dw%write_field(u(1:nx,1:ny,jzmin:jzmax), 'VelocityX')
+call dw%write_field(v(1:nx,1:ny,jzmin:jzmax), 'VelocityY')
+call dw%write_field(w_uv(1:nx,1:ny,jzmin:jzmax), 'VelocityZ')
 call dw%close_file
 
 ! Vorticity
@@ -442,10 +443,11 @@ if (coord == 0) then
 end if
 
 call string_splice(fname, path //'output/vort.', jt_total)
-call dw%open_file(fname, nx, ny, grid%x(1:nx), grid%y(1:ny), grid%z(1:nz), 3)
-call dw%write_field(u(1:nx,1:ny,1:nz), 'VorticityX')
-call dw%write_field(v(1:nx,1:ny,1:nz), 'VorticityY')
-call dw%write_field(w_uv(1:nx,1:ny,1:nz), 'VorticityZ')
+call dw%open_file(fname, nx, ny, njz, grid%x(1:nx), grid%y(1:ny),              &
+    grid%z(1:nz), 3)
+call dw%write_field(vortx(1:nx,1:ny,jzmin:jzmax), 'VorticityX')
+call dw%write_field(vorty(1:nx,1:ny,jzmin:jzmax), 'VorticityY')
+call dw%write_field(vortz(1:nx,1:ny,jzmin:jzmax), 'VorticityZ')
 call dw%close_file
 
 deallocate(vortx, vorty, vortz)
@@ -456,8 +458,9 @@ pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
 pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz) - 0.5*(u(1:nx,1:ny,lbz:nz)**2&
     + interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)**2 + v(1:nx,1:ny,lbz:nz)**2)
 call string_splice(fname, path //'output/pres.', jt_total)
-call dw%open_file(fname, nx, ny, grid%x(1:nx), grid%y(1:ny), grid%z(1:nz), 1)
-call dw%write_field(u(1:nx,1:ny,1:nz), 'Pressure')
+call dw%open_file(fname, nx, ny, njz, grid%x(1:nx), grid%y(1:ny),              &
+    grid%z(1:nz), 1)
+call dw%write_field(pres_real(1:nx,1:ny,jzmin:jzmax), 'Pressure')
 call dw%close_file
 
 call string_splice(fname, path //'output/pres.', jt_total)
@@ -503,11 +506,11 @@ do i = 1, xplane_nloc
     ! Write
     call string_splice(fname, path // 'output/vel.x-', xplane_loc(i), '.', &
         jt_total)
-    call dw%open_file(fname, 1, ny, xplane_loc(i:i), grid%y(1:ny),             &
+    call dw%open_file(fname, 1, ny, njz, xplane_loc(i:i), grid%y(1:ny),        &
         grid%z(1:nz), 3)
-    call dw%write_field(ui(1:1,1:ny,1:nz), 'VelocityX')
-    call dw%write_field(vi(1:1,1:ny,1:nz), 'VelocityY')
-    call dw%write_field(wi(1:1,1:ny,1:nz), 'VelocityZ')
+    call dw%write_field(ui(1:1,1:ny,jzmin:jzmax), 'VelocityX')
+    call dw%write_field(vi(1:1,1:ny,jzmin:jzmax), 'VelocityY')
+    call dw%write_field(wi(1:1,1:ny,jzmin:jzmax), 'VelocityZ')
     call dw%close_file
 end do
 
@@ -552,11 +555,11 @@ do j = 1, yplane_nloc
     ! Write
     call string_splice(fname, path // 'output/vel.y-', yplane_loc(j), '.',     &
          jt_total)
-    call dw%open_file(fname, nx, 1, grid%x(1:nx), yplane_loc(j:j),             &
+    call dw%open_file(fname, nx, 1, njz, grid%x(1:nx), yplane_loc(j:j),        &
         grid%z(1:nz), 3)
-    call dw%write_field(ui(1:nx,1:1,1:nz), 'VelocityX')
-    call dw%write_field(vi(1:nx,1:1,1:nz), 'VelocityY')
-    call dw%write_field(wi(1:nx,1:1,1:nz), 'VelocityZ')
+    call dw%write_field(ui(1:nx,1:1,jzmin:jzmax), 'VelocityX')
+    call dw%write_field(vi(1:nx,1:1,jzmin:jzmax), 'VelocityY')
+    call dw%write_field(wi(1:nx,1:1,jzmin:jzmax), 'VelocityZ')
     call dw%close_file
 end do
 deallocate(ui, vi, wi, w_uv)
@@ -569,9 +572,10 @@ subroutine write_zplanes
 use grid_m
 use functions, only : linear_interp, interp_to_uv_grid
 use data_writer
-use param, only : dz, nx, ny, nz, zplane_nloc, zplane_loc, write_endian
+use param, only : dz, nx, ny, zplane_nloc, zplane_loc
 use sim_param, only : u, v, w
 
+type(data_writer_t) dw
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, w_uv
 integer :: i, j, k
 character (64) :: fname
@@ -583,23 +587,13 @@ allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
 !  Make sure w has been interpolated to uv-grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
-!  Loop over all zplane locations
+!  Loop over all xplane locations
 do k = 1, zplane_nloc
-    ! Common file name portion for all output param
     call string_splice(fname, path // 'output/vel.z-', zplane_loc(k), '.',     &
         jt_total)
-
-#ifdef PPCGNS
-    call string_concat(fname, '.cgns')
-#else
-    call string_concat(fname, '.bin')
-#endif
-
-#ifdef PPMPI
-    if(zplane(k)%coord == coord) then
-#endif
-        do j = 1, Ny
-            do i = 1, Nx
+    if (zplane(k)%coord == coord) then
+        do j = 1, ny
+            do i = 1, nx
                 ui(i,j,1) = linear_interp(u(i,j,zplane(k)%istart),             &
                      u(i,j,zplane(k)%istart+1), dz, zplane(k)%ldiff)
                 vi(i,j,1) = linear_interp(v(i,j,zplane(k)%istart),             &
@@ -609,42 +603,21 @@ do k = 1, zplane_nloc
             end do
         end do
 
-#ifdef PPCGNS
-        call warn("inst_write","Z plane writting is currently disabled.")
-!            ! Write CGNS Data
-!            ! Only the processor with data writes, the other one is written
-!            ! using null arguments with 'write_null_cgns'
-!            call write_parallel_cgns (fname ,nx, ny, 1, 1,                    &
-!                (/ 1, 1,   1 /),                                              &
-!                (/ nx, ny, 1 /),                                              &
-!                x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                       &
-!                (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                  &
-!                (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /) )
-#else
-        open(unit=13,file=fname,form='unformatted',convert=write_endian,       &
-                        access='direct',recl=nx*ny*1*rprec)
-        write(13,rec=1) ui(1:nx,1:ny,1)
-        write(13,rec=2) vi(1:nx,1:ny,1)
-        write(13,rec=3) wi(1:nx,1:ny,1)
-        close(13)
-#endif
-!
-! #ifdef PPMPI
-!         else
-! #ifdef PPCGNS
-!            write(*,*) "At write_null_cgns"
-!            call write_null_cgns (fname ,nx, ny, 1, 1,                         &
-!            (/ 1, 1,   1 /),                                                   &
-!            (/ nx, ny, 1 /),                                                   &
-!            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                            &
-!            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
-!#endif
-#ifdef PPMPI
+        ! Write
+        call dw%open_file(fname, nx, ny, 1, grid%x(1:nx), grid%y(1:ny),        &
+            zplane_loc(k:k), 3)
+        call dw%write_field(ui(1:nx,1:ny,1:1), 'VelocityX')
+        call dw%write_field(vi(1:nx,1:ny,1:1), 'VelocityY')
+        call dw%write_field(wi(1:nx,1:ny,1:1), 'VelocityZ')
+        call dw%close_file
+    else
+        call dw%open_file(fname, nx, ny, 0, grid%x(1:nx), grid%y(1:ny),        &
+            zplane_loc(k:k), 3)
+        call dw%close_file
     end if
-#endif
 end do
 
-deallocate(ui,vi,wi)
+deallocate(ui, vi, wi, w_uv)
 
 end subroutine write_zplanes
 
@@ -847,7 +820,6 @@ if (point_calc) then
 #ifdef PPMPI
         if (point_loc(i)%xyz(3) >= z(1) .and. point_loc(i)%xyz(3) < z(nz)) then
 #endif
-
             point(i)%coord = coord
 
             point(i)%istart = cell_indx('i',dx,point_loc(i)%xyz(1))
