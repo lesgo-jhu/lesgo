@@ -155,7 +155,7 @@ if (USE_TURBINES)
     set(Sources ${Sources} turbines.f90 turbine_indicator.f90 util.f90
         wake_model.f90 wake_model_base.f90 wake_model_adjoint.f90
         wake_model_estimator.f90 minimize.f90 rh_control.f90 lbfgsb.f90
-        line_search.f90)
+        timer.f lbfgsb.f linpack.f)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 

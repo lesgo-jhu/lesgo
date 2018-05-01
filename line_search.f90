@@ -195,31 +195,31 @@ do
     ! print a warning to std output
     if ((this%bracketed .and. (stp <= this%curMinStep .or. stp >= this%curMaxStep))  &
     .or. .not.take_step_success) then
-        call mesg(sub_name, 'Rounding errors prevent further progress. There may'   &
-         // ' not be a step which satisfies the sufficient decrease and curvature'   &
-         // ' conditions. Tolerances may be too small')
-        o_numFunEval = numFunEval
+        !call mesg(sub_name, 'Rounding errors prevent further progress. There may'   &
+        ! // ' not be a step which satisfies the sufficient decrease and curvature'   &
+        ! // ' conditions. Tolerances may be too small')
+        !o_numFunEval = numFunEval
         return
     end if
     if (stp == this%maxStep .and. f <= ftest1 .and. dg < ddtest) then
-        call mesg(sub_name,'The step is at the upper bound.')
-        o_numFunEval = numFunEval
+        !call mesg(sub_name,'The step is at the upper bound.')
+        !o_numFunEval = numFunEval
         return
     end if
     if (stp == this%minStep .and. (f > ftest1 .or. dg >= ddtest)) then
-        call mesg(sub_name,'The step is at the lower bound.')
-        o_numFunEval = numFunEval
+        !call mesg(sub_name,'The step is at the lower bound.')
+        !o_numFunEval = numFunEval
         return
     end if
     if (numFunEval >= this%maxFunEval) then
-        call mesg(sub_name,'Maximum number of function evaluations has been reached.')
-        o_numFunEval = numFunEval
+        !call mesg(sub_name,'Maximum number of function evaluations has been reached.')
+        !o_numFunEval = numFunEval
         return
     end if
     if (this%bracketed .and.                                                         &
      this%curMaxStep - this%curMinStep <= this%xtol * this%curMaxStep) then
-        call mesg(sub_name,'Relative width of the interval of uncertainty has '     &
-         // 'reached tolerance.')
+        !call mesg(sub_name,'Relative width of the interval of uncertainty has '     &
+        ! // 'reached tolerance.')
         o_numFunEval = numFunEval
         return
     end if
@@ -295,7 +295,9 @@ sub_name = this%class_name // '.search'
 ! Check the input parameters for errors.
 if ( ( this%bracketed .and. ( stp <= min(stx, sty) .or. stp >= max(stx, sty) ) )     &
  .or. dx * (stp - stx) >= 0.0 .or. this%curMaxStep < this%curMinStep ) then
-    call error(sub_name, 'Invalid input argument')
+    take_step_success = .false.
+    return 
+    ! call (sub_name, 'Invalid input argument')
 end if
 
 ! Determine if the derivatives have opposite sign.
