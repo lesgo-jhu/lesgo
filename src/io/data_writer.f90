@@ -116,8 +116,6 @@ this%nz_tot = buffer(nproc)
 this%nz_below = buffer(coord+1)-this%nz
 #endif
 
-write(*,*) coord, this%nz, this%nz_tot, this%nz_below
-
 ! Open file if not already open
 if (this%opened) call error('data_writer_t%open_file', 'File already opened')
 
@@ -138,81 +136,81 @@ open(newunit=this%fid, file=full_fname, form='unformatted',                    &
 #endif
 
 #ifdef PPCGNS
-    ! Write this%base
-    call cg_base_write_f(this%fid, 'Base', 3, 3, this%base, ierr)
+! Write this%base
+call cg_base_write_f(this%fid, 'Base', 3, 3, this%base, ierr)
+if (ierr .ne. CG_OK) call cgp_error_exit_f
+
+! Sizes, used to create this%zone
+sizes(:,1) = (/int(this%nx, cgsize_t), int(this%ny, cgsize_t),                 &
+    int(this%nz_tot, cgsize_t)/)
+sizes(:,2) = (/int(this%nx-1, cgsize_t), int(this%ny-1, cgsize_t),             &
+    int(this%nz_tot-1, cgsize_t)/)
+sizes(:,3) = (/int(0, cgsize_t) , int(0, cgsize_t), int(0, cgsize_t)/)
+
+! Write this%zone
+call cg_zone_write_f(this%fid, this%base, 'Zone', sizes, Structured,           &
+    this%zone, ierr)
+if (ierr .ne. CG_OK) call cgp_error_exit_f
+
+! Create data nodes for coordinates
+call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,             &
+    'CoordinateX', this%nx*this%ny*this%nz, ierr)
+if (ierr .ne. CG_OK) call cgp_error_exit_f
+call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,             &
+    'CoordinateY', this%nx*this%ny*this%nz, ierr)
+if (ierr .ne. CG_OK) call cgp_error_exit_f
+call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,             &
+    'CoordinateZ', this%nx*this%ny*this%nz,ierr)
+if (ierr .ne. CG_OK) call cgp_error_exit_f
+
+! Set start and end points
+if (this%nz == 0) then
+    this%start_n = int(1, cgsize_t)
+    this%end_n(1) = int(this%nx, cgsize_t)
+    this%end_n(2) = int(this%ny, cgsize_t)
+    this%end_n(3) = int(this%nz_tot, cgsize_t)
+else
+    this%start_n(1) = int(1, cgsize_t)
+    this%start_n(2) = int(1, cgsize_t)
+    this%start_n(3) = int(this%nz_below + 1, cgsize_t)
+    this%end_n(1) = int(this%nx, cgsize_t)
+    this%end_n(2) = int(this%ny, cgsize_t)
+    this%end_n(3) = int(this%nz_below + this%nz, cgsize_t)
+end if
+
+! Write mesh
+if (this%nz > 0) then
+
+    ! Write local x-mesh
+    allocate(xyz(this%nx, this%ny, this%nz))
+    do i = 1, this%nx
+        xyz(i,:,:) = x(i)
+    end do
+    call cgp_coord_write_data_f(this%fid, this%base, this%zone, 1,             &
+        this%start_n, this%end_n, xyz(:,:,:), ierr)
     if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-    ! Sizes, used to create this%zone
-    sizes(:,1) = (/int(this%nx, cgsize_t), int(this%ny, cgsize_t),             &
-        int(this%nz_tot, cgsize_t)/)
-    sizes(:,2) = (/int(this%nx-1, cgsize_t), int(this%ny-1, cgsize_t),         &
-        int(this%nz_tot-1, cgsize_t)/)
-    sizes(:,3) = (/int(0, cgsize_t) , int(0, cgsize_t), int(0, cgsize_t)/)
-
-    ! Write this%zone
-    call cg_zone_write_f(this%fid, this%base, 'Zone', sizes, Structured,       &
-        this%zone, ierr)
+    ! Write local y-mesh
+    do i = 1, this%ny
+        xyz(:,i,:) = y(i)
+    end do
+    call cgp_coord_write_data_f(this%fid, this%base, this%zone, 2,             &
+        this%start_n, this%end_n, xyz(:,:,:), ierr)
     if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-    ! Create data nodes for coordinates
-    call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,         &
-        'CoordinateX', this%nx*this%ny*this%nz, ierr)
-    if (ierr .ne. CG_OK) call cgp_error_exit_f
-    call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,         &
-        'CoordinateY', this%nx*this%ny*this%nz, ierr)
-    if (ierr .ne. CG_OK) call cgp_error_exit_f
-    call cgp_coord_write_f(this%fid, this%base, this%zone, RealDouble,         &
-        'CoordinateZ', this%nx*this%ny*this%nz,ierr)
+    ! Write local z-mesh
+    do i = 1, this%nz
+        xyz(:,:,i) = z(i)
+    end do
+    call cgp_coord_write_data_f(this%fid, this%base, this%zone, 3,             &
+        this%start_n, this%end_n, xyz(:,:,:), ierr)
     if (ierr .ne. CG_OK) call cgp_error_exit_f
 
-    ! Set start and end points
-    if (this%nz == 0) then
-        this%start_n = int(1, cgsize_t)
-        this%end_n(1) = int(this%nx, cgsize_t)
-        this%end_n(2) = int(this%ny, cgsize_t)
-        this%end_n(3) = int(this%nz_tot, cgsize_t)
-    else
-        this%start_n(1) = int(1, cgsize_t)
-        this%start_n(2) = int(1, cgsize_t)
-        this%start_n(3) = int(this%nz_below + 1, cgsize_t)
-        this%end_n(1) = int(this%nx, cgsize_t)
-        this%end_n(2) = int(this%ny, cgsize_t)
-        this%end_n(3) = int(this%nz_below + this%nz, cgsize_t)
-    end if
-
-    ! Write mesh
-    if (this%nz > 0) then
-
-        ! Write local x-mesh
-        allocate(xyz(this%nx, this%ny, this%nz))
-        do i = 1, this%nx
-            xyz(i,:,:) = x(i)
-        end do
-        call cgp_coord_write_data_f(this%fid, this%base, this%zone, 1,         &
-            this%start_n, this%end_n, xyz(:,:,:), ierr)
-        if (ierr .ne. CG_OK) call cgp_error_exit_f
-
-        ! Write local y-mesh
-        do i = 1, this%ny
-            xyz(:,i,:) = y(i)
-        end do
-        call cgp_coord_write_data_f(this%fid, this%base, this%zone, 2,         &
-            this%start_n, this%end_n, xyz(:,:,:), ierr)
-        if (ierr .ne. CG_OK) call cgp_error_exit_f
-
-        ! Write local z-mesh
-        do i = 1, this%nz
-            xyz(:,:,i) = z(i)
-        end do
-        call cgp_coord_write_data_f(this%fid, this%base, this%zone, 3,         &
-            this%start_n, this%end_n, xyz(:,:,:), ierr)
-        if (ierr .ne. CG_OK) call cgp_error_exit_f
-
-        ! Create a centered solution
-        call cg_sol_write_f(this%fid, this%base, this%zone, 'Solution',        &
-            Vertex, this%sol, ierr)
-        if (ierr .ne. CG_OK) call cgp_error_exit_f
-    end if
+    ! Create a centered solution
+    call cg_sol_write_f(this%fid, this%base, this%zone, 'Solution',            &
+        Vertex, this%sol, ierr)
+    if (ierr .ne. CG_OK) call cgp_error_exit_f
+end if
 #endif
 
 ! Mark file as opened

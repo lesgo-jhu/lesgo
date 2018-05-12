@@ -1,7 +1,8 @@
 function [u,v,w] = getSnapX(p,step,loc)
-%GETSNAPX reads x-plane snapshot
-%   getSnapX(p,step) x-plane snapshot at timestep step and x location loc.
-%   Lesgo parameters are provided as struct p read using p = getParams(...)
+%GETSNAPX reads a x-plane snapshot
+%   [u,v,w] = getSnapX(p,step,loc) reads a x-plane snapshot at timestep step 
+%   and x location loc. lesgo parameters are provided as struct p read using 
+%   p = getParams(...)
 
 % size of record
 N = p.nx*p.nz_tot;

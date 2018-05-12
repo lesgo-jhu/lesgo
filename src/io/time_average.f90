@@ -284,7 +284,7 @@ end subroutine compute
 subroutine finalize(this)
 !*******************************************************************************
 use grid_m
-use param, only : write_endian, jzmin, jzmax, lbz, path, coord
+use param, only : write_endian, jzmin, jzmax, lbz, path, njz
 use string_util
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -296,11 +296,6 @@ use param, only : nproc
 
 implicit none
 class(tavg_t), intent(inout) :: this
-#ifndef PPCGNS
-character(64) :: bin_ext
-#else
-integer :: nz_end
-#endif
 character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_pres
 character(64) :: fname_f, fname_rs, fname_cs
 integer :: i, j, k
@@ -399,46 +394,46 @@ call mpi_sync_real_array( this%cs_opt2(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
 #endif
 
 ! write
-call dw%open_file(fname_vel, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 3)
-call dw%write_field(this%u(1:nx,1:ny,1:nz), 'VelocityX')
-call dw%write_field(this%v(1:nx,1:ny,1:nz), 'VelocityY')
-call dw%write_field(this%w_uv(1:nx,1:ny,1:nz), 'VelocityZ')
+call dw%open_file(fname_vel, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 3)
+call dw%write_field(this%u(1:nx,1:ny,jzmin:jzmax), 'VelocityX')
+call dw%write_field(this%v(1:nx,1:ny,jzmin:jzmax), 'VelocityY')
+call dw%write_field(this%w_uv(1:nx,1:ny,jzmin:jzmax), 'VelocityZ')
 call dw%close_file
 
-call dw%open_file(fname_velw, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 1)
-call dw%write_field(this%w(1:nx,1:ny,1:nz), 'VelocityZ')
+call dw%open_file(fname_velw, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 1)
+call dw%write_field(this%w(1:nx,1:ny,jzmin:jzmax), 'VelocityZ')
 call dw%close_file
 
-call dw%open_file(fname_vel2, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 6)
-call dw%write_field(this%u2(1:nx,1:ny,1:nz), 'Mean--uu')
-call dw%write_field(this%v2(1:nx,1:ny,1:nz), 'Mean--vv')
-call dw%write_field(this%w2(1:nx,1:ny,1:nz), 'Mean--ww')
-call dw%write_field(this%uw(1:nx,1:ny,1:nz), 'Mean--uw')
-call dw%write_field(this%vw(1:nx,1:ny,1:nz), 'Mean--vw')
-call dw%write_field(this%uv(1:nx,1:ny,1:nz), 'Mean--uv')
+call dw%open_file(fname_vel2, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 6)
+call dw%write_field(this%u2(1:nx,1:ny,jzmin:jzmax), 'Mean--uu')
+call dw%write_field(this%v2(1:nx,1:ny,jzmin:jzmax), 'Mean--vv')
+call dw%write_field(this%w2(1:nx,1:ny,jzmin:jzmax), 'Mean--ww')
+call dw%write_field(this%uw(1:nx,1:ny,jzmin:jzmax), 'Mean--uw')
+call dw%write_field(this%vw(1:nx,1:ny,jzmin:jzmax), 'Mean--vw')
+call dw%write_field(this%uv(1:nx,1:ny,jzmin:jzmax), 'Mean--uv')
 call dw%close_file
 
-call dw%open_file(fname_tau, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 6)
-call dw%write_field(this%txx(1:nx,1:ny,1:nz), 'Tau-txx')
-call dw%write_field(this%txy(1:nx,1:ny,1:nz), 'Tau-txy')
-call dw%write_field(this%tyy(1:nx,1:ny,1:nz), 'Tau-tyy')
-call dw%write_field(this%txz(1:nx,1:ny,1:nz), 'Tau-txz')
-call dw%write_field(this%tyz(1:nx,1:ny,1:nz), 'Tau-tyz')
-call dw%write_field(this%tzz(1:nx,1:ny,1:nz), 'Tau-txzz')
+call dw%open_file(fname_tau, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 6)
+call dw%write_field(this%txx(1:nx,1:ny,jzmin:jzmax), 'Tau-txx')
+call dw%write_field(this%txy(1:nx,1:ny,jzmin:jzmax), 'Tau-txy')
+call dw%write_field(this%tyy(1:nx,1:ny,jzmin:jzmax), 'Tau-tyy')
+call dw%write_field(this%txz(1:nx,1:ny,jzmin:jzmax), 'Tau-txz')
+call dw%write_field(this%tyz(1:nx,1:ny,jzmin:jzmax), 'Tau-tyz')
+call dw%write_field(this%tzz(1:nx,1:ny,jzmin:jzmax), 'Tau-txzz')
 call dw%close_file
 
-call dw%open_file(fname_pres, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 1)
-call dw%write_field(this%p(1:nx,1:ny,1:nz), 'Pressure')
+call dw%open_file(fname_pres, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 1)
+call dw%write_field(this%p(1:nx,1:ny,jzmin:jzmax), 'Pressure')
 call dw%close_file
 
-call dw%open_file(fname_f, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 3)
-call dw%write_field(this%fx(1:nx,1:ny,1:nz), 'BodyForX')
-call dw%write_field(this%fy(1:nx,1:ny,1:nz), 'BodyForY')
-call dw%write_field(this%fz(1:nx,1:ny,1:nz), 'BodyForZ')
+call dw%open_file(fname_f, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 3)
+call dw%write_field(this%fx(1:nx,1:ny,jzmin:jzmax), 'BodyForX')
+call dw%write_field(this%fy(1:nx,1:ny,jzmin:jzmax), 'BodyForY')
+call dw%write_field(this%fz(1:nx,1:ny,jzmin:jzmax), 'BodyForZ')
 call dw%close_file
 
-call dw%open_file(fname_cs, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 1)
-call dw%write_field(this%cs_opt2(1:nx,1:ny,1:nz), 'Cs_Coeff')
+call dw%open_file(fname_cs, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 1)
+call dw%write_field(this%cs_opt2(1:nx,1:ny,jzmin:jzmax), 'Cs_Coeff')
 call dw%close_file
 
 #ifdef PPMPI
@@ -464,13 +459,13 @@ upvp = this%uv - this%u * this%v
 upwp = this%uw - this%u_w * this%w
 vpwp = this%vw - this%v_w * this%w
 
-call dw%open_file(fname_rs, nx, ny, nz, x(1:nx), y(1:ny), z(1:nz), 6)
-call dw%write_field(up2(1:nx,1:ny,1:nz), 'Meanupup')
-call dw%write_field(vp2(1:nx,1:ny,1:nz), 'Meanvpvp')
-call dw%write_field(wp2(1:nx,1:ny,1:nz), 'Meanwpwp')
-call dw%write_field(upwp(1:nx,1:ny,1:nz), 'Meanupwp')
-call dw%write_field(vpwp(1:nx,1:ny,1:nz), 'Meanvpwp')
-call dw%write_field(upvp(1:nx,1:ny,1:nz), 'Meanupvp')
+call dw%open_file(fname_rs, nx, ny, njz, x(1:nx), y(1:ny), z(1:nz), 6)
+call dw%write_field(up2(1:nx,1:ny,jzmin:jzmax), 'Meanupup')
+call dw%write_field(vp2(1:nx,1:ny,jzmin:jzmax), 'Meanvpvp')
+call dw%write_field(wp2(1:nx,1:ny,jzmin:jzmax), 'Meanwpwp')
+call dw%write_field(upwp(1:nx,1:ny,jzmin:jzmax), 'Meanupwp')
+call dw%write_field(vpwp(1:nx,1:ny,jzmin:jzmax), 'Meanvpwp')
+call dw%write_field(upvp(1:nx,1:ny,jzmin:jzmax), 'Meanupvp')
 call dw%close_file
 
 #ifdef PPMPI

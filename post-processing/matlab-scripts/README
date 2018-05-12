@@ -1,7 +1,8 @@
 These MATLAB scripts and functions will read lesgo's binary output data into MATLAB so that they can be post-processed.
 
 USAGE:
-- Copy all the MATLAB scripts/functions into the directory where your data is stored (this should be the same directory level where lesgo_param.out is located).
+- Execute the MATLAB scripts/functions from the directory where your data is stored (this should be the same directory 
+  level where lesgo_param.out is located).
 - The script will read lesgo_param.out to get the simulation parameters.
 - The script assumes the other data (statistics, snapshots, etc.) are stored in ./output.
 
@@ -10,8 +11,7 @@ As of 9 June 2016, the scripts can read all standard lesgo output files
 
 TESTING:
 Successfully testing on the following MATLAB versions:
-- R2011b, R2013b, R2015b
+- R2011b, R2013b, R2015b, R2016b
 
 CONTRIBUTING:
-These MATLAB scripts are hosted within the lesgo project and at: https://github.com/jbret/binary-read-lesgo.git
-Feel free to contribute changes at either location.
+These MATLAB scripts are hosted within the lesgo project, and feel free to contribute changes .

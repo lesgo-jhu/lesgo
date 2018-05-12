@@ -12,14 +12,14 @@ clear all; close all; clc;
 % specify which files to load
 avgVelocities    = true;
 dns_profiles     = true; % Re_tau = 1000 channel flow
-domain_snapshots = false;
-x_snapshots      = false;
-y_snapshots      = false;
-z_snapshots      = false;
-points           = false;
+domain_snapshots = true;
+x_snapshots      = true;
+y_snapshots      = true;
+z_snapshots      = true;
+points           = true;
 
 % specify file names (must choose a particular velocity snapshot)
-snap_time = 1;
+snap_time = 75000;
 xloc = 0.1;
 yloc = 0.1;
 zloc = 0.1;

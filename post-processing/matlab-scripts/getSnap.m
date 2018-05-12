@@ -1,7 +1,7 @@
 function [u,v,w,vortx,vorty,vortz,p] = getSnap(p,step)
 %GETSNAP reads whole domain snapshot
-%   getSnap(p,step) domain snapshot at timestep step. Lesgo parameters
-%   are provided as struct p read using p = getParams(...)
+%   [u,v,w,vortx,vorty,vortz,p] = getSnap(p,step) reads a domain snapshot at timestep step. 
+%   lesgo parameters are provided as struct p read using p = getParams(...)
 
 % size of record
 N = p.nx*p.ny*p.nz_tot;

@@ -1,25 +1,19 @@
 function w = getAvgVelW(p)
-%UNTITLED3 Summary of this function goes here
-%   Detailed explanation goes here
+%GETAVGVELW reads the average velocity in the w grid
+%   w = getAvgVelW(p) reads the average velocity on the w grid
+%   lesgo parameters are provided as struct p read using p = getParams(...)
 
-for i=1:p.nproc
-    
-    % Open the file
-    fname = ['./output/velw_avg.c',num2str(i-1),'.bin'];
-    fid=fopen(fname,'r');
-    if (fid < 0) 
-        error('getSnap:fname',['Could not open file ',fname]);
-    end
+% size of record
+N = p.nx*p.ny*p.nz_tot;
 
-    % Determine the interval of the matrix where the data should be stored
-    zmin=p.zmin_buf(i);
-    zmax=p.zmax_buf(i);
-    
-    % Scan the data
-    dummy=fread(fid,p.nx*p.ny*p.nz2,'double',p.fmt); 
-    w(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
-    
-    fclose(fid);
+% Velocity
+fname = './output/velw_avg.bin';
+fid = fopen(fname,'r');
+if (fid < 0) 
+    error(['getSnap: Could not open file ',fname]);
 end
+w = reshape(fread(fid,N,'double',p.fmt),p.nx,p.ny,p.nz_tot);
+fclose(fid);
+
 end
 

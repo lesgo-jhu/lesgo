@@ -1,6 +1,7 @@
-function p = getParams( param_file_name )
-% Reads in simulation parameters from lesgo_param.out as a struct
-%   Uses regular expressions
+function p = getParams(param_file_name)
+% GETPARMS reads in the lesgo simulation parameters.
+%   p = getParams(param_file_name) reads in simulation parameters 
+%   from lesgo_param.out as a struct
 
 lesgoParam = fileread(param_file_name);
 
@@ -57,10 +58,10 @@ p.zmin_buf = dummynproc*(p.nz2-1)-p.nz2+2;
 p.zmax_buf = dummynproc*(p.nz2-1)+1;
 
 % build grid
-p.x    = 0.0    : p.dx : p.L_x-p.dx;
-p.y    = 0.0    : p.dy : p.L_y-p.dy;
-p.z_w  = 0.0    : p.dz : p.L_z;           % for avg vels, avg (rs's, dudz,dvdz,txz,tyz)
-p.z_uv = p.dz/2 : p.dz : p.L_z+p.dz/2;     % for inst vels, avg (txx,txy,tzz,txy)
+p.x    = 0.0    : p.dx : p.L_x-p.dx+1E-6;
+p.y    = 0.0    : p.dy : p.L_y-p.dy+1E-6;
+p.z_w  = 0.0    : p.dz : p.L_z+1E-6;           % for avg vels, avg (rs's, dudz,dvdz,txz,tyz)
+p.z_uv = p.dz/2 : p.dz : p.L_z+p.dz/2+1E-6;     % for inst vels, avg (txx,txy,tzz,txy)
 
 end
 
