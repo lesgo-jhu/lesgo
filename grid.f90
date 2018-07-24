@@ -61,12 +61,12 @@ nullify(autowrap_i,autowrap_j)
 
 !  x and y go to nx+1, ny+1 respectively for adding
 !  the buffered points for periodicity
-allocate(grid % x(nx+1),grid % y(ny+1))
-allocate(grid % z(lbz:nz), grid % zw(lbz:nz))
-allocate(grid % autowrap_i(0:nx+1), grid % autowrap_j(0:ny+1))
+allocate(this%x(nx+1),this%y(ny+1))
+allocate(this%z(lbz:nz), this%zw(lbz:nz))
+allocate(this%autowrap_i(0:nx+1), this%autowrap_j(0:ny+1))
 
 ! Initialize built
-grid % built = .false.
+this%built = .false.
 
 ! Set pointers
 x => this % x
