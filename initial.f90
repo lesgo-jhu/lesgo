@@ -53,6 +53,7 @@ integer::jz
 
 ! Flag to identify if file exists
 logical :: file_flag
+logical :: interp_flag
 logical :: iwm_file_flag !xiang: for iwm restart
 
 #ifdef PPTURBINES
@@ -93,6 +94,11 @@ end if
 ! if not then create new IC
 inquire( file=fname, exist=file_flag )
 if (file_flag) then
+    interp_flag = check_for_interp()
+else
+    interp_flag = .false.
+end if
+if (file_flag .and. .not.interp_flag) then
     initu = .true.
     inilag = .false.
 else
@@ -113,9 +119,14 @@ else if (lbc_mom==1) then
         'field with DNS BCs'
     call ic_dns()
 else
-    if (coord == 0) write(*,*) '--> Creating initial boundary layer velocity ',&
-    'field with LES BCs'
-    call ic_les()
+    if (interp_flag) then
+        if (coord == 0) write(*,*) '--> Interpolating initial velocity field from file'
+        call ic_interp
+    else
+        if (coord == 0) write(*,*) '--> Creating initial boundary layer velocity ',&
+        'field with LES BCs'
+        call ic_les()
+    end if
 end if
 
 #ifdef PPDYN_TN
@@ -132,9 +143,12 @@ if (cumulative_time) then
 end if
 #endif
 
+! call mpi_barrier(comm, ierr)
+! stop
+
 ! Write averaged vertical profiles to standard output
 do jz = 1, nz
-    write(6,7780) jz, sum (u(1:nx, :, jz)) / (nx * ny),                        &
+    write(6,7780) jz+coord*nz, sum (u(1:nx, :, jz)) / (nx * ny),               &
                   sum (v(1:nx, :, jz)) / (nx * ny),                            &
                   sum (w(1:nx, :, jz)) / (nx * ny)
 end do
@@ -172,6 +186,32 @@ end subroutine ic_uniform
 #endif
 
 !*******************************************************************************
+function check_for_interp() result(flag)
+!*******************************************************************************
+integer :: Nx_f, Ny_f, Nz_f, nproc_f
+real(rprec) :: Lx_f, Ly_f, Lz_f
+logical :: exst, flag
+
+inquire (file='grid.out', exist=exst)
+if (exst) then
+    open(12, file='grid.out', form='unformatted', convert=read_endian)
+    read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
+    close(12)
+    if (nproc_f == nproc .and. Nx_f == Nx .and. Ny_f == Ny .and. Nz_f == Nz    &
+        .and. Lx_f == L_x .and. Ly_f == L_y .and. Lz_f == L_z) then
+        flag = .false.
+    else
+        flag = .true.
+    end if
+
+else
+    flag = .false.
+end if
+
+end function check_for_interp
+
+
+!*******************************************************************************
 subroutine ic_file()
 !*******************************************************************************
 ! This subroutine reads the initial conditions from the checkpoint file.
@@ -186,6 +226,133 @@ read(12) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),                          &
 close(12)
 
 end subroutine ic_file
+
+!*******************************************************************************
+subroutine ic_interp()
+!*******************************************************************************
+! This subroutine reads the initial conditions from a checkpoint file and
+! interpolates onto the current grid
+!
+use grid_m
+use functions
+integer :: nproc_f, Nx_f, Ny_f, Nz_f
+real(rprec) :: Lx_f, Ly_f, Lz_f
+integer :: i, j, k, z1, z2, ld_f, lh_f, Nz_tot_f
+real(rprec) :: dx_f, dy_f, dz_f
+integer :: i1, i2, j1, j2, k1, k2
+real(rprec) :: ax, ay, az, bx, by, bz, xx, yy
+real(rprec), allocatable, dimension(:) :: x_f, y_f, z_f, zw_f
+real(rprec), allocatable, dimension(:,:,:) :: u_f, v_f, w_f
+character(64) :: ff
+
+! Read grid information from file
+open(12, file='grid.out', form='unformatted', convert=read_endian)
+read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
+close(12)
+
+! Compute intermediate values
+lh_f = nx_f/2+1
+ld_f = 2*lh_f
+Nz_tot_f = ( nz_f - 1 ) * nproc_f + 1
+dx_f = Lx_f / nx_f
+dy_f = Ly_f / ny_f
+dz_f = Lz_f / (nz_tot_f - 1)
+
+! Create file grid
+allocate( x_f(nx_f), y_f(ny_f), z_f(nz_tot_f), zw_f(nz_tot_f))
+do i = 1, nx_f
+    x_f(i) = (i-1) * Lx_f/(nx_f)
+end do
+do i = 1, ny_f
+    y_f(i) = (i-1) * Ly_f/ny_f
+end do
+do i = 1, nz_tot_f
+    zw_f(i) = (i-1) * Lz_f/(nz_tot_f-1)
+    z_f(i) = zw_f(i) + 0.5*dz_f
+end do
+
+! Read velocities from file
+allocate( u_f(ld_f, ny_f, nz_tot_f) )
+allocate( v_f(ld_f, ny_f, nz_tot_f) )
+allocate( w_f(ld_f, ny_f, nz_tot_f) )
+
+! Loop through all levels
+do i = 1, nproc_f
+    ! Set level bounds
+    z1 = nz_tot_f / nproc_f * (i-1) + 1
+    z2 = nz_tot_f / nproc_f * i  + 1
+
+    ! Read from file
+    write(ff,*) i-1
+    ff = "./vel.out.c"//trim(adjustl(ff))
+    open(12, file=ff,  action='read', form='unformatted')
+    read(12) u_f(:, :, z1:z2), v_f(:, :, z1:z2), w_f(:, :, z1:z2)
+    close(12)
+end do
+
+! Calculate velocities
+do i = 1, nx
+    xx = grid%x(i) - floor(grid%x(i)/Lx_f) * Lx_f
+    i1 = binary_search(x_f, xx)
+    i2 = mod(i1, nx_f) + 1
+    bx = (xx - x_f(i1)) / dx_f
+    ax = 1._rprec - bx
+    do j = 1, ny
+        yy = grid%y(j) - floor(grid%y(j)/Ly_f) * Ly_f
+        j1 = binary_search(y_f, yy)
+        j2 = mod(j1, ny_f) + 1
+        by = (yy - y_f(j1)) / dy_f
+        ay = 1._rprec - by
+        do k = 1, nz
+            ! for u and v
+            k1 = binary_search(z_f, grid%z(k))
+            k2 = k1 + 1
+            if (k1 == nz_tot_f) then
+                u(i,j,k) = ax*ay*u_f(i1,j1,k1) + bx*ay*u_f(i2,j1,k1)           &
+                         + ax*by*u_f(i1,j2,k1) + bx*by*u_f(i2,j2,k1)
+                v(i,j,k) = ax*ay*v_f(i1,j1,k1) + bx*ay*v_f(i2,j1,k1)           &
+                         + ax*by*v_f(i1,j2,k1) + bx*by*v_f(i2,j2,k1)
+            else if (k1 == 0) then
+                u(i,j,k) = ax*ay*u_f(i1,j1,k2) + bx*ay*u_f(i2,j1,k2)           &
+                         + ax*by*u_f(i1,j2,k2) + bx*by*u_f(i2,j2,k2)
+                v(i,j,k) = ax*ay*v_f(i1,j1,k2) + bx*ay*v_f(i2,j1,k2)           &
+                         + ax*by*v_f(i1,j2,k2) + bx*by*v_f(i2,j2,k2)
+            else
+                bz = (grid%z(k) - z_f(k1)) / dz_f
+                az = 1._rprec - bz
+                u(i,j,k) = ax*ay*az*u_f(i1,j1,k1) + bx*ay*az*u_f(i2,j1,k1)     &
+                         + ax*by*az*u_f(i1,j2,k1) + bx*by*az*u_f(i2,j2,k1)     &
+                         + ax*ay*bz*u_f(i1,j1,k2) + bx*ay*bz*u_f(i2,j1,k2)     &
+                         + ax*by*bz*u_f(i1,j2,k2) + bx*by*bz*u_f(i2,j2,k2)
+                v(i,j,k) = ax*ay*az*v_f(i1,j1,k1) + bx*ay*az*v_f(i2,j1,k1)     &
+                         + ax*by*az*v_f(i1,j2,k1) + bx*by*az*v_f(i2,j2,k1)     &
+                         + ax*ay*bz*v_f(i1,j1,k2) + bx*ay*bz*v_f(i2,j1,k2)     &
+                         + ax*by*bz*v_f(i1,j2,k2) + bx*by*bz*v_f(i2,j2,k2)
+            end if
+
+            ! for w
+            k1 = binary_search(zw_f, grid%zw(k))
+            k2 = k1 + 1
+            if (k1 == nz_tot_f) then
+                w(i,j,k) = ax*ay*w_f(i1,j1,k1) + bx*ay*w_f(i2,j1,k1)           &
+                         + ax*by*w_f(i1,j2,k1) + bx*by*w_f(i2,j2,k1)
+            else if (k1 == 0) then
+                w(i,j,k) = ax*ay*w_f(i1,j1,k2) + bx*ay*w_f(i2,j1,k2)           &
+                         + ax*by*w_f(i1,j2,k2) + bx*by*w_f(i2,j2,k2)
+            else
+                bz = (grid%zw(k) - zw_f(k1)) / dz_f
+                az = 1._rprec - bz
+                w(i,j,k) = ax*ay*az*w_f(i1,j1,k1) + bx*ay*az*w_f(i2,j1,k1)     &
+                         + ax*by*az*w_f(i1,j2,k1) + bx*by*az*w_f(i2,j2,k1)     &
+                         + ax*ay*bz*w_f(i1,j1,k2) + bx*ay*bz*w_f(i2,j1,k2)     &
+                         + ax*by*bz*w_f(i1,j2,k2) + bx*by*bz*w_f(i2,j2,k2)
+            end if
+
+        end do
+    end do
+end do
+
+end subroutine ic_interp
 
 !*******************************************************************************
 subroutine ic_dns()
