@@ -93,11 +93,7 @@ end if
 ! Check if file exists and read from it
 ! if not then create new IC
 inquire( file=fname, exist=file_flag )
-if (file_flag) then
-    interp_flag = check_for_interp()
-else
-    interp_flag = .false.
-end if
+interp_flag = check_for_interp()
 if (file_flag .and. .not.interp_flag) then
     initu = .true.
     inilag = .false.
@@ -109,6 +105,9 @@ end if
 if (initu) then
     if (coord == 0) write(*,*) '--> Reading initial velocity field from file'
     call ic_file
+elseif (interp_flag) then
+    if (coord == 0) write(*,*) '--> Interpolating initial velocity field from file'
+    call ic_interp
 #ifndef PPCPS
 else if (inflow) then
         if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
@@ -119,14 +118,9 @@ else if (lbc_mom==1) then
         'field with DNS BCs'
     call ic_dns()
 else
-    if (interp_flag) then
-        if (coord == 0) write(*,*) '--> Interpolating initial velocity field from file'
-        call ic_interp
-    else
-        if (coord == 0) write(*,*) '--> Creating initial boundary layer velocity ',&
-        'field with LES BCs'
-        call ic_les()
-    end if
+    if (coord == 0) write(*,*) '--> Creating initial boundary layer velocity ',&
+    'field with LES BCs'
+    call ic_les()
 end if
 
 #ifdef PPDYN_TN
@@ -203,13 +197,11 @@ if (exst) then
     else
         flag = .true.
     end if
-
 else
     flag = .false.
 end if
 
 end function check_for_interp
-
 
 !*******************************************************************************
 subroutine ic_file()
