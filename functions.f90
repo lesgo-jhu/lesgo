@@ -27,7 +27,7 @@ implicit none
 save
 private
 
-public interp_to_uv_grid, trilinear_interp, trilinear_interp_w,                &
+public interp_to_uv_grid, trilinear_interp, trilinear_interp_w, binary_search, &
     bilinear_interp, linear_interp, cell_indx, buff_indx, interp_to_w_grid,    &
     get_tau_wall_bot, get_tau_wall_top
 

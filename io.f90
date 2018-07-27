@@ -1144,7 +1144,7 @@ end subroutine inst_write
 subroutine checkpoint ()
 !*******************************************************************************
 use iwmles
-use param, only : nz, checkpoint_file, tavg_calc, lbc_mom
+use param, only : nz, checkpoint_file, tavg_calc, lbc_mom, L_x, L_y, L_z
 #ifdef PPMPI
 use param, only : comm, ierr
 #endif
@@ -1180,6 +1180,13 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),                        &
     Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),                         &
     F_QN(:,:,1:nz), F_NN(:,:,1:nz)
 close(11)
+
+! Open grid.out for final output
+if (coord == 0) then
+    open(11, file='grid.out', form='unformatted', convert=write_endian)
+    write(11) nproc, Nx, Ny, Nz, L_x, L_y, L_z
+    close(11)
+end if
 
 #ifdef PPMPI
 call mpi_barrier( comm, ierr )
