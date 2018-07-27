@@ -185,11 +185,11 @@ integer :: base_group ! The base group from comm --> MPI_COMM_WORLD (all process
 integer :: local_group  ! The local group of processors
 integer :: member !  (1 or 0) yes or no
 integer :: num_of_members  ! total number of members
+#endif
 
 ! List of all the cores that belong to this turbine
 ! This variable gets allocated for each turbine
 integer, allocatable, dimension(:) :: ls_of_cores
-#endif
 
 nullify(x,y,z,zw)
 x => grid % x
@@ -244,12 +244,10 @@ allocate(forceFieldW(m) % force(3,cW))
 allocate(forceFieldW(m) % location(3,cW))
 allocate(forceFieldW(m) % ijk(3,cW))
 
-#ifdef PPMPI
 call mpi_barrier( comm, ierr )
 write(*,*) 'Number of cells being affected by ATM in turbine', m,              &
            ' cUV, cW = ', cUV, cW
 call mpi_barrier( comm, ierr )
-#endif
 
 cUV=0
 cW=0
@@ -404,6 +402,8 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % alpha = 0._rprec
         turbineArray(i) % Cd = 0._rprec
         turbineArray(i) % Cl = 0._rprec
+        turbineArray(i) % Cl_b = 0._rprec
+        turbineArray(i) % G = 0._rprec
         turbineArray(i) % lift = 0._rprec
         turbineArray(i) % drag = 0._rprec
         turbineArray(i) % Vmag = 0._rprec
@@ -414,6 +414,8 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % bladeAlignedVectors = 0._rprec
         turbineArray(i) % VelNacelle_sampled = 0._rprec
         turbineArray(i) % VelNacelle_corrected = 0._rprec
+        turbineArray(i) % axialForce = 0._rprec
+        turbineArray(i) % tangentialForce = 0._rprec
 
         ! If statement is for running code only if grid points affected are in
         ! this processor. If not, no code is executed at all.
@@ -450,9 +452,20 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~  call myClock % start()
     do i=1,numberOfTurbines
 !~         if ( forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
+
+        ! Only perform is turbine is active in this processor
         if (turbineArray(i) % operate) then
             ! Convolute force onto the domain
             call atm_lesgo_convolute_force(i)
+
+            ! Only do this if the correction is active
+            if (turbineArray(i) % tipALMCorrection .eqv. .true.)  then
+
+                ! Compute the correction for the Cl coefficient
+                call atm_compute_cl_correction(i)
+
+            endif
+
         endif
 
 !~         ! Sync the nacelle force
@@ -465,8 +478,6 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~             endif
 !~         enddo
 
-        ! Compute the correction for the Cl coefficient
-        call atm_compute_cl_correction(i)
 
     enddo
 
@@ -529,8 +540,8 @@ do i=1, numberOfTurbines
     endif
 enddo
 
-#ifdef PPMPDI
 ! Make sure all processors stop wait for the output to be completed
+#ifdef PPMPI
 call mpi_barrier( comm, ierr )
 #endif
 
@@ -816,10 +827,6 @@ endif
 
         endif
     endif
-
-!~ ! Compute the correction for the Cl coefficient
-!~ call atm_compute_cl_correction(i)
-
 
 end subroutine atm_lesgo_force
 
@@ -1208,8 +1215,3 @@ end subroutine atm_lesgo_apply_force
 
 
 end module atm_lesgo_interface
-
-
-
-
-

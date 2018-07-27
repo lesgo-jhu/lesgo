@@ -123,7 +123,7 @@ type turbineArray_t
     ! Lift coefficient at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: Cl
     ! Lift coefficient correction at each actuator point
-    real(rprec), allocatable, dimension(:,:,:) :: Cl_correction
+    real(rprec), allocatable, dimension(:,:,:) :: dalpha
     ! Drag coeficient at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: Cd
     ! Lift at each actuator point
@@ -140,6 +140,22 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: dG
     ! Cl base for the correction
     real(rprec), allocatable, dimension(:,:,:) :: Cl_b
+    ! Slope of the lift curve base for the correction (dCl/ d alpha)
+    real(rprec), allocatable, dimension(:,:,:) :: dCldalpha
+    ! The induced velocity in the LES
+    real(rprec), allocatable, dimension(:,:,:) :: uy_LES
+    ! The induced velocity from the optimal solution
+    real(rprec), allocatable, dimension(:,:,:) :: uy_opt
+    ! The induced velocity vector from the LES
+    real(rprec), allocatable, dimension(:,:,:,:) :: uy_LES_vec
+    ! The induced drag velocity vector from the optimal
+    real(rprec), allocatable, dimension(:,:,:,:) :: ux_LES_vec
+    ! The induced velocity vector from the optimal
+    real(rprec), allocatable, dimension(:,:,:,:) :: uy_opt_vec
+    ! The inflow velocity in the relative frame of reference
+    real(rprec), allocatable, dimension(:,:,:,:) :: Uinf_vec
+    ! The change in induced velocity between epsilon_LES and epsilon_opt
+    real(rprec), allocatable, dimension(:,:,:,:) :: du
 
     ! These variables are to make corrections based on optimum value of epsilon
     real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt
@@ -825,7 +841,7 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % Cl(numBl,                                       &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Cl_correction(numBl,                                       &
+    allocate(turbineArray(i) % dalpha(numBl,                                   &
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % Cd(numBl,                                       &
              numAnnulusSections, numBladePoints) )
@@ -849,11 +865,27 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % epsilon_opt(numBl,                              &
              numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % uy_LES(numBl,                                   &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % uy_opt(numBl,                                   &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Uinf_vec(numBl,                                 &
+             numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % uy_LES_vec(numBl,                               &
+             numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % ux_LES_vec(numBl,                               &
+             numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % uy_opt_vec(numBl,                               &
+             numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % du(numBl,                                       &
+             numAnnulusSections, numBladePoints,3) )
     allocate(turbineArray(i) % G(numBl,                                        &
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % dG(numBl,                                       &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Cl_b(numBl,                                       &
+    allocate(turbineArray(i) % Cl_b(numBl,                                     &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % dCldalpha(numBl,                                &
              numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization
@@ -861,6 +893,10 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints,3) )
     allocate(turbineArray(i) % bladeScalarDummy(numBl,                         &
              numAnnulusSections, numBladePoints) )
+
+    ! Initialize to zero
+    turbineArray(i) % du(:,:,:,:) = 0._rprec
+    turbineArray(i) % Uinf_vec(:,:,:,:) = 0._rprec
 
 enddo
 
@@ -996,34 +1032,3 @@ buff = transfer (tmp, buff)
 end subroutine eat_whitespace
 
 end module atm_input_util
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

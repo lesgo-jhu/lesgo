@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!
-!! Written by:
+!! Written by: 
 !!
 !!   Luis 'Tony' Martinez <tony.mtos@gmail.com> (Johns Hopkins University)
 !!
@@ -8,12 +8,12 @@
 !!
 !!   This file is part of The Actuator Turbine Model Library.
 !!
-!!   The Actuator Turbine Model is free software: you can redistribute it
-!!   and/or modify it under the terms of the GNU General Public License as
-!!   published by the Free Software Foundation, either version 3 of the
+!!   The Actuator Turbine Model is free software: you can redistribute it 
+!!   and/or modify it under the terms of the GNU General Public License as 
+!!   published by the Free Software Foundation, either version 3 of the 
 !!   License, or (at your option) any later version.
 !!
-!!   The Actuator Turbine Model is distributed in the hope that it will be
+!!   The Actuator Turbine Model is distributed in the hope that it will be 
 !!   useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 !!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !!   GNU General Public License for more details.
@@ -26,7 +26,7 @@
 !*******************************************************************************
 module actuator_turbine_model
 !*******************************************************************************
-! This module has the subroutines to provide all calculations for use in the
+! This module has the subroutines to provide all calculations for use in the 
 ! actuator turbine model (ATM)
 
 ! Imported modules
@@ -37,7 +37,7 @@ use atm_input_util ! Utilities to read input files
 implicit none
 
 ! Declare everything private except for subroutine which will be used
-private
+private 
 public :: atm_initialize, numberOfTurbines,                                    &
           atm_computeBladeForce, atm_update,                                   &
           vector_add, vector_divide, vector_mag, distance,                     &
@@ -46,16 +46,16 @@ public :: atm_initialize, numberOfTurbines,                                    &
           atm_compute_cl_correction
 
 ! The very crucial parameter pi
-real(rprec), parameter :: pi=acos(-1._rprec)
+real(rprec), parameter :: pi=acos(-1._rprec) 
 
 ! These are used to do unit conversions
 real(rprec) :: degRad = pi/180._rprec ! Degrees to radians conversion
-real(rprec) :: rpmRadSec =  pi/30._rprec ! Set the revolutions/min to radians/s
+real(rprec) :: rpmRadSec =  pi/30._rprec ! Set the revolutions/min to radians/s 
 
 logical :: pastFirstTimeStep ! Establishes if we are at the first time step
 
-! Subroutines for the actuator turbine model
-! All suboroutines names start with (atm_)
+! Subroutines for the actuator turbine model 
+! All suboroutines names start with (atm_) 
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -77,7 +77,7 @@ do i = 1,numberOfTurbines
                    "/actuatorPoints", exist=file_exists)
 
     ! Creates the ATM points defining the geometry
-    call atm_create_points(i)
+    call atm_create_points(i) 
     ! This will create the first yaw alignment
     turbineArray(i) % deltaNacYaw = turbineArray(i) % nacYaw
     call atm_yawNacelle(i)
@@ -158,7 +158,7 @@ read(1,*) turbineArray(i) % PitchControlAngle
 read(1,*) turbineArray(i) % IntSpeedError
 read(1,*) turbineArray(i) % nacYaw
 read(1,*) turbineArray(i) % rotorApex
-read(1,*) turbineArray(i) % uvShaft
+read(1,*) turbineArray(i) % uvShaft 
 close(1)
 
 write(*,*) ' RotSpeed Value from previous simulation is ',                     &
@@ -194,14 +194,14 @@ integer :: pointsFile=787 ! File to write the actuator points
 integer :: restartFile=21 ! File to write restart data
 integer j, m,n,q ! counters
 
-! Open the file
+! Open the file 
 open( unit=restartFile, file="./turbineOutput/"//                              &
             trim(turbineArray(i) % turbineName)//"/restart", status="replace")
 
 write(restartFile,*) 'RotSpeed ', 'torqueGen ', 'torqueRotor ', 'u_infinity ', &
                      'induction_a ', 'PitchControlAngle ', 'IntSpeedError ',   &
                      'nacYaw ', 'rotorApex ', 'uvShaft'
-! Store the rotSpeed value
+! Store the rotSpeed value 
 write(restartFile,*) turbineArray(i) % rotSpeed
 write(restartFile,*) turbineArray(i) % torqueGen
 write(restartFile,*) turbineArray(i) % torqueRotor
@@ -255,28 +255,28 @@ do i = 1,numberOfTurbines
 
         ! Create turbineOutput directory
         call system("mkdir -vp turbineOutput/"//                               &
-                     trim(turbineArray(i) % turbineName))
+                     trim(turbineArray(i) % turbineName)) 
 
         open(unit=1, file="./turbineOutput/"//                                 &
-                     trim(turbineArray(i) % turbineName)//"/power")
+                     trim(turbineArray(i) % turbineName)//"/power") 
         write(1,*) 'time PowerRotor powerGen '
         close(1)
 
         open(unit=1, file="./turbineOutput/"//                                 &
-                     trim(turbineArray(i) % turbineName)//"/thrust")
+                     trim(turbineArray(i) % turbineName)//"/thrust") 
         write(1,*) 'time thrust '
         close(1)
 
         open(unit=1, file="./turbineOutput/"//                                 &
-                     trim(turbineArray(i) % turbineName)//"/RotSpeed")
+                     trim(turbineArray(i) % turbineName)//"/RotSpeed") 
         write(1,*) 'time RotSpeed'
         close(1)
-
+        
         open(unit=1, file="./turbineOutput/"//                                 &
-                     trim(turbineArray(i) % turbineName)//"/Yaw")
+                     trim(turbineArray(i) % turbineName)//"/Yaw") 
         write(1,*) 'time deltaNacYaw NacYaw'
         close(1)
-
+        
         open(unit=1, file="./turbineOutput/"//                                 &
                      trim(turbineArray(i) % turbineName)//"/lift")
         write(1,*) 'turbineNumber bladeNumber '
@@ -286,7 +286,7 @@ do i = 1,numberOfTurbines
                      trim(turbineArray(i) % turbineName)//"/drag")
         write(1,*) 'turbineNumber bladeNumber '
         close(1)
-
+        
         open(unit=1, file="./turbineOutput/"//                                 &
                      trim(turbineArray(i) % turbineName)//"/Cl")
         write(1,*) 'turbineNumber bladeNumber Cl'
@@ -332,6 +332,16 @@ do i = 1,numberOfTurbines
         write(1,*) 'time Velocity-no-correction Velocity-w-correction'
         close(1)
 
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/uy_LES")
+        write(1,*) 'turbineNumber bladeNumber uy_LES'
+        close(1)
+
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/uy_opt")
+        write(1,*) 'turbineNumber bladeNumber uy_opt'
+        close(1)
+
     endif
 enddo
 
@@ -354,7 +364,7 @@ real(rprec) :: dist ! Distance from each actuator point
 integer,     pointer :: numBladePoints
 integer,     pointer :: numBl
 integer,     pointer :: numAnnulusSections
-real(rprec), pointer :: NacYaw
+real(rprec), pointer :: NacYaw             
 real(rprec),  pointer :: db(:)
 real(rprec),  pointer :: bladePoints(:,:,:,:)
 real(rprec),  pointer :: bladeRadius(:,:,:)
@@ -380,8 +390,8 @@ real(rprec), pointer :: solidity(:,:,:)
 ! Identifies the turbineModel being used
 j=turbineArray(i) % turbineTypeID ! The type of turbine (eg. NREL5MW)
 
-! Variables to be used locally. They are stored in local variables within the
-! subroutine for easier code following. The values are then passed to the
+! Variables to be used locally. They are stored in local variables within the 
+! subroutine for easier code following. The values are then passed to the 
 ! proper type
 numBladePoints => turbineArray(i) % numBladePoints
 numBl=>turbineModel(j) % numBl
@@ -393,10 +403,10 @@ allocate(turbineArray(i) % db(numBladePoints))
 
 allocate(turbineArray(i) % bladePoints(numBl, numAnnulusSections, &
          numBladePoints,3))
+         
+allocate(turbineArray(i) % bladeRadius(numBl,numAnnulusSections,numBladePoints))  
 
-allocate(turbineArray(i) % bladeRadius(numBl,numAnnulusSections,numBladePoints))
-
-allocate(turbineArray(i) % solidity(numBl,numAnnulusSections,numBladePoints))
+allocate(turbineArray(i) % solidity(numBl,numAnnulusSections,numBladePoints))  
 
 ! Assign Pointers turbineArray denpendent (i)
 db=>turbineArray(i) % db
@@ -439,11 +449,11 @@ rotSpeed = rpmRadSec * rotSpeed
 nacYaw = degRad * nacYaw
 
 ! Turbine model specific
-shftTilt = degRad * shftTilt
+shftTilt = degRad * shftTilt 
 preCone = degRad * preCone
 
-! Calculate tower shaft intersection and rotor apex locations. (The i-index is
-! at the turbine array level for each turbine and the j-index is for each type
+! Calculate tower shaft intersection and rotor apex locations. (The i-index is 
+! at the turbine array level for each turbine and the j-index is for each type 
 ! of turbine--if all turbines are the same, j- is always 0.)  The rotor apex is
 ! not yet rotated for initial yaw that is done below.
 towerShaftIntersect = turbineArray(i) % baseLocation
@@ -486,7 +496,7 @@ do k=1, numBl
     root(3)= root(3) + HubRad*cos(beta)
 !~     dist = HubRad
     dist = 0.
-
+    
     ! Number of blade points for the first annular section
     do m=1, numBladePoints
         dist = dist + 0.5*(db(m))
@@ -538,7 +548,7 @@ real(rprec), intent(in) :: dt                            ! Time step
 real(rprec), intent(in) :: time                          ! Simulation time
 
 ! Rotate the blades
-call atm_computeRotorSpeed(i,dt)
+call atm_computeRotorSpeed(i,dt) 
 call atm_rotateBlades(i)
 
 call atm_control_yaw(i, time)
@@ -583,7 +593,7 @@ end subroutine atm_control_yaw
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_computeRotorSpeed(i,dt)
-! This subroutine rotates the turbine blades
+! This subroutine rotates the turbine blades 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
@@ -641,7 +651,7 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
 
         ! Save the generator torque from the last time step.
         torqueGenOld = torqueGen
-
+            
         ! Region 1.
         if (genSpeed < CutInGenSpeed) then
 
@@ -703,7 +713,7 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
                               (torqueRotor*fluidDensity - GBRatio*torqueGen)
 
         if (turbineModel(j) % PitchControllerType == "none") then
-            ! Limit the rotor speed to be positive and such that the generator
+            ! Limit the rotor speed to be positive and such that the generator 
             !does not turn faster than rated.
             rotSpeed = max(0.0,rotSpeed)
             rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
@@ -715,8 +725,8 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
 
         if (pastFirstTimeStep) then
             ! Integrate the velocity along all actuator points
-            call atm_integrate_u(i)
-
+            call atm_integrate_u(i)   
+    
             ! Match the rotor speed to a given TSR
             rotSpeed = turbineArray(i) % u_infinity_mean *     &
                        turbineArray(i) % TSR / turbineModel(j) % tipRad
@@ -764,7 +774,7 @@ end subroutine atm_computeRotorSpeed
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_rotateBlades(i)
-! This subroutine rotates the turbine blades
+! This subroutine rotates the turbine blades 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
@@ -825,29 +835,37 @@ subroutine atm_compute_cl_correction(i)
 integer, intent(in) :: i             ! Turbine number
 integer :: j                         ! Turbine type
 integer :: m, n, q, k                ! Counters tu be used in do loops
-real(rprec) :: a,b,c                 ! Correction coefficients
-real(rprec) :: chord                 ! The chord value at the tip
-!~ real(rprec) :: chord_r               ! The chord value at the root
-real(rprec) :: r                     ! The radial distance from the tip
-!~ real(rprec) :: r_r                   ! The radial distance from the root
+real(rprec) :: z_k, z_q              ! The radial distance from the tip
 real(rprec) :: eps_opt               ! The optimal epsilon
 real(rprec) :: eps_s                 ! The epsilon value in the simulation
 real(rprec) :: dG                    ! The finite difference G
-real(rprec) :: dz                    ! The difference in distance between points
-real(rprec) :: up_s                  ! The velocity perturbation for simulation
-real(rprec) :: up_o                  ! The velocity perturbation for optimal
-real(rprec) :: dup                   ! The difference in velocity perturbation
-real(rprec) :: dWt                   ! The second order correction for tip
-real(rprec) :: dWr                    ! The second order correction for tip
+real(rprec) :: uy_LES, uy_opt        ! Perturbation velocity
+real(rprec) :: f                     ! The relaxation factor
+real(rprec) :: cd_eff                ! The effective cd coefficient
+real(rprec) :: dir_vec_tan(3)        ! The direction vector tangential
+real(rprec) :: dir_vec_s(3)          ! The direction vector streamwise 
+real(rprec) :: vec_kq(3)             ! The vector between points k and q
 
-! Terms for correction equation
-!~ real(rprec) :: term0, term1_tip, term2_tip, term1_root, term2_root
-!~ real(rprec) :: term1_tip_d, term2_tip_d, term1_root_d, term2_root_d
+real(rprec), pointer :: uy_opt_vec(:,:,:,:)
+real(rprec), pointer :: uy_LES_vec(:,:,:,:)
+real(rprec), pointer :: ux_LES_vec(:,:,:,:)
+real(rprec), pointer :: Uinf_vec(:,:,:,:)
+real(rprec), pointer :: windVectors(:,:,:,:)
+real(rprec), pointer :: cl(:,:,:)
+real(rprec), pointer :: cd(:,:,:)
+real(rprec), pointer :: Vmag(:,:,:)
+real(rprec), pointer :: chord(:,:,:)
 
-! Constants for the tip vortex solution
-a=0.029
-b=-2./3.
-c=0.357
+! The wind vector
+uy_opt_vec => turbineArray(i) % uy_opt_vec
+uy_LES_vec => turbineArray(i) % uy_LES_vec
+Uinf_vec => turbineArray(i) % Uinf_vec
+windVectors => turbineArray(i) % windVectors
+cl => turbineArray(i) % cl
+cd => turbineArray(i) % cd
+Vmag => turbineArray(i) % Vmag
+chord => turbineArray(i) % chord
+ux_LES_vec => turbineArray(i) % ux_LES_vec
 
 ! Simulation epsilon
 eps_s = turbineArray(i) % epsilon
@@ -855,29 +873,70 @@ eps_s = turbineArray(i) % epsilon
 ! The turbine type number
 j=turbineArray(i) % turbineTypeID
 
-! Firs compute the function G
+! The relaxation factor (between zero and one)
+f = 0.1
+
+! Determine the inflow velocity U infinity relative to the blade
 do q=1, turbineArray(i) % numBladePoints
     do n=1, turbineArray(i) % numAnnulusSections
         do m=1, turbineModel(j) % numBl
-            ! Compute G
-!~             turbineArray(i) % G(m,n,q) = 1./2. * turbineArray(i) % Cl(m,n,q) * &
-!~                 turbineArray(i) % chord(m,n,q) *                               &
-!~                 turbineArray(i) % Vmag(m,n,q)**2
-            turbineArray(i) % G(m,n,q) = 1./2. *  turbineArray(i) % Cl_b(m,n,q) * &
-                turbineArray(i) % chord(m,n,q) *                               &
-                turbineArray(i) % Vmag(m,n,q)**2
 
-            turbineArray(i) % epsilon_opt(m,n,q) =                             &
-                turbineArray(i) % chord(m,n,q) * turbineArray(i) % optimalEpsilonChord
+            ! Compute Uinf from the previous time by subtracting the 
+            ! induced velocity from the optimal solution and the
+            ! drag from the used epsilon
+            Uinf_vec(m,n,q,:) = windVectors(m,n,q,:) - uy_opt_vec(m,n,q,:)
+
+            ! Determine the drag vector. This only acts locally on the
+            ! actuator point
+            dir_vec_s = vector_divide(Uinf_vec(m,n,q,:),                       &
+                            vector_mag(Uinf_vec(m,n,q,:)))
+
+            ! The effective drag coefficient
+            cd_eff = cd(m,n,q) + cl(m,n,q) * vector_mag(uy_opt_vec(m,n,q,:))   &
+                                           / Vmag(m,n,q)
+
+            ! Compute the induced velocity
+            ux_LES_vec(m,n,q,:) = cd_eff * chord(m,n,q) / eps_s * 1.           &
+                                / (4. * pi**0.5) * Vmag(m,n,q) * dir_vec_s(:)
+
+            ! Add the induced velocity from the epsilon LES
+!~             Uinf_vec(m,n,q,:) = Uinf_vec(m,n,q,:) + ux_LES_vec(m,n,q,:)
+
+            ! Save the wind vectors as U inf to compute the forces in the 
+            ! perpendicular and parallel directions
+!~             windVectors(m,n,q,:) = Uinf_vec(m,n,q,:)
+!~             Vmag(m,n,q) = vector_mag(Uinf_vec(m,n,q,:))
 
         enddo
     enddo
 enddo
 
-! Firs compute the function G
+! First compute the function G from the previous time
 do q=1, turbineArray(i) % numBladePoints
     do n=1, turbineArray(i) % numAnnulusSections
         do m=1, turbineModel(j) % numBl
+
+            ! Compute G
+            turbineArray(i) % G(m,n,q) = 1./2. *                               &
+                turbineArray(i) % Cl(m,n,q) *                                  &
+                turbineArray(i) % chord(m,n,q) *                               &
+                turbineArray(i) % Vmag(m,n,q)**2
+
+            ! The optimal epsilon
+            turbineArray(i) % epsilon_opt(m,n,q) =                             &
+                turbineArray(i) % chord(m,n,q) *                               &
+                turbineArray(i) % optimalEpsilonChord
+
+        enddo
+    enddo
+enddo
+
+! Now compute the difference dG
+do m=1, turbineModel(j) % numBl
+    do n=1, turbineArray(i) % numAnnulusSections
+        do q=1, turbineArray(i) % numBladePoints
+
+            ! Notice this is the G form the previous time, not Gb
             ! Compute the difference in G using finite difference
             ! The tip and root are a special case
             if (q.eq.1) then
@@ -888,168 +947,144 @@ do q=1, turbineArray(i) % numBladePoints
             else
                 ! The central finite difference in G
                 turbineArray(i) %  dG(m,n,q) = (turbineArray(i) % G(m,n,q+1) - &
-                        turbineArray(i) % G(m,n,q-1))/2
+                        turbineArray(i) % G(m,n,q-1)) / 2.
+!~                 turbineArray(i) %  dG(m,n,q) = (turbineArray(i) % G(m,n,q+1) - &
+!~                         turbineArray(i) % G(m,n,q))
             endif
-!~     write(*,*) 'dG of q=', q, turbineArray(i) %  dG(m,n,q)
 
-            ! First zero out the Cl correction
-            turbineArray(i) % cl_correction(m, n, q) = 0.
         enddo
     enddo
 enddo
 
-! Apply the correction to the ALM points
-! First compute the function G
-do n=1, turbineArray(i) % numAnnulusSections
-    do m=1, turbineModel(j) % numBl
-        ! This is the first loop over all actuator points
+! Now compute the difference dG
+do m=1, turbineModel(j) % numBl
+    do n=1, turbineArray(i) % numAnnulusSections
+        ! Now compute the induced velocity at every point
         do q=1, turbineArray(i) % numBladePoints
-            !!
-            !!  Compute the contribution from the tip
-            !!
-            chord = turbineArray(i) % chord(m,n,                               &
-                            turbineArray(i) % numBladePoints)
 
-            ! Distance from the tip
-            r = abs(turbineArray(i) % bladeRadius(m,n,q) -                     &
-                        turbineModel(j) % TipRad)
+            turbineArray(i) % uy_LES_vec(m,n,q,1:3) = 0.
+            turbineArray(i) % uy_opt_vec(m,n,q,1:3) = 0.
 
-            ! The optimal epsilon value in meters
+            ! The z location at the point to compute the correction
+            z_q = turbineArray(i) % bladeRadius(m,n,q)
+
+            ! The perturbation velocity
+            uy_LES = 0.
+            uy_opt = 0.
+
+            ! Store the optimal epsilon in this variable
             eps_opt = turbineArray(i) % epsilon_opt(m,n,q)
-            dWt =    1./2. *  a *                                              &
-                    turbineArray(i) % Cl_b(m,n,turbineArray(i) % numBladePoints)*&
-                        ! First term
-                        ((eps_opt/chord)**(1.+b) * (chord / r)**2 *            &
-                            (1. - exp(-c*abs(r/eps_opt)**3)) -                 &
-                        ! Second term
-                        (eps_s/chord)**(1.+b) * (chord / r)**2 *               &
-                            (1. - exp(-c*abs(r/eps_s)**3)))
 
-            ! Distance from the tip
-            chord = turbineArray(i) % chord(m,n,1)
-            r = abs(turbineArray(i) % bladeRadius(m,n,q) -                     &
-                        turbineModel(j) % HubRad)
-
-            ! The difference in velocity from the root
-            dWr =   1./2. *  a *                                               &
-                    turbineArray(i) % Cl_b(m,n,1) *                              &
-                        ! First term
-                        ((eps_opt/chord)**(1.+b) * (chord / r)**2 *            &
-                            (1. - exp(-c*abs(r/eps_opt)**3)) -                 &
-                        ! Second term
-                        (eps_s/chord)**(1.+b) * (chord / r)**2 *               &
-                            (1. - exp(-c*abs(r/eps_s)**3)))
-
-            turbineArray(i) % cl_correction(m, n, q) =                         &
-                turbineArray(i) % cl_correction(m, n, q) + 2. * pi * (dWr + dWt)
-
-            ! Now loop through all actuator points
+            ! Loop through all point and compute the perturbation velocity
             do k=1, turbineArray(i) % numBladePoints
 
-                ! Compute dup only if not at the same actuator point
-                if (k == q) then
-                   dup = 0.
-                else
-                    ! Define the dG
-                    dG = turbineArray(i) % dG(m,n,k)
-                    ! Compute the difference in distance
-                    dz = turbineArray(i) % bladeRadius(m,n,q) -                &
-                    turbineArray(i) % bladeRadius(m,n,k)
-                    ! Perturbation velocity for simulation epsilon
-                    up_s = -dG / (4. * pi * dz) * (1. - exp(-(dz/eps_s)**2))
-                    ! Perturbation velocity for optimal epsilon
-                    up_o = -dG / (4. * pi * dz) * (1. - exp(-(dz/eps_opt)**2))
-                    ! The difference in up
-                    dup = up_o - up_s
-!~                         write(*,*) 'dz',dz,'du', dup, up_o, up_s
+                ! Only evaluate if not at the actuator point
+                ! At the actuator point the function is zero
+                if (k /= q) then
+
+                    ! The change in circulation
+                    dG = turbineArray(i) %  dG(m,n,k)
+
+                    ! The z location at the point to compute the correction
+                    z_k = turbineArray(i) % bladeRadius(m,n,k)
+
+                    ! The vector in the z direction
+                    vec_kq(:) = (/ 0._rprec, 0._rprec, 1._rprec /)
+
+                    ! Compute the vector which is perpendicular to Uinf
+                    ! This vector is used to project the induced velocity 
+                    dir_vec_tan = cross_product(Uinf_vec(m,n,k,:), vec_kq(:))
+                    dir_vec_tan = vector_divide(dir_vec_tan ,                  &
+                                    vector_mag(dir_vec_tan))
+
+                    ! Perturbation velocity from the previous time
+                    uy_LES = - dG * 1. / (4. * pi * (z_q - z_k)) *             &
+                                    (1. - exp(-((z_q - z_k)/eps_s)**2))
+
+                    uy_opt = - dG * 1. / (4. * pi * (z_q - z_k)) *             &
+                                    (1. - exp(-((z_q - z_k)/eps_opt)**2))
+
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    !! Multiply the induced velocity by the vector which is
+                    !!   projected in the right reference frame
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    ! Induced velocity from the epsilon LES
+                    turbineArray(i) % uy_LES_vec(m,n,q,:) =                    &
+                                        turbineArray(i) % uy_LES_vec(m,n,q,:)  &
+                                        + uy_LES * dir_vec_tan(:)
+
+                    ! Induced velocity from the optimal epsilon
+                    turbineArray(i) % uy_opt_vec(m,n,q,:) =                    &
+                                        turbineArray(i) % uy_opt_vec(m,n,q,:)  &
+                                        + uy_opt * dir_vec_tan(:)
 
                 endif
 
-                ! Additive correction
-                turbineArray(i) % cl_correction(m, n, q) =                     &
-                    turbineArray(i) % cl_correction(m, n, q) +                 &
-                    2. * pi * dup / turbineArray(i) % Vmag(m,n,q)**2
             enddo
-!~     write(*,*) 'dz',dz,'Cl Correction', q,' is:', turbineArray(i) % cl_correction(m, n, q)
-!~     write(*,*) 'Epsilon', eps_s, eps_opt, chord
+
+            ! Add the perpendicular vector velocity component
+            uy_LES_vec(m,n,q,:) = turbineArray(i) % uy_LES_vec(m,n,q,:)        &
+                                    / (turbineArray(i) % Vmag(m,n,q))
+            uy_opt_vec(m,n,q,:) = turbineArray(i) % uy_opt_vec(m,n,q,:)        &
+                                    / (turbineArray(i) % Vmag(m,n,q))
+
+            ! Save the magnitude of uy
+            turbineArray(i) % uy_LES(m,n,q) =                                  &
+                        vector_mag(turbineArray(i) % uy_LES_vec(m,n,q,:))
+            turbineArray(i) % uy_opt(m,n,q) =                                  &
+                        vector_mag(turbineArray(i) % uy_opt_vec(m,n,q,:))    
+
+            ! Compute the difference between the perturbation velocities in
+            !     the LES and the optimal
+            turbineArray(i) % du(m, n, q, :) =                                 &
+                    turbineArray(i) % du(m, n, q, :) * (1.-f)                  &
+                    + f * (  turbineArray(i) % uy_opt_vec(m,n,q,:)             &
+                    -        turbineArray(i) % uy_LES_vec(m,n,q,:)             &
+!~                     +        ux_LES_vec(m,n,q,:)                               &
+                          )
         enddo
     enddo
 enddo
 
-!~ ! Correction for the tip
-!~ do q=1, turbineArray(i) % numBladePoints
-!~     do n=1, turbineArray(i) % numAnnulusSections
-!~         do m=1, turbineModel(j) % numBl
-
-!~             ! The chord
- !!!           chord = turbineArray(i) % chord(m,n,q)
-!~             chord = turbineArray(i) % chord(m,n,                               &
-!~                             turbineArray(i) % numBladePoints)
-!~             chord_r = turbineArray(i) % chord(m,n,1)
-
-!~             ! Compute the optimal epsilon
-!~             turbineArray(i) % epsilon_opt(m,n,q) =                             &
-!~                 chord * turbineArray(i) % optimalEpsilonChord
-
-!~             ! The optimal epsilon value in meters
-!~             eps_opt = turbineArray(i) % epsilon_opt(m,n,q)
-
-!~             ! Distance from the tip
-!~             r = abs(turbineArray(i) % bladeRadius(m,n,q)                       &
-!~                         -                                                      &
-!~                         turbineModel(j) % TipRad)
-!~             r_r = abs(turbineArray(i) % bladeRadius(m,n,q)                     &
-!~                         -                                                      &
-!~                         turbineModel(j) % HubRad)
-
-!~             ! The correction eta for both tip and root
-!~             ! The correction needs to be multiplied by both radii^2
-!~             term0 = 2. * (r/chord)**2 * (r_r/chord_r)**2
-
-!~             ! Numerator terms
-!~             term1_tip = (r_r/chord_r)**2 * (r/chord)/2 *                       &
-!~                             (1. - exp(-r**2/eps_opt**2))
-!~             term2_tip = (r_r/chord_r)**2 * 2. * pi * a *                       &
-!~                             (eps_opt/chord)**(1.+b) *                          &
-!~                             (1. - exp(-c*abs(r/eps_opt)**3))
-!~             term1_root = (r/chord)**2 * (r_r/chord_r)/2 *                      &
-!~                              (1. - exp(-r_r**2/eps_opt**2))
-!~             term2_root = (r/chord)**2 * 2. * pi * a *                          &
-!~                              (eps_opt/chord_r)**(1.+b) *                       &
-!~                                  (1. - exp(-c*abs(r_r/eps_opt)**3))
-
-!~             ! Denominator terms
-!~             term1_tip_d = (r_r/chord_r)**2 * (r/chord)/2 *                     &
-!~                               (1. - exp(-r**2/eps_s**2))
-!~             term2_tip_d = (r_r/chord_r)**2 * 2. * pi * a *                     &
-!~                               (eps_s/chord)**(1.+b) *                          &
-!~                                 (1. - exp(-c*abs(r/eps_s)**3))
-!~             term1_root_d = (r/chord)**2 * (r_r/chord_r)/2 *                    &
-!~                                (1. - exp(-r_r**2/eps_s**2))
-!~             term2_root_d = (r/chord)**2 * 2. * pi * a *                        &
-!~                                (eps_s/chord_r)**(1.+b) *                       &
-!~                                 (1. - exp(-c*abs(r_r/eps_s)**3))
-
-!~             ! Correction for the root
-!~             if (turbineArray(i) % rootALMCorrection .eqv. .true.)  then
-
-!~                 turbineArray(i) % cl_correction(m, n, q) =                     &
-!~                      (term0 -term1_tip   + term2_tip                           &
-!~                      -term1_root   + term2_root )/                             &
-!~                     (term0 -term1_tip_d + term2_tip_d                          &
-!~                     -term1_root_d + term2_root_d )
-!~             else
-!~                 ! The correction eta
-!~                 turbineArray(i) % cl_correction(m, n, q) =                     &
-!~                      (term0 -term1_tip   + term2_tip )/                        &
-!~                     (term0 -term1_tip_d + term2_tip_d )
-
-!~             endif
-!~         enddo
-!~     enddo
-!~ enddo
-
 end subroutine atm_compute_cl_correction
+
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function s_fit(psi, psipp, epsilon)
+! This is the fit for the filtered lifting line theory
+! Martinez-Tossas and Meneveau 2018
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+real(rprec), intent(in) :: psi, psipp, epsilon  ! Inputs for the fit
+real(rprec) :: a,b,c                 ! Correction coefficients
+real(rprec) :: one  ! Value used for 1 in the sign function
+real(rprec) :: diff  ! The difference between psi and psipp
+real(rprec) :: s_fit ! The function to be computed and returned
+real(rprec) :: f ! Intermediate function
+
+! One stored as a variable to be used in the sign function
+one=1.
+
+! Constants for the Fredholm integral equation solution fit
+! These work well for epsilon >= 0.25
+a=0.029
+b=-2./3.
+c=0.357
+
+! The difference between psi and psipp (used many times in the formulas)
+diff = psi-psipp + 0.000000000001
+
+! The function with the first fit
+f = 1./(4.*pi*abs(diff)) * (1. - exp(-diff**2)) -                      &
+            a * epsilon**b / (diff**2) * (1. - exp(-c*abs(diff)**3))
+
+! The final fit for the solution
+s_fit = - dsign(one, diff) * (1. - 0.25 * exp(-epsilon) *               &
+        (1. - exp(-.2 * abs(psipp)))) * f
+
+return
+
+end function s_fit
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_calculate_variables(i)
@@ -1069,6 +1104,8 @@ real(rprec), pointer :: OverHang
 real(rprec), pointer :: UndSling
 real(rprec), pointer :: TipRad
 real(rprec), pointer :: PreCone
+integer :: k  ! Index for the Cl table
+real(rprec) :: cl1, cl2   ! Variables used to compute the slope of lift curve
 
 ! Identifies the turbineModel being used
 j=turbineArray(i) % turbineTypeID ! The type of turbine (eg. NREL5MW)
@@ -1088,8 +1125,8 @@ UndSling=>turbineModel(j) % UndSling
 TipRad=>turbineModel(j) % TipRad
 PreCone=>turbineModel(j) %PreCone
 
-! First compute the radius of the force projection (to the radius where the
-! projection is only 0.001 its maximum value - this seems to recover 99.9% of
+! First compute the radius of the force projection (to the radius where the 
+! projection is only 0.001 its maximum value - this seems to recover 99.9% of 
 ! the total forces when integrated
 projectionRadius= turbineArray(i) % epsilon * sqrt(log(1.0/0.001))
 projectionRadiusNacelle= turbineArray(i) % nacelleEpsilon*sqrt(log(1.0/0.001))
@@ -1099,6 +1136,7 @@ sphereRadius=sqrt(((OverHang + UndSling) + TipRad*sin(PreCone))**2 &
 
 
 ! Compute the optimum value of epsilon for each blade section
+! And compute the lift coefficient slope
 do m=1, turbineModel(j) % numBl
     do n=1, turbineArray(i) %  numAnnulusSections
         do q=1, turbineArray(i) % numBladePoints
@@ -1108,19 +1146,40 @@ do m=1, turbineModel(j) % numBl
                                    interpolate(bladeRadius(m,n,q),             &
                                    turbineModel(j) % radius(1:NumSec),         &
                                    turbineModel(j) % twist(1:NumSec) )
-
+          
             turbineArray(i) % chord(m,n,q) =                                   &
                                    interpolate(bladeRadius(m,n,q),             &
                                    turbineModel(j) % radius(1:NumSec),         &
                                    turbineModel(j) % chord(1:NumSec) )
-
+            
             turbineArray(i) % sectionType(m,n,q) =                             &
                                    interpolate_i(bladeRadius(m,n,q),           &
                                    turbineModel(j) % radius(1:NumSec),         &
                                    turbineModel(j) % sectionType(1:NumSec))
+
+            ! Compute the lift coefficient slope
+            ! Total number of entries in lists of AOA, cl and cd
+            k = turbineModel(j) % airfoilType(turbineArray(i) % sectionType(m,n,q)) % n
+        
+            ! Compute lift coefficient slope
+            ! 2 and 6 degrees
+            cl1= interpolate(2._rprec,                                               &
+                 turbineModel(j) % airfoilType(turbineArray(i) % sectionType(m,n,q)) % AOA(1:k),      &
+                 turbineModel(j) % airfoilType(turbineArray(i) % sectionType(m,n,q)) % cl(1:k) )
+            cl2= interpolate(6._rprec,                                               &
+                 turbineModel(j) % airfoilType(turbineArray(i) % sectionType(m,n,q)) % AOA(1:k),      &
+                 turbineModel(j) % airfoilType(turbineArray(i) % sectionType(m,n,q)) % cl(1:k) )
+
+            ! Slope of the lift curve d Cl / d alpha
+            ! Computed between 2 and 6 degrees
+            turbineArray(i) % dCldalpha(m,n,q) = (cl2-cl1)/(4._rprec * pi/180.)
+
+!~             write(*,*) 'Dcldalpha = ', turbineArray(i) % dCldalpha(m,n,q)
+
         enddo
     enddo
 enddo
+
 
 !~ ! Compute the lift correction for this case
 !~ call atm_compute_cl_correction(i)
@@ -1130,7 +1189,7 @@ end subroutine atm_calculate_variables
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_computeBladeForce(i,m,n,q,U_local)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine will compute the wind vectors by projecting the velocity
+! This subroutine will compute the wind vectors by projecting the velocity 
 ! onto the transformed coordinates system
 implicit none
 
@@ -1144,7 +1203,7 @@ real(rprec), intent(in) :: U_local(3)    ! The local velocity at this point
 ! Local variables
 integer :: j,k ! Use to identify turbine type (j) and length of airoilTypes (k)
 integer :: sectionType_i ! The type of airfoil
-real(rprec) :: twistAng_i, chord_i, windAng_i, db_i, sigma, base_alpha
+real(rprec) :: twistAng_i, chord_i, windAng_i, db_i, sigma!, base_alpha
 !real(rprec) :: solidity_i
 real(rprec), dimension(3) :: dragVector, liftVector
 
@@ -1154,11 +1213,12 @@ real(rprec), pointer :: bladeAlignedVectors(:,:,:,:,:)
 real(rprec), pointer :: windVectors(:,:,:,:)
 real(rprec),  pointer :: bladePoints(:,:,:,:)
 real(rprec), pointer :: rotSpeed
-integer,     pointer :: numSec
+integer,     pointer :: numSec     
 real(rprec),  pointer :: bladeRadius(:,:,:)
 real(rprec), pointer :: PreCone
 real(rprec), pointer :: solidity(:,:,:),cl(:,:,:),cd(:,:,:),alpha(:,:,:)
 real(rprec), pointer :: Vmag(:,:,:)
+real(rprec), pointer :: du(:,:,:,:)
 
 ! Identifier for the turbine type
 j= turbineArray(i) % turbineTypeID
@@ -1175,6 +1235,7 @@ cd => turbineArray(i) % cd       ! Drag coefficient
 cl => turbineArray(i) % cl       ! Lift coefficient
 alpha => turbineArray(i) % alpha ! Angle of attack
 Vmag => turbineArray(i) % Vmag ! Velocity magnitude
+du => turbineArray(i) % du ! Change in velocity
 
 !turbineTypeID => turbineArray(i) % turbineTypeID
 NumSec => turbineModel(j) % NumSec
@@ -1183,13 +1244,13 @@ NumSec => turbineModel(j) % NumSec
 PreCone => turbineModel(j) % PreCone
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! This will compute the vectors defining the local coordinate
+! This will compute the vectors defining the local coordinate 
 ! system of the actuator point
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! Define vector in z'
 ! If clockwise rotating, this vector points along the blade toward the tip.
-! If counter-clockwise rotating, this vector points along the blade towards
+! If counter-clockwise rotating, this vector points along the blade towards 
 ! the root.
 if (turbineArray(i) % rotationDir == "cw")  then
     bladeAlignedVectors(m,n,q,3,:) =      &
@@ -1217,12 +1278,12 @@ bladeAlignedVectors(m,n,q,1,:) = cross_product(bladeAlignedVectors(m,n,q,2,:), &
 bladeAlignedVectors(m,n,q,1,:) = vector_divide(bladeAlignedVectors(m,n,q,1,:), &
                                  vector_mag(bladeAlignedVectors(m,n,q,1,:)))
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
 ! This concludes the definition of the local coordinate system
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now put the velocity in that cell into blade-oriented coordinates and add on
+! Now put the velocity in that cell into blade-oriented coordinates and add on 
 ! the velocity due to blade rotation.
 windVectors(m,n,q,1) = dot_product(bladeAlignedVectors(m,n,q,1,:) , U_local)
 windVectors(m,n,q,2) = dot_product(bladeAlignedVectors(m,n,q,2,:), U_local) + &
@@ -1236,6 +1297,18 @@ sectionType_i = turbineArray(i) % sectionType(m,n,q)
 
 ! Velocity magnitude
 Vmag(m,n,q)=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
+
+! Correct the velocity
+if (turbineArray(i) % tipALMCorrection .eqv. .true.)  then
+
+    windVectors(m,n,q,1) = windVectors(m,n,q,1) + du(m,n,q,1)
+    windVectors(m,n,q,2) = windVectors(m,n,q,2) + du(m,n,q,2)
+
+! Velocity magnitude
+!~ Vmag(m,n,q)=sqrt((windVectors(m,n,q,1)-turbineArray(i) % uy_opt_vec(m,n,q,1))**2 &
+!~                + (windVectors(m,n,q,2)-turbineArray(i) % uy_opt_vec(m,n,q,2))**2 )
+
+endif
 
 ! Angle between wind vector components
 windAng_i = atan2( windVectors(m,n,q,1), windVectors(m,n,q,2) ) /degRad
@@ -1252,23 +1325,12 @@ cl(m,n,q)= interpolate(alpha(m,n,q),                                           &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                  turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
 
-base_alpha = 90. + alpha(m,n,q) - windAng_i
-! Lift coefficient base (zero velocity in tangential direction)
-turbineArray(i) % cl_b(m,n,q)= interpolate(base_alpha,                         &
-                 turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
-                 turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
-
-! Correct the lift coefficient
-if (turbineArray(i) % tipALMCorrection .eqv. .true.)  then
-    cl(m,n,q) = cl(m,n,q) + turbineArray(i) % cl_correction(m, n, q)
-!~     cl(m,n,q) = cl(m,n,q) * turbineArray(i) % cl_correction(m, n, q)
-endif
-
 ! Drag coefficient
 cd(m,n,q)= interpolate(alpha(m,n,q),                                           &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                 turbineModel(j) % airfoilType(sectionType_i) % cd(1:k) )
 
+! The blade section width
 db_i = turbineArray(i) % db(q)
 
 ! Lift force
@@ -1293,15 +1355,15 @@ liftVector = liftVector/vector_mag(liftVector)
 liftVector = -turbineArray(i) % lift(m,n,q) * liftVector;
 dragVector = -turbineArray(i) % drag(m,n,q) * dragVector;
 
-! The blade force is the total lift and drag vectors
+! The blade force is the total lift and drag vectors 
 turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
 
-! Find the component of the blade element force/density in the axial
+! Find the component of the blade element force/density in the axial 
 ! (along the shaft) direction.
 turbineArray(i) % axialForce(m,n,q) = dot_product(                           &
         -turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
 
-! Find the component of the blade element force/density in the tangential
+! Find the component of the blade element force/density in the tangential 
 ! (torque-creating) direction.
 turbineArray(i) % tangentialForce(m,n,q) = dot_product(                      &
        turbineArray(i) % bladeForces(m,n,q,:), bladeAlignedVectors(m,n,q,2,:))
@@ -1327,7 +1389,7 @@ turbineArray(i) % u_infinity(m,n,q) = windVectors(m,n,q,1) !/    &
 !~             turbineArray(i) % u_infinity = turbineArray(i) % u_infinity  +     &
 !~                              windVectors(m,n,q,1) /    &
 !~                              (1. - turbineArray(i) % induction_a(m,n,q))
-
+        
 ! Calculate output quantities based on each point
 call atm_process_output(i,m,n,q)
 
@@ -1343,14 +1405,14 @@ integer, intent(in) :: i ! i - turbineTypeArray
 real(rprec), intent(in), dimension(3) :: U_local ! Velocity input
 
 integer :: j ! j - turbineModel
-real(rprec) :: V ! Velocity projected
+real(rprec) :: V ! Velocity projected 
 real(rprec), dimension(3) :: nacelleAlignedVector ! Nacelle vector
 real(rprec) :: area, drag
 
 ! Identifier for the turbine type
 j= turbineArray(i) % turbineTypeID
 
-area = pi * turbineModel(j) % hubRad **2
+area = pi * turbineModel(j) % hubRad **2 
 
 nacelleAlignedVector = turbineArray(i) % uvShaft
 
@@ -1412,10 +1474,10 @@ subroutine atm_yawNacelle(i)
 implicit none
 
 integer, intent(in) :: i
-integer :: j
+integer :: j 
 integer :: m,n,q
 ! Perform rotation for the turbine.
-j=turbineArray(i) % turbineTypeID
+j=turbineArray(i) % turbineTypeID 
 
 ! Rotate the rotor apex first.
 turbineArray(i) % rotorApex = rotatePoint(turbineArray(i) % rotorApex,         &
@@ -1429,7 +1491,7 @@ turbineArray(i) % uvShaft =                                                    &
                              turbineArray(i) % towerShaftIntersect
 
 turbineArray(i) % uvShaft = vector_divide(turbineArray(i) % uvShaft,           &
-                            vector_mag(turbineArray(i) % uvShaft))
+                            vector_mag(turbineArray(i) % uvShaft)) 
 turbineArray(i) % uvShaft = vector_multiply( turbineArray(i) % uvShaft,        &
                                              turbineArray(i) % uvShaftDir )
 
@@ -1441,7 +1503,7 @@ do q=1, turbineArray(i) % numBladePoints
             rotatePoint( turbineArray(i) % bladePoints(m,n,q,:),               &
             turbineArray(i) % towerShaftIntersect,                             &
             turbineArray(i) % uvTower,                                         &
-            turbineArray(i) % deltaNacYaw )
+            turbineArray(i) % deltaNacYaw )                                    
         enddo
     enddo
 enddo
@@ -1473,7 +1535,7 @@ end subroutine atm_yawNacelle
 !~ if (dir < 0.0) then
 !~     dir = dir + 360.0
 !~ endif
-!~
+!~  
 !~ end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1490,6 +1552,9 @@ integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
 integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22, thrustFile=23
 integer :: tangentialForceFile=24, axialForceFile=25, yawfile=26, nacelleFile=27
+integer :: ClbFile=28
+integer :: uy_LESFile=29
+integer :: uy_optFile=30
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1497,7 +1562,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     write(*,*) '!  Writing Actuator Turbine Model output  !'
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-
+    
     j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
     ! File for power output
@@ -1525,9 +1590,12 @@ if ( mod(jt_total-1, outputInterval) == 0) then
 
     open(unit=dragFile,position="append",                                      &
     file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/drag")
-
+    
     open(unit=ClFile,position="append",                                        &
     file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Cl")
+
+    open(unit=ClbFile,position="append",                                        &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Clb")
 
     open(unit=CdFile,position="append",                                        &
     file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Cd")
@@ -1556,6 +1624,12 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     open(unit=nacelleFile,position="append",                                     &
     file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/nacelle")
 
+    open(unit=uy_LESFile,position="append",                                &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/uy_LES")
+
+    open(unit=uy_optFile,position="append",                                &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/uy_opt")
+
     call atm_compute_power(i)
     write(powerFile,*) time, turbineArray(i) % powerRotor,                     &
                        turbineArray(i) % powerGen
@@ -1576,6 +1650,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         write(dragFile,*) i, m, turbineArray(i) % drag(m,1,:)/                 &
                                 turbineArray(i) % db(:)
         write(ClFile,*) i, m, turbineArray(i) % cl(m,1,:)
+        write(ClbFile,*) i, m, turbineArray(i) % cl_b(m,1,:)
         write(CdFile,*) i, m, turbineArray(i) % cd(m,1,:)
         write(alphaFile,*) i, m, turbineArray(i) % alpha(m,1,:)
         write(VrelFile,*) i, m, turbineArray(i) % Vmag(m,1,:)
@@ -1585,13 +1660,15 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         write(tangentialForceFile,*) i, m, turbineArray(i) %                   &
                                             tangentialForce(m,1,:)
         write(axialForceFile,*) i, m, turbineArray(i) % axialForce(m,1,:)
+        write(uy_LESFile,*) i, m, turbineArray(i) % uy_LES(m,1,:)
+        write(uy_optFile,*) i, m, turbineArray(i) % uy_opt(m,1,:)
 
     enddo
-
-        ! Write blade points
+    
+        ! Write blade points 
 !~         call atm_write_blade_points(i,jt_total)
 
-    ! Close all the files
+    ! Close all the files 
     close(powerFile)
     close(thrustFile)
     close(rotSpeedFile)
@@ -1599,6 +1676,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(liftFile)
     close(dragFile)
     close(ClFile)
+    close(ClbFile)
     close(CdFile)
     close(alphaFile)
     close(VrelFile)
@@ -1643,38 +1721,38 @@ write(*,*) 'Turbine ',i,' (Aerodynamic, Generator) Power is: ',                &
 
 end subroutine atm_compute_power
 
-! !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! subroutine atm_write_blade_points(i,time_counter)
-! ! This subroutine writes the position of all the blades at each time step
-! !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! implicit none
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_write_blade_points(i,time_counter)
+! This subroutine writes the position of all the blades at each time step
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
 
-! integer, intent(in) :: i, time_counter
-! integer :: m, n, q, j
+integer, intent(in) :: i, time_counter
+integer :: m, n, q, j
 
-! j=turbineArray(i) % turbineTypeID ! The turbine type ID
+j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-! open(unit=231, file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//  &
-!                '/blades'//trim(int2str(time_counter))//".vtk")
+open(unit=231, file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//  &
+               '/blades'//trim(int2str(time_counter))//".vtk")
 
-! ! Write the points to the blade file
-! do m=1, turbineModel(j) % numBl
+! Write the points to the blade file
+do m=1, turbineModel(j) % numBl
 
-!     do n=1, turbineArray(i) %  numAnnulusSections
+    do n=1, turbineArray(i) %  numAnnulusSections
 
-!         do q=1, turbineArray(i) % numBladePoints
+        do q=1, turbineArray(i) % numBladePoints
 
-!             write(231,*) turbineArray(i) % bladePoints(m,n,q,:)
+            write(231,*) turbineArray(i) % bladePoints(m,n,q,:)
 
-!         enddo
+        enddo
 
-!     enddo
+    enddo
 
-! enddo
+enddo
 
-! close(231)
+close(231)
 
-! end subroutine atm_write_blade_points
+end subroutine atm_write_blade_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_process_output(i,m,n,q)
@@ -1691,18 +1769,18 @@ j=turbineArray(i) % turbineTypeID
 turbineArray(i) % axialForce(m,n,q) = dot_product(                             &
 -turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
 
-! Find the component of the blade element force/density in the
+! Find the component of the blade element force/density in the 
 ! tangential (torque-creating) direction.
 turbineArray(i) % tangentialForce(m,n,q) = dot_product(                        &
                   turbineArray(i) % bladeForces(m,n,q,:) ,                     &
                   turbineArray(i) % bladeAlignedVectors(m,n,q,2,:))
 
-! Add this blade element's contribution to thrust to the total
+! Add this blade element's contribution to thrust to the total 
 ! turbine thrust.
 turbineArray(i) % thrust = turbineArray(i) % thrust +                          &
                            turbineArray(i) % axialForce(m,n,q)
 
-! Add this blade element's contribution to aerodynamic torque to
+! Add this blade element's contribution to aerodynamic torque to 
 ! the total turbine aerodynamic torque.
 turbineArray(i) % torqueRotor = turbineArray(i) % torqueRotor +                &
                                 turbineArray(i) % tangentialForce(m,n,q) *     &
@@ -1721,25 +1799,25 @@ end subroutine
 !~ ! n - numAnnulusSections
 !~ ! q - numBladePoints
 !~ ! m - numBl
-!~ real(rprec), intent(in) :: xyz(3)    ! Point onto which to convloute the force
+!~ real(rprec), intent(in) :: xyz(3)    ! Point onto which to convloute the force 
 !~ real(rprec) :: Force(3)   ! The blade force to be convoluted
 !~ real(rprec) :: dis                ! Distance onto which convolute the force
 !~ real(rprec) :: atm_convoluteForce(3)    ! The local velocity at this point
 !~ real(rprec) :: kernel                ! Gaussian dsitribution value
-!~
+!~ 
 !~ ! Distance from the point of the force to the point where it is being convoluted
 !~ dis=distance(xyz,turbineArray(i) % bladepoints(m,n,q,:))
-!~
+!~ 
 !~ ! The force which is being convoluted
 !~ Force=turbineArray(i) % bladeForces(m,n,q,:)
-!~
+!~ 
 !~ ! The value of the kernel. This is the actual smoothing function
 !~ kernel=exp(-(dis/turbineArray(i) % epsilon)**2._rprec) /                       &
 !~ ((turbineArray(i) % epsilon**3._rprec)*(pi**1.5_rprec))
-!~
+!~ 
 !~ ! The force times the kernel will give the force/unitVolume
 !~ atm_convoluteForce = Force * kernel
-!~
+!~ 
 !~ return
 !~ end function atm_convoluteForce
 
