@@ -233,9 +233,12 @@ integer :: i, j, k, z1, z2, ld_f, lh_f, Nz_tot_f
 real(rprec) :: dx_f, dy_f, dz_f
 integer :: i1, i2, j1, j2, k1, k2
 real(rprec) :: ax, ay, az, bx, by, bz, xx, yy
-real(rprec), allocatable, dimension(:) :: x_f, y_f, z_f, zw_f
+real(rprec), allocatable, dimension(:) :: x_f, y_f!, z_f, zw_f
 real(rprec), allocatable, dimension(:,:,:) :: u_f, v_f, w_f
 character(64) :: ff
+integer :: npr1, npr2, nproc_r, Nz_tot_r
+real(rprec), allocatable, dimension(:) :: z_r, zw_r
+! real(rprec), allocatable, dimension(:,:,:) :: u_r, v_r, w_r
 
 ! Read grid information from file
 open(12, file='grid.out', form='unformatted', convert=read_endian)
@@ -250,32 +253,44 @@ dx_f = Lx_f / nx_f
 dy_f = Ly_f / ny_f
 dz_f = Lz_f / (nz_tot_f - 1)
 
+! Figure out which processors actually need to be read
+npr1 = max(floor(grid%z(lbz)/dz_f/Nz_f), 0)
+npr2 = min(ceiling(grid%z(nz)/dz_f/Nz_f), nproc_f-1)
+nproc_r = npr2-npr1+1
+Nz_tot_r = ( nz_f - 1 ) * nproc_r + 1
+! write(*,*) coord, npr1, npr2, nproc_r, Nz_tot_r
+
 ! Create file grid
-allocate( x_f(nx_f), y_f(ny_f), z_f(nz_tot_f), zw_f(nz_tot_f))
+allocate( z_r(nz_tot_r), zw_r(nz_tot_r))
+do i = 1, nz_tot_r
+    zw_r(i) = (i - 1 + npr1*(nz_f-1)) * dz_f
+    z_r(i) = zw_r(i) + 0.5*dz_f
+end do
+
+! write(*,*) coord, ./bzw_r
+
+! Create file grid
+allocate( x_f(nx_f), y_f(ny_f))
 do i = 1, nx_f
     x_f(i) = (i-1) * Lx_f/(nx_f)
 end do
 do i = 1, ny_f
     y_f(i) = (i-1) * Ly_f/ny_f
 end do
-do i = 1, nz_tot_f
-    zw_f(i) = (i-1) * Lz_f/(nz_tot_f-1)
-    z_f(i) = zw_f(i) + 0.5*dz_f
-end do
 
 ! Read velocities from file
-allocate( u_f(ld_f, ny_f, nz_tot_f) )
-allocate( v_f(ld_f, ny_f, nz_tot_f) )
-allocate( w_f(ld_f, ny_f, nz_tot_f) )
+allocate( u_f(ld_f, ny_f, nz_tot_r) )
+allocate( v_f(ld_f, ny_f, nz_tot_r) )
+allocate( w_f(ld_f, ny_f, nz_tot_r) )
 
 ! Loop through all levels
-do i = 1, nproc_f
+do i = 1, nproc_r
     ! Set level bounds
     z1 = nz_tot_f / nproc_f * (i-1) + 1
     z2 = nz_tot_f / nproc_f * i  + 1
 
     ! Read from file
-    write(ff,*) i-1
+    write(ff,*) i+npr1-1
     ff = "./vel.out.c"//trim(adjustl(ff))
     open(12, file=ff,  action='read', form='unformatted')
     read(12) u_f(:, :, z1:z2), v_f(:, :, z1:z2), w_f(:, :, z1:z2)
@@ -297,9 +312,9 @@ do i = 1, nx
         ay = 1._rprec - by
         do k = 1, nz
             ! for u and v
-            k1 = binary_search(z_f, grid%z(k))
+            k1 = binary_search(z_r, grid%z(k))
             k2 = k1 + 1
-            if (k1 == nz_tot_f) then
+            if (k1 == nz_tot_r) then
                 u(i,j,k) = ax*ay*u_f(i1,j1,k1) + bx*ay*u_f(i2,j1,k1)           &
                          + ax*by*u_f(i1,j2,k1) + bx*by*u_f(i2,j2,k1)
                 v(i,j,k) = ax*ay*v_f(i1,j1,k1) + bx*ay*v_f(i2,j1,k1)           &
@@ -310,7 +325,7 @@ do i = 1, nx
                 v(i,j,k) = ax*ay*v_f(i1,j1,k2) + bx*ay*v_f(i2,j1,k2)           &
                          + ax*by*v_f(i1,j2,k2) + bx*by*v_f(i2,j2,k2)
             else
-                bz = (grid%z(k) - z_f(k1)) / dz_f
+                bz = (grid%z(k) - z_r(k1)) / dz_f
                 az = 1._rprec - bz
                 u(i,j,k) = ax*ay*az*u_f(i1,j1,k1) + bx*ay*az*u_f(i2,j1,k1)     &
                          + ax*by*az*u_f(i1,j2,k1) + bx*by*az*u_f(i2,j2,k1)     &
@@ -323,16 +338,16 @@ do i = 1, nx
             end if
 
             ! for w
-            k1 = binary_search(zw_f, grid%zw(k))
+            k1 = binary_search(zw_r, grid%zw(k))
             k2 = k1 + 1
-            if (k1 == nz_tot_f) then
+            if (k1 == nz_tot_r) then
                 w(i,j,k) = ax*ay*w_f(i1,j1,k1) + bx*ay*w_f(i2,j1,k1)           &
                          + ax*by*w_f(i1,j2,k1) + bx*by*w_f(i2,j2,k1)
             else if (k1 == 0) then
                 w(i,j,k) = ax*ay*w_f(i1,j1,k2) + bx*ay*w_f(i2,j1,k2)           &
                          + ax*by*w_f(i1,j2,k2) + bx*by*w_f(i2,j2,k2)
             else
-                bz = (grid%zw(k) - zw_f(k1)) / dz_f
+                bz = (grid%zw(k) - zw_r(k1)) / dz_f
                 az = 1._rprec - bz
                 w(i,j,k) = ax*ay*az*w_f(i1,j1,k1) + bx*ay*az*w_f(i2,j1,k1)     &
                          + ax*by*az*w_f(i1,j2,k1) + bx*by*az*w_f(i2,j2,k1)     &
