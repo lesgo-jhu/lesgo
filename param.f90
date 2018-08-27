@@ -193,6 +193,7 @@ real(rprec) :: utop = 0.0_rprec   ! nondimensional
 
 ! lower boundary condition, roughness length
 real(rprec) :: zo = 0.0001_rprec ! nondimensional
+logical :: smooth = .false.
 
 ! prescribed inflow:
 logical :: inflow = .false.
@@ -210,7 +211,8 @@ real(rprec) :: inflow_velocity = 1.0_rprec
 logical :: use_mean_p_force = .true.
 ! Specify whether mean_p_force should be evaluated as 1/L_z
 logical :: eval_mean_p_force = .false.
-real(rprec) :: mean_p_force = 1.0_rprec
+real(rprec) :: mean_p_force_x = 1._rprec
+real(rprec) :: mean_p_force_y = 0._rprec
 
 ! if true, provides random forcing for v & w until certain number of time steps
 logical :: use_random_force = .false.
@@ -267,5 +269,17 @@ logical :: zplane_calc=.false.
 integer :: zplane_nstart=10000, zplane_nend=50000, zplane_nskip=10000
 integer :: zplane_nloc=1
 real(rprec), allocatable, dimension(:) :: zplane_loc
+
+! perturbation energy output
+logical :: perte_calc=.false.
+integer :: perte_nstart=10000, perte_nend=50000, perte_nskip=10000
+
+! zpert instantaneous output
+logical :: zpert_calc=.false.
+integer :: zpert_nstart=10000, zpert_nend=50000, zpert_nskip=10000
+integer :: pert_ntstep=1
+integer :: pert_count=1
+integer :: pert_current_tstep=0
+real(rprec), allocatable, dimension(:) :: pert_tstep
 
 end module param

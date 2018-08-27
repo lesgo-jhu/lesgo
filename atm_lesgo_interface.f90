@@ -400,8 +400,6 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % alpha = 0._rprec
         turbineArray(i) % Cd = 0._rprec
         turbineArray(i) % Cl = 0._rprec
-        turbineArray(i) % Cl_b = 0._rprec
-        turbineArray(i) % G = 0._rprec
         turbineArray(i) % lift = 0._rprec
         turbineArray(i) % drag = 0._rprec
         turbineArray(i) % Vmag = 0._rprec
@@ -412,9 +410,7 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % bladeAlignedVectors = 0._rprec
         turbineArray(i) % VelNacelle_sampled = 0._rprec
         turbineArray(i) % VelNacelle_corrected = 0._rprec
-        turbineArray(i) % axialForce = 0._rprec
-        turbineArray(i) % tangentialForce = 0._rprec
-
+                                
         ! If statement is for running code only if grid points affected are in 
         ! this processor. If not, no code is executed at all.
 !~         if (forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
@@ -450,20 +446,9 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~  call myClock % start()
     do i=1,numberOfTurbines
 !~         if ( forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
-
-        ! Only perform is turbine is active in this processor
         if (turbineArray(i) % operate) then
             ! Convolute force onto the domain
             call atm_lesgo_convolute_force(i)
-
-            ! Only do this if the correction is active
-            if (turbineArray(i) % tipALMCorrection .eqv. .true.)  then
-
-                ! Compute the correction for the Cl coefficient
-                call atm_compute_cl_correction(i)
-
-            endif
-
         endif
             
 !~         ! Sync the nacelle force
@@ -476,6 +461,8 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~             endif
 !~         enddo
 
+        ! Compute the correction for the Cl coefficient
+        call atm_compute_cl_correction(i)
             
     enddo
     
@@ -619,7 +606,7 @@ do i=1,numberOfTurbines
                            turbineArray(i) % Cl,                               &
                            size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-
+    
         ! Sync Cd
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cd
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
@@ -823,6 +810,10 @@ endif
     
         endif
     endif
+
+!~ ! Compute the correction for the Cl coefficient
+!~ call atm_compute_cl_correction(i)
+
 
 end subroutine atm_lesgo_force
 
