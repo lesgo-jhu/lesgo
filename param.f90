@@ -210,7 +210,8 @@ real(rprec) :: inflow_velocity = 1.0_rprec
 logical :: use_mean_p_force = .true.
 ! Specify whether mean_p_force should be evaluated as 1/L_z
 logical :: eval_mean_p_force = .false.
-real(rprec) :: mean_p_force = 1.0_rprec
+real(rprec) :: mean_p_force_x = 1.0_rprec
+real(rprec) :: mean_p_force_y = 0.0_rprec
 
 ! if true, provides random forcing for v & w until certain number of time steps
 logical :: use_random_force = .false.

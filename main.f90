@@ -227,7 +227,8 @@ time_loop: do jt_step = nstart, nsteps
     !  we add force (mean press forcing) here so that u^(*) is as close
     !  to the final velocity as possible
     if (use_mean_p_force) then
-        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + mean_p_force
+        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + mean_p_force_x
+        RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + mean_p_force_y
     end if
 
     ! Optional random forcing, i.e. to help prevent relaminarization

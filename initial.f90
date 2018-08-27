@@ -294,6 +294,7 @@ implicit none
 integer :: jz, jz_abs
 real(rprec), dimension(nz) :: ubar
 real(rprec) :: rms, sigma_rv, arg, arg2, z
+real(rprec) :: angle
 
 character(*), parameter :: sub_name = 'ic'
 
@@ -354,6 +355,13 @@ u = rms / sigma_rv * (u - 0.5_rprec)
 v = rms / sigma_rv * (v - 0.5_rprec)
 w = rms / sigma_rv * (w - 0.5_rprec)
 
+! Modify angle of bulk flow based on pressure gradient
+if (mean_p_force_x == 0._rprec) then
+    angle = 3.14159265358979323846_rprec/2._rprec
+else
+    angle = atan(mean_p_force_y/mean_p_force_x)
+end if
+
 ! Rescale noise depending on distance from wall and mean log profile
 ! z is in meters
 do jz = 1, nz
@@ -371,12 +379,12 @@ do jz = 1, nz
     if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1)*z_i - z
 
     if (z <= z_i) then
-        u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)
-        v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i)
+        u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)*cos(angle)
+        v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)*sin(angle)
         w(:,:,jz) = w(:,:,jz) * (1._rprec-z / z_i)
     else
-        u(:,:,jz) = u(:,:,jz) * 0.01_rprec + ubar(jz)
-        v(:,:,jz) = v(:,:,jz) * 0.01_rprec
+        u(:,:,jz) = u(:,:,jz) * 0.01_rprec + ubar(jz)*cos(angle)
+        v(:,:,jz) = v(:,:,jz) * 0.01_rprec + ubar(jz)*sin(angle)
         w(:,:,jz) = w(:,:,jz) * 0.01_rprec
     end if
 end do
