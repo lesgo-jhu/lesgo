@@ -1,0 +1,2 @@
+3/3/18
+in initial.f90, ic_dns changed rms value from 0.2 to 10
