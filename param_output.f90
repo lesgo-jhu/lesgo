@@ -108,7 +108,8 @@ write(2,f_fmt) 'fringe_region_end : ', fringe_region_end
 write(2,f_fmt) 'fringe_region_len : ', fringe_region_len
 write(2,f_fmt) 'inflow_velocity : ', inflow_velocity
 write(2,l_fmt) 'use_mean_p_force : ', use_mean_p_force
-write(2,f_fmt) 'mean_p_force : ', mean_p_force
+write(2,f_fmt) 'mean_p_force_x : ', mean_p_force_x
+write(2,f_fmt) 'mean_p_force_y : ', mean_p_force_y
 write(2,l_fmt) 'use_random_force : ', use_random_force
 write(2,i_fmt) 'stop_random_force : ', stop_random_force
 write(2,f_fmt) 'rms_random_force : ', rms_random_force
