@@ -6,13 +6,12 @@ cmake_minimum_required(VERSION 2.8.9)
 
 # Specify Compiler
 # Options: Intel and GNU
-set(CMAKE_Fortran_COMPILER_ID "Intel")
+set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "marcc")
-#set(hostname "default")
+set(hostname "default")
 
 # Set extra safety measures 
 set(USE_SAFETYMODE true)
@@ -138,7 +137,7 @@ set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
      sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90 
      std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90 
      types.f90 wallstress.f90 init_random_seed.f90
-     iwmles.f90 adjust_mean_dpdx.f90)
+     iwmles.f90)
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
@@ -225,10 +224,10 @@ endif (READ_ENDIAN STREQUAL "BIG")
 
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -CB -traceback -heap-arrays -g -funroll-loops -no-wrap-margin -assume byterecl -mcmodel=large")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O3 -CB -traceback -heap-arrays -g -ffast-math -funroll-loops -fall-intrinsics -Wall")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 # main lesgo executable

@@ -58,9 +58,6 @@ use turbines, only : turbines_forcing, turbine_vel_init
 use sgs_param, only: F_LM, F_MM, F_QN, F_NN
 #endif
 
-! added by Wen for constant-mass flow
-use adjust_mean_dpdx
-
 use messages
 
 implicit none
@@ -137,19 +134,22 @@ time_loop: do jt_step = nstart, nsteps
     call clock%start
 
     if (use_cfl_dt) then
+
         dt_f = dt
         dt = get_cfl_dt()
         dt_dim = dt * z_i / u_star
+
         tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
         tadv2 = 1._rprec - tadv1
+
     end if
 
-    ! Advance time
-    jt_total = jt_step
-    jt = jt + 1
-    total_time = total_time + dt
-    total_time_dim = total_time_dim + dt_dim
-    tt = tt+dt
+   ! Advance time
+   jt_total = jt_step
+   jt = jt + 1
+   total_time = total_time + dt
+   total_time_dim = total_time_dim + dt_dim
+   tt = tt+dt
 
     ! Save previous time's right-hand-sides for Adams-Bashforth Integration
     ! NOTE: RHS does not contain the pressure gradient
@@ -227,8 +227,7 @@ time_loop: do jt_step = nstart, nsteps
     !  we add force (mean press forcing) here so that u^(*) is as close
     !  to the final velocity as possible
     if (use_mean_p_force) then
-        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + mean_p_force_x     
-        RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + mean_p_force_y     
+        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + mean_p_force
     end if
 
     ! Optional random forcing, i.e. to help prevent relaminarization
@@ -284,16 +283,8 @@ time_loop: do jt_step = nstart, nsteps
     !//////////////////////////////////////////////////////
     ! Calculate intermediate velocity field
     !   only 1:nz-1 are valid
-    if (use_mean_p_force) then
-        u(:,:,1:nz-1) = u(:,:,1:nz-1) +                                        &
-            dt * ( tadv1 * RHSx(:,:,1:nz-1) + tadv2 * RHSx_f(:,:,1:nz-1) )
-    else
-        call adjust_dpdx()
-        u(:,:,1:nz-1) = u(:,:,1:nz-1) +                                        &
-            dt * ( tadv1 * RHSx(:,:,1:nz-1) + tadv2 * RHSx_f(:,:,1:nz-1) ) +   &
-            dt * mean_p_force_x
-    end if
-
+    u(:,:,1:nz-1) = u(:,:,1:nz-1) +                                            &
+        dt * ( tadv1 * RHSx(:,:,1:nz-1) + tadv2 * RHSx_f(:,:,1:nz-1) )
     v(:,:,1:nz-1) = v(:,:,1:nz-1) +                                            &
         dt * ( tadv1 * RHSy(:,:,1:nz-1) + tadv2 * RHSy_f(:,:,1:nz-1) )
     w(:,:,1:nz-1) = w(:,:,1:nz-1) +                                            &

@@ -95,8 +95,7 @@ use sim_param, only : u, v, w
 use messages
 implicit none
 integer :: jx, jy, jz, nan_count
-real(rprec) :: KE, temp_w
-real(rprec) :: ubulk, ubulk_global
+real(rprec)::KE,temp_w
 #ifdef PPMPI
 real(rprec) :: ke_global
 #endif
@@ -117,31 +116,14 @@ end do
 ! Perform spatial averaging
 ke = ke*0.5_rprec/(nx*ny*(nz-1))
 
-! ubulk calculation
-ubulk = 0
-do jx = 1, nx
-    do jy = 1, ny
-        do jz = 1, nz-1
-            ubulk = ubulk + u(jx,jy,jz)*dz
-        end do
-    end do
-end do
-ubulk = ubulk/(real(nx)*real(ny)*L_z)
-
 #ifdef PPMPI
 call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
-call mpi_reduce (ubulk, ubulk_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
-
 if (rank == 0) then  ! note that it's rank here, not coord
     ke = ke_global/nproc
-    ubulk = ubulk_global
 #endif
     open(2,file=path // 'output/check_ke.dat', status='unknown',               &
         form='formatted', position='append')
-    if (jt_total==nenergy) then
-        write(2,*) 'tstep    ','time   ','ke    ','ubulk    ','mean_p_force_x  '
-    end if
-    write(2,*) jt_total, total_time, ke, ubulk, mean_p_force_x
+    write(2,*) total_time,ke
     close(2)
 #ifdef PPMPI
 end if
@@ -159,6 +141,8 @@ use functions ,only: get_tau_wall_bot
 implicit none
 
 real(rprec) :: turnovers
+
+turnovers = total_time_dim / (L_x * z_i / u_star)
 
 open(2,file=path // 'output/tau_wall_bot.dat', status='unknown',               &
     form='formatted', position='append')
@@ -553,9 +537,6 @@ use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-use param, only : zpert_calc, zpert_nstart, zpert_nend, zpert_nskip
-use param, only : perte_calc, perte_nstart, perte_nend, perte_nskip
-use param, only : pert_ntstep, pert_count, pert_current_tstep, pert_tstep
 use stat_defs, only : tavg_initialized,tavg_dt
 implicit none
 
@@ -686,49 +667,6 @@ if(zplane_calc) then
     end if
 end if
 
-
-!  Determine if perturbation energy is to be recorded
-if(perte_calc) then
-    if (jt_total >= perte_nstart .and. jt_total <= perte_nend .and.          &
-        ( mod(jt_total-perte_nstart,perte_nskip)==0) ) then
-        if (jt_total == perte_nstart) then
-            if (coord == 0) then
-                write(*,*) '-------------------------------'
-                write(*,"(1a,i9,1a,i9)")                                       &
-                    'Writing perturbation energy from ',          &
-                    perte_nstart, ' to ', perte_nend
-                write(*,"(1a,i9)") 'Iteration skip:', perte_nskip
-                write(*,*) '-------------------------------'
-            end if
-        end if
-        call inst_write(6)
-    end if
-end if
-
-!  Determine if instantaneous zplane pert. velocities are to be recorded
-if(zpert_calc) then
-    if ((jt_total >= zpert_nstart .and. jt_total <= zpert_nend .and.          &
-        ( mod(jt_total-zpert_nstart,zpert_nskip)==0))                         &
-        .or. jt_total == pert_current_tstep ) then
-        if (jt_total == zpert_nstart) then
-            if (coord == 0) then
-                write(*,*) '-------------------------------'
-                write(*,"(1a,i9,1a,i9)")                                       &
-                    'Writing instantaneous z-plane instantaneous velocities from ',          &
-                    zpert_nstart, ' to ', zpert_nend
-                write(*,"(1a,i9)") 'Iteration skip:', zpert_nskip
-                write(*,*) '-------------------------------'
-            end if
-        end if
-        if (pert_count < pert_ntstep) then
-            pert_count = pert_count + 1
-        end if
-        pert_current_tstep = pert_tstep(pert_count)
-        call inst_write(7)
-    end if
-end if
-
-
 end subroutine output_loop
 
 !*******************************************************************************
@@ -743,8 +681,6 @@ subroutine inst_write(itype)
 !   x-planes : itype=3
 !   y-planes : itype=4
 !   z-planes : itype=5
-!   perte    : itype=6
-!   zpert    : itype=7
 !
 ! For the points and planar data, this subroutine writes using the
 ! locations specfied from the param module.
@@ -756,12 +692,10 @@ use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
-use param, only : dx,dy,dz,L_x,L_y,L_z
+use param, only : dx,dy,dz
 use param, only : write_endian
-use param, only : comm, ierr, MPI_RPREC
 use grid_m
 use sim_param, only : u,v,w
-use cfl_util, only : get_max_cfl
 ! For computing and writing vorticity
 !  use sim_param, only: dwdy, dwdx, dvdx, dudy
 !  use functions, only : interp_to_w_grid
@@ -780,21 +714,9 @@ implicit none
 
 integer, intent(IN) :: itype
 character (64) :: fname
-character (64) :: fname2
 integer :: n, i, j, k
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, w_uv
-real(rprec), allocatable, dimension(:,:,:) :: up, vp, wp
-real(rprec), allocatable, dimension(:) :: ubar, vbar, wbar
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 real(rprec), pointer, dimension(:) :: x,y,z,zw
-real(rprec) :: pert_energy,xpert_energy,ypert_energy,zpert_energy
-real(rprec) :: pert_energy_global
-real(rprec) :: xpert_energy_global,ypert_energy_global,zpert_energy_global
-real(rprec) :: ubulk, ubulk_global
-real(rprec) :: umax_local, umax_global, upmax_local, upmax_global
-real(rprec) :: vmax_local, vmax_global, vpmax_local, vpmax_global
-real(rprec) :: wmax_local, wmax_global, wpmax_local, wpmax_global
-real(rprec) :: maxcfl
-
 #ifndef PPCGNS
 character(64) :: bin_ext
 
@@ -823,7 +745,7 @@ y => grid % y
 z => grid % z
 zw => grid % zw
 
-!  Allocate space for the interpolated values
+!  Allocate space for the interpolated w values
 allocate(w_uv(nx,ny,lbz:nz))
 
 !  Make sure w has been interpolated to uv-grid
@@ -1046,173 +968,21 @@ elseif (itype==5) then
             write(13,rec=3) wi(1:nx,1:ny,1)
             close(13)
 #endif
+!
+! #ifdef PPMPI
+!         else
+! #ifdef PPCGNS
+!            write(*,*) "At write_null_cgns"
+!            call write_null_cgns (fname ,nx, ny, 1, 1,                         &
+!            (/ 1, 1,   1 /),                                                   &
+!            (/ nx, ny, 1 /),                                                   &
+!            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                            &
+!            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
+!#endif
         end if
 #endif
     end do
     deallocate(ui,vi,wi)
-
-!  Write instantaneous perturbation values
-elseif (itype==6) then
-
-    allocate(up(nx,ny,nz-1), vp(nx,ny,nz-1), wp(nx,ny,nz-1))
-    allocate(ubar(nz-1), vbar(nz-1), wbar(nz-1))
-
-    !  Loop over all zplane locations
-    do k = 1, nz-1
-        ubar(k) = 0._rprec
-        vbar(k) = 0._rprec
-        wbar(k) = 0._rprec
-        do j = 1, ny
-            do i = 1, nx               
-                ubar(k) = ubar(k) + u(i,j,k)
-                vbar(k) = vbar(k) + v(i,j,k)
-                wbar(k) = wbar(k) + w_uv(i,j,k)
-            end do
-        end do
-        ubar(k) = ubar(k)/nx/ny
-        vbar(k) = vbar(k)/nx/ny
-        wbar(k) = wbar(k)/nx/ny
-        
-        do j = 1, ny
-            do i = 1, nx
-                up(i,j,k) = u(i,j,k) - ubar(k)
-                vp(i,j,k) = v(i,j,k) - vbar(k) 
-                wp(i,j,k) = w_uv(i,j,k) - wbar(k)
-            end do
-        end do     
-    end do
-    
-    ! Calculate local maxumum u,v,w and up,vp,wp
-    umax_local = maxval(abs(u(1:nx,1:ny,1:nz-1)))
-    vmax_local = maxval(abs(v(1:nx,1:ny,1:nz-1)))
-    wmax_local = maxval(abs(w(1:nx,1:ny,1:nz-1)))
-    upmax_local = maxval(abs(up(1:nx,1:ny,1:nz-1)))
-    vpmax_local = maxval(abs(vp(1:nx,1:ny,1:nz-1)))
-    wpmax_local = maxval(abs(wp(1:nx,1:ny,1:nz-1)))
-
-    ! Calculate bulk velocity
-    ubulk = 0._rprec
-    do k = 1, nz-1
-        ubulk = ubulk + ubar(k)*dz
-    end do 
-    call mpi_reduce(ubulk,ubulk_global,1,MPI_RPREC,MPI_SUM,0,  &
-        comm,ierr)
-    ubulk = ubulk_global/L_z
-
-    ! Calculate perturbation energy
-    pert_energy = 0._rprec
-    xpert_energy = 0._rprec
-    ypert_energy = 0._rprec
-    zpert_energy = 0._rprec
-    do k = 1, nz-1
-        do j = 1, ny
-            do i = 1, nx
-                pert_energy = pert_energy+(up(i,j,k)**2+vp(i,j,k)**2+wp(i,j,k)**2)&
-                              *(dx*dy*dz)
-                xpert_energy = xpert_energy+up(i,j,k)**2*(dx*dy*dz)
-                ypert_energy = ypert_energy+vp(i,j,k)**2*(dx*dy*dz)
-                zpert_energy = zpert_energy+wp(i,j,k)**2*(dx*dy*dz)
-            end do
-        end do
-    end do
-    call mpi_reduce(pert_energy,pert_energy_global,1,MPI_RPREC,MPI_SUM,0,  &
-        comm,ierr)
-    call mpi_reduce(xpert_energy,xpert_energy_global,1,MPI_RPREC,MPI_SUM,0,  &
-        comm,ierr)
-    call mpi_reduce(ypert_energy,ypert_energy_global,1,MPI_RPREC,MPI_SUM,0,  &
-        comm,ierr)
-    call mpi_reduce(zpert_energy,zpert_energy_global,1,MPI_RPREC,MPI_SUM,0,  &
-        comm,ierr)
-    
-    ! Find global maximum u and up
-    call mpi_reduce(umax_local,umax_global,1,MPI_RPREC,MPI_MAX,0,  &
-        comm,ierr) 
-    call mpi_reduce(vmax_local,vmax_global,1,MPI_RPREC,MPI_MAX,0,  &
-        comm,ierr) 
-    call mpi_reduce(wmax_local,wmax_global,1,MPI_RPREC,MPI_MAX,0,  &
-        comm,ierr) 
-    call mpi_reduce(upmax_local,upmax_global,1,MPI_RPREC,MPI_MAX,0,  &
-        comm,ierr)
-    call mpi_reduce(vpmax_local,vpmax_global,1,MPI_RPREC,MPI_MAX,0,  &
-        comm,ierr)
-    call mpi_reduce(wpmax_local,wpmax_global,1,MPI_RPREC,MPI_MAX,0,  &
-        comm,ierr)
-
-    maxcfl = get_max_cfl()
-    
-    if (rank == 0) then
-        pert_energy = pert_energy_global/L_x/L_y/L_z
-        xpert_energy = xpert_energy_global/L_x/L_y/L_z
-        ypert_energy = ypert_energy_global/L_x/L_y/L_z
-        zpert_energy = zpert_energy_global/L_x/L_y/L_z
-
-        open(unit=13,file=path//'output/pert_energy.dat',status='unknown',  &
-            form='formatted',position='append')
-        if (jt_total == 0) then
-            write(13,*) 'tstep    ','total_time    ','t*ubulk/h    ',&
-                 'E_tot    ','Eu    ','Ev    ','Ew    ',&
-                 'ubulk    ','Umax    ','Vmax    ','Wmax    ',&
-                 'upmax    ','vpmax    ','wpmax    ','CFL    '
-        end if
-        write(13,*) jt_total, total_time, total_time*ubulk, pert_energy,&
-            xpert_energy, ypert_energy, zpert_energy, ubulk, &
-            umax_global, vmax_global, wmax_global, upmax_global,&
-            vpmax_global, wpmax_global, maxcfl
-        close(13)
-    end if
-
-    deallocate(up,vp,wp)
-    deallocate(ubar,vbar,wbar)
-
-
-!  Write instantaneous perturbation values
-elseif (itype==7) then
-
-    allocate(up(nx,ny,nz-1), vp(nx,ny,nz-1), wp(nx,ny,nz-1))
-    allocate(ubar(nz-1), vbar(nz-1), wbar(nz-1))
-
-    !  Loop over all zplane locations
-    do k = 1, nz-1
-        ! Common file name portion for all output types
-        call string_splice(fname, path // 'output/vel.zpert.', jt_total)
-
-#ifdef PPMPI
-        ubar(k) = 0._rprec
-        vbar(k) = 0._rprec
-        wbar(k) = 0._rprec
-        do j = 1, ny
-            do i = 1, nx               
-                ubar(k) = ubar(k) + u(i,j,k)
-                vbar(k) = vbar(k) + v(i,j,k)
-                wbar(k) = wbar(k) + w_uv(i,j,k)
-            end do
-        end do
-        ubar(k) = ubar(k)/nx/ny
-        vbar(k) = vbar(k)/nx/ny
-        wbar(k) = wbar(k)/nx/ny
-        
-        do j = 1, ny
-            do i = 1, nx
-                up(i,j,k) = u(i,j,k) - ubar(k)
-                vp(i,j,k) = v(i,j,k) - vbar(k) 
-                wp(i,j,k) = w_uv(i,j,k) - wbar(k)
-            end do
-        end do
-
-        
-#endif
-    end do
-
-    call string_concat(fname, bin_ext)
-    open(unit=13,file=fname,form='unformatted',convert=write_endian,   &
-                         access='direct',recl=nx*ny*(nz-1)*rprec)
-    write(13,rec=1) up(1:nx,1:ny,1:nz-1)
-    write(13,rec=2) vp(1:nx,1:ny,1:nz-1)
-    write(13,rec=3) wp(1:nx,1:ny,1:nz-1)
-    close(13)
-
-    deallocate(up,vp,wp)
-    deallocate(ubar,vbar,wbar)
 else
     write(*,*) 'Error: itype not specified properly to inst_write!'
     stop
@@ -1234,7 +1004,6 @@ implicit none
 ! Zero bogus values
 fx(:,:,nz) = 0._rprec
 fy(:,:,nz) = 0._rprec
-        call string_splice(fname, path // 'output/vel.bar.', jt_total)
 fz(:,:,nz) = 0._rprec
 
 !  Sum both the induced and applied forces
@@ -1409,7 +1178,7 @@ use stat_defs, only : tavg_initialized
 use param, only : tavg_calc
 implicit none
 
-! Perform final checkpoint
+! Perform final checkpoing
 call checkpoint()
 
 !  Check if average quantities are to be recorded
@@ -1667,7 +1436,6 @@ use sgs_param
 use param, only : nx, ny, nz, lbz, jzmax, ubc_mom, lbc_mom
 use sim_param, only : u, v, w
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
-!use sim_param, only : dudz, dvdz, dwdz
 #ifdef PPTURBINES
 use sim_param, only : fxa, fya, fza
 #endif
@@ -1677,20 +1445,13 @@ implicit none
 
 integer :: i, j, k
 real(rprec) :: u_p, u_p2, v_p, v_p2, w_p, w_p2
-!real(rprec) :: dudz_p, dvdz_p, dwdz_p, dwdz_p2
 real(rprec), allocatable, dimension(:,:,:) :: w_uv, u_w, v_w
-!real(rprec), allocatable, dimension(:,:,:) :: dwdz_w
 
 allocate(w_uv(nx,ny,lbz:nz), u_w(nx,ny,lbz:nz), v_w(nx,ny,lbz:nz))
 
 w_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
 u_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(u(1:nx,1:ny,lbz:nz), lbz )
 v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(v(1:nx,1:ny,lbz:nz), lbz )
-
-!allocate(dwdz_w(nx,ny,lbz:nz))
-
-!dwdz_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(w(1:nx,1:ny,lbz:nz), lbz )
-
 ! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
 ! can zero u_w at BC anyway:
 if(coord==0       .and. lbc_mom>0) u_w(:,:,1)  = 0._rprec
@@ -1701,16 +1462,12 @@ if(coord==nproc-1 .and. ubc_mom>0) v_w(:,:,nz) = 0._rprec
 do k = lbz, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
 do j = 1, ny
 do i = 1, nx
-    u_p = u(i,j,k)           !! uv grid
-    u_p2= u_w(i,j,k)         !! w grid
-    v_p = v(i,j,k)           !! uv grid
-    v_p2= v_w(i,j,k)         !! w grid
-    w_p = w(i,j,k)           !! w grid
-    w_p2= w_uv(i,j,k)        !! uv grid
-    !dudz_p = dudz(i,j,k)     !! w grid
-    !dvdz_p = dvdz(i,j,k)     !! w grid
-    !dwdz_p = dwdz(i,j,k)     !! uv grid
-    !dwdz_p2 = dwdz_w(i,j,k) !! w grid
+    u_p = u(i,j,k)       !! uv grid
+    u_p2= u_w(i,j,k)     !! w grid
+    v_p = v(i,j,k)       !! uv grid
+    v_p2= v_w(i,j,k)     !! w grid
+    w_p = w(i,j,k)       !! w grid
+    w_p2= w_uv(i,j,k)    !! uv grid
 
     tavg(i,j,k) % u = tavg(i,j,k) % u + u_p * tavg_dt !! uv grid
     tavg(i,j,k) % v = tavg(i,j,k) % v + v_p * tavg_dt !! uv grid
@@ -1732,16 +1489,12 @@ do i = 1, nx
     tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt !! w grid
     tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt !! w grid
 
-    !tavg(i,j,k) % dudz = tavg(i,j,k) % dudz + dudz_p * tavg_dt !! w grid
-    !tavg(i,j,k) % dvdz = tavg(i,j,k) % dvdz + dvdz_p * tavg_dt !! w grid
-    !tavg(i,j,k) % dwdz = tavg(i,j,k) % dwdz + dwdz_p * tavg_dt !! uv grid
-    !tavg(i,j,k) % dwdz_w = tavg(i,j,k) % dwdz_w + dwdz_p2 * tavg_dt !! w grid
-
 #ifdef PPTURBINES
     tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt
     tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt
     tavg(i,j,k)%fz = tavg(i,j,k)%fz + fza(i,j,k) * tavg_dt
 #endif
+    tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
 end do
 end do
 end do
@@ -1752,7 +1505,6 @@ do j = 1, ny
 do i = 1, nx
     ! w-grid variables
     tavg_sgs(i,j,k)%Nu_t = tavg_sgs(i,j,k)%Nu_t + Nu_t(i,j,k) * tavg_dt
-    tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
 end do
 end do
 end do
@@ -1777,11 +1529,11 @@ subroutine tavg_finalize()
 !*******************************************************************************
 use grid_m
 use stat_defs, only : tavg_t, tavg_total_time, tavg
-use stat_defs, only : rs_t, rs!, tke_t, tke
+use stat_defs, only : rs_t, rs
 use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only : operator(.ADD.), operator(.SUB.)
 use stat_defs, only : tavg_interp_to_uv_grid
-use stat_defs, only : rs_compute, cnpy_tavg_mul!, tke_compute
+use stat_defs, only : rs_compute, cnpy_tavg_mul
 use param, only : write_endian
 #ifdef PPOUTPUT_EXTRA
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
@@ -1798,8 +1550,7 @@ character(64) :: bin_ext
 #endif
 
 character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_f
-character(64) :: fname_rs, fname_cs, fname_sgs
-!character(64) :: fname_deriv, fname_tke
+character(64) :: fname_rs, fname_cs
 
 integer :: i,j,k
 
@@ -1813,7 +1564,6 @@ z => grid % z
 zw => grid % zw
 
 allocate(rs(nx,ny,lbz:nz))
-!allocate(tke(nx,ny,lbz:nz))
 
 ! Common file name
 fname_vel = path // 'output/veluv_avg'
@@ -1822,12 +1572,7 @@ fname_vel2 = path // 'output/vel2_avg'
 fname_tau = path // 'output/tau_avg'
 fname_f = path // 'output/force_avg'
 fname_rs = path // 'output/rs'
-#ifdef PPOUTPUT_EXTRA
 fname_cs = path // 'output/cs_opt2'
-fname_sgs = path // 'output/sgs_avg'
-#endif
-!fname_deriv = path // 'output/deriv'
-!fname_tke = path // 'output/tke'
 
 ! CGNS
 #ifdef PPCGNS
@@ -1837,12 +1582,8 @@ call string_concat(fname_vel2, '.cgns')
 call string_concat(fname_tau, '.cgns')
 call string_concat(fname_f, '.cgns')
 call string_concat(fname_rs, '.cgns')
-#ifdef PPOUTPUT_EXTRA
 call string_concat(fname_cs, '.cgns')
-call string_concat(fname_sgs, '.cgns')
-#endif
-!call string_concat(fname_deriv, '.cgns')
-!call string_concat(fname_tke, '.cgns')
+
 ! Binary
 #else
 #ifdef PPMPI
@@ -1856,15 +1597,11 @@ call string_concat(fname_vel2, bin_ext)
 call string_concat(fname_tau, bin_ext)
 call string_concat(fname_f, bin_ext)
 call string_concat(fname_rs, bin_ext)
-#ifdef PPOUTPUT_EXTRA
 call string_concat(fname_cs, bin_ext)
-call string_concat(fname_sgs, bin_ext)
-#endif
-!call string_concat(fname_deriv, bin_ext)
-!call string_concat(fname_tke, bin_ext)
 #endif
 
 ! Final checkpoint all restart data
+call tavg_checkpoint()
 
 #ifdef PPMPI
 call mpi_barrier( comm, ierr )
@@ -1906,15 +1643,9 @@ call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uw, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%vw, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uv, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%fx, 0, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%dudz, 0, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%dvdz, 0, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%dwdz, 0, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%dwdz_w, 0, MPI_SYNC_DOWNUP )
-
-
+call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%cs_opt2, 0, MPI_SYNC_DOWNUP )
 #ifdef PPOUTPUT_EXTRA
 call mpi_sync_real_array( tavg_sgs(1:nx,1:ny,lbz:nz)%Nu_t, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%cs_opt2, 0, MPI_SYNC_DOWNUP )
 #endif
 #endif
 
@@ -1969,19 +1700,11 @@ call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                      &
        tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                      &
        tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
 
-#ifdef PPOUTPUT_EXTRA
 call write_parallel_cgns(fname_cs,nx,ny,nz- nz_end,nz_tot,                     &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                 &
     (/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
-
-call write_parallel_cgns(fname_sgs,nx,ny,nz- nz_end,nz_tot,                     &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                 &
-    (/ 'SGS'/),  (/ tavg_sgs(1:nx,1:ny,1:nz- nz_end) % Nu_t /) )
-#endif
 
 #else
 ! Write binary data
@@ -2025,29 +1748,10 @@ write(13,rec=2) tavg(:nx,:ny,1:nz)%fy
 write(13,rec=3) tavg(:nx,:ny,1:nz)%fz
 close(13)
 
-!open(unit=13, file=fname_deriv, form='unformatted', convert=write_endian,         &
-!    access='direct', recl=nx*ny*nz*rprec)
-!write(13,rec=1) tavg(:nx,:ny,1:nz)%dudz
-!write(13,rec=2) tavg(:nx,:ny,1:nz)%dvdz
-!write(13,rec=3) tavg(:nx,:ny,1:nz)%dwdz
-!write(13,rec=4) tavg(:nx,:ny,1:nz)%dwdz_w
-!close(13)
-
-#ifdef PPOUTPUT_EXTRA
 open(unit=13, file=fname_cs, form='unformatted', convert=write_endian,         &
     access='direct', recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%cs_opt2
 close(13)
-
-open(unit=13, file=fname_sgs, form='unformatted', convert=write_endian,         &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg_sgs(:nx,:ny,1:nz)%Nu_t
-close(13)
-
-call mpi_sync_real_array( tavg_sgs(1:nx,1:ny,lbz:nz)%Nu_t, 0, MPI_SYNC_DOWNUP )
-#endif
-
-
 
 #endif
 
@@ -2060,9 +1764,6 @@ call mpi_barrier( comm, ierr )
 ! ww to the uv grid and do the calculations. We have already written the data to
 ! the files so we can overwrite now
 rs = rs_compute(tavg , lbz)
-
-! Calculate tke budget
-!tke = tke_compute(tavg , rs, lbz)
 
 #ifdef PPCGNS
 ! Write CGNS data
@@ -2088,16 +1789,9 @@ write(13,rec=4) rs(:nx,:ny,1:nz)%upwp
 write(13,rec=5) rs(:nx,:ny,1:nz)%vpwp
 write(13,rec=6) rs(:nx,:ny,1:nz)%upvp
 close(13)
-
-!open(unit=13, file=fname_tke, form='unformatted', convert=write_endian,         &
-!    access='direct',recl=nx*ny*nz*rprec)
-!write(13,rec=1) tke(:nx,:ny,1:nz)%p
-!close(13)
-
 #endif
 
 deallocate(rs)
-!deallocate(tke)
 
 #ifdef PPMPI
 ! Ensure all writes complete before preceeding
@@ -2151,5 +1845,4 @@ close(1)
 
 end subroutine tavg_checkpoint
 
-!**********************************************************************************
 end module io

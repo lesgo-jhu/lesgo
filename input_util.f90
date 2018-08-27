@@ -400,8 +400,6 @@ do
                 Read (buff(equal_pos+1:), *) utop
             case ('ZO')
                 read (buff(equal_pos+1:), *) zo
-            case ('SMOOTH')
-                read (buff(equal_pos+1:), *) smooth
             case ('INFLOW')
                 read (buff(equal_pos+1:), *) inflow
             case ('FRINGE_REGION_END')
@@ -414,10 +412,8 @@ do
                 read (buff(equal_pos+1:), *) use_mean_p_force
             case ('EVAL_MEAN_P_FORCE')
                 read (buff(equal_pos+1:), *) eval_mean_p_force
-            case ('MEAN_P_FORCE_X')
-                read (buff(equal_pos+1:), *) mean_p_force_x
-            case ('MEAN_P_FORCE_Y')
-                read (buff(equal_pos+1:), *) mean_p_force_y
+            case ('MEAN_P_FORCE')
+                read (buff(equal_pos+1:), *) mean_p_force
             case ('USE_RANDOM_FORCE')
                 read (buff(equal_pos+1:), *) use_random_force
             case ('STOP_RANDOM_FORCE')
@@ -465,11 +461,11 @@ do
         end select
     elseif (block_exit_pos == 1) then
         if( use_mean_p_force .AND. eval_mean_p_force ) then
-            val_read = mean_p_force_x
+            val_read = mean_p_force
             ! Evaluate the mean pressure force
-            mean_p_force_x = 1.0_rprec / L_z
-            if (coord == 0 .AND. abs( val_read - mean_p_force_x ) >= thresh)     &
-                call mesg(sub_name, 'Reseting mean_p_force_x to: ', mean_p_force_x)
+            mean_p_force = 1.0_rprec / L_z
+            if (coord == 0 .AND. abs( val_read - mean_p_force ) >= thresh)     &
+                call mesg(sub_name, 'Reseting mean_p_force to: ', mean_p_force)
         endif
         return
     else
@@ -570,25 +566,6 @@ do
                 read (buff(equal_pos+1:), *) zplane_nskip
             case ('ZPLANE_LOC')
                 call parse_vector( buff(equal_pos+1:), zplane_nloc, zplane_loc )
-            case ('PERTE_CALC')
-                read (buff(equal_pos+1:), *) perte_calc
-            case ('PERTE_NSTART')
-                read (buff(equal_pos+1:), *) perte_nstart
-            case ('PERTE_NEND')
-                read (buff(equal_pos+1:), *) perte_nend
-            case ('PERTE_NSKIP')
-                read (buff(equal_pos+1:), *) perte_nskip
-            case ('ZPERT_CALC')
-                read (buff(equal_pos+1:), *) zpert_calc
-            case ('PERT_TSTEP')
-                call parse_vector( buff(equal_pos+1:), pert_ntstep, pert_tstep )
-                pert_current_tstep = pert_tstep(1)
-            case ('ZPERT_NSTART')
-                read (buff(equal_pos+1:), *) zpert_nstart
-            case ('ZPERT_NEND')
-                read (buff(equal_pos+1:), *) zpert_nend
-            case ('ZPERT_NSKIP')
-                read (buff(equal_pos+1:), *) zpert_nskip
             case default
                 if (coord == 0) write(*,*) 'Found unused data value in '       &
                     // block_name // ' block: ' // buff(1:equal_pos-1)

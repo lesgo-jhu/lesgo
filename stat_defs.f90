@@ -46,10 +46,6 @@ type rs_t
     real(rprec) :: up2, vp2, wp2, upvp, upwp, vpwp
 end type rs_t
 
-!type tke_t
-!    real(rprec) :: p
-!end type tke_t
-
 type spectra_t
     real(rprec), dimension(:), allocatable :: power
     integer :: istart, coord
@@ -70,10 +66,10 @@ logical :: tavg_initialized = .false.
 type tavg_t
     real(rprec) :: u, v, w, u_w, v_w, w_uv
     real(rprec) :: u2, v2, w2, uv, uw, vw
+    ! real(rprec) :: dudz, dvdz
     real(rprec) :: txx, tyy, tzz, txy, txz, tyz
     real(rprec) :: fx, fy, fz
     real(rprec) :: cs_opt2
-    real(rprec) :: dudz, dvdz, dwdz, dwdz_w
 end type tavg_t
 
 !  Sums performed over time (for subgrid variables)
@@ -153,8 +149,6 @@ type(tavg_sgs_t), allocatable, dimension(:,:,:) :: tavg_sgs
 
 type(rs_t), allocatable, dimension(:,:,:) :: rs
 type(rs_t), allocatable, dimension(:) :: rs_zplane, cnpy_zplane
-!type(tke_t), allocatable, dimension(:,:,:) :: tke
-
 
 ! Overloaded operators for tavg and rs types
 interface operator (.ADD.)
@@ -738,62 +732,6 @@ c % upwp = a % uw - a % u_w * a % w   !!pj
 c % vpwp = a % vw - a % v_w * a % w   !!pj
 
 end function rs_compute
-
-!*******************************************************************************
-!function tke_compute( a , b, lbz2) result(c)
-!*******************************************************************************
-!
-! this calculates your tke budget
-!
-!use param, only: coord
-!implicit none
-!integer, intent(in) :: lbz2
-!type(tavg_t), dimension(:,:,lbz2:), intent(in) :: a
-!type(rs_t), dimension(:,:,lbz2:), intent(in) :: b
-!type(tke_t), allocatable, dimension(:,:,:) :: c
-!real(rprec), allocatable, dimension(:,:,:) :: t1, t2, t3
-!real(rprec) :: t1,t2,t3
-!integer :: ubx, uby, ubz
-!integer :: i, j, k
-
-! determine size of c from a
-!ubx=ubound(a,1)
-!uby=ubound(a,2)
-!ubz=ubound(a,3)
-
-!allocate(c(ubx,uby,lbz2:ubz))
-!allocate(t1(ubx,uby,lbz2:ubz))
-!allocate(t2(ubx,uby,lbz2:ubz))
-!allocate(t3(ubx,uby,lbz2:ubz))
-
-!do i = 1,ubx
-!do j = 1,uby
-!do k = lbz2,ubz
-    
-!    t1 = b(1,1,1)%upwp
-!    t2 = a(1,1,1)%dudz
-!    t3 = t1*t2
-    
-!    write (*,*) t1,t2,t1*t2
-    
-!end do
-!end do
-!end do
-
-!if (coord == 1) then
-!   do k = lbz2,ubz
-!      write (*,*) t1(ubx,uby,k), t2(ubx,uby,k), t3(ubx,uby,k)
-!   end do
-!end if
-
-! grid location:
-!     p --> uv grid
-!c % p = - b % upwp * a % dudz - b % vpwp * a % dvdz - b % wp2 * a % dwdz_w
-
-!upwp_t = b % upwp
-!dudz_t = a % dudz
-
-!end function tke_compute
 
 !*******************************************************************************
 function cnpy_tavg_mul( a ) result(c)

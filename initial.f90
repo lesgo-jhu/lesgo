@@ -194,25 +194,17 @@ subroutine ic_dns()
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
-use io, only:output_loop,energy
 implicit none
 
-logical :: visualize_initial
-
 real(rprec), dimension(nz) :: ubar
-real(rprec) :: temp, z
+real(rprec) :: rms, temp, z
 integer :: jx, jy, jz
-real(rprec), dimension(:,:,:), allocatable :: upi,vpi,wpi
-real(rprec) :: ke
-
-integer :: pert_type
-pert_type = 2
-! pert_type = 1 --> random noise (fraction of ubar)
-! pert_type = 2 --> localized perturbation (four vortical structures)
+real(rprec) :: dummy_rand
 
 ! Calculate the average streamwise velocity based on height of first uvp point
 ! in wall units
-if (use_mean_p_force==.true.) then
+
+
 if ( abs(ubot) > 0 .or. abs(utop) > 0 ) then
     !! linear laminar profile (couette) z and ubar are non-dimensional
     do jz = 1, nz
@@ -231,40 +223,28 @@ else
 #else
         z = (real(jz,rprec) - 0.5_rprec) * dz
 #endif
-        ubar(jz) = (u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z)        
+        ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z)
     end do
 endif
-else
-!! parabolic laminar profile based on ubulk=1 and constant mass flow assumed
-do jz = 1, nz
-    z = (coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz
-    ubar(jz) = 3._rprec*z - 1.5_rprec*z**2
-end do
-endif
 
-! Gets perturbation to add to initial profile
-call ic_pert(pert_type,upi,vpi,wpi,ubar)
+! Get random seeds to populate the initial condition with noise
+call init_random_seed
 
 ! Add noise to the velocity field
+! the "default" rms of a unif variable is 0.289
+rms = 0.2_rprec
 do jz = 1, nz
     do jy = 1, ny
         do jx = 1, nx
-            u(jx,jy,jz) = ubar(jz)+upi(jx,jy,jz)
-            v(jx,jy,jz) = 0._rprec+vpi(jx,jy,jz)
-            w(jx,jy,jz) = 0._rprec+wpi(jx,jy,jz)
+            call random_number(dummy_rand)
+            u(jx,jy,jz)=ubar(jz)+(rms/.289_rprec)*(dummy_rand-.5_rprec)/u_star
+            call random_number(dummy_rand)
+            v(jx,jy,jz) = 0._rprec+(rms/.289_rprec)*(dummy_rand-.5_rprec)/u_star
+            call random_number(dummy_rand)
+            w(jx,jy,jz) = 0._rprec+(rms/.289_rprec)*(dummy_rand-.5_rprec)/u_star
         end do
     end do
 end do
-
-deallocate(upi,vpi,wpi)
-
-!!!!!! to visualize initial velocity field. remove later.
-visualize_initial = .true.
-if (visualize_initial .eqv. .true.) then
-    call output_loop()
-    call energy(ke)
-end if
-
 
 ! make sure w-mean is 0
 temp=0._rprec
@@ -295,152 +275,6 @@ endif
 
 end subroutine ic_dns
 
-
-!*******************************************************************************
-subroutine ic_pert(pert_type,upi,vpi,wpi,ubar)
-!*******************************************************************************
-! Inserts perturbation for DNS simulation.
-! pert_type = 1 --> random noise (fraction of ubar)
-! pert_type = 2 --> localized perturbation (four vortical structures)
-
-
-use types,only:rprec
-use param
-use functions, only: interp_to_w_grid
-implicit none
-
-integer, intent(in) :: pert_type
-real(rprec), dimension(:,:,:), allocatable, intent(inout) :: upi,vpi,wpi
-real(rprec), dimension(:,:,:), allocatable :: wpi_uv
-real(rprec), dimension(nz), intent(in) :: ubar
-real(rprec) :: ubarfrac, dummy_rand
-integer :: jx, jy, jz
-
-real(rprec) :: theta, eps, lx, ly, p, q, xc, yc, zc, ubulk, ubulk_global
-real(rprec), dimension(nx) :: x
-real(rprec), dimension(ny) :: y
-real(rprec), dimension(nz) :: z, f, dfdz, z_w
-real(rprec), dimension(nx,ny) :: xp, yp, g, dgdy
-
-allocate(upi(nx,ny,lbz:nz), vpi(nx,ny,lbz:nz), wpi(nx,ny,lbz:nz))
-allocate(wpi_uv(nx,ny,lbz:nz))
-upi(nx,ny,lbz:nz) = 0._rprec
-vpi(nx,ny,lbz:nz) = 0._rprec
-wpi(nx,ny,lbz:nz) = 0._rprec
-wpi_uv(nx,ny,lbz:nz) = 0._rprec
-
-! random noise
-if (pert_type==1) then
-    ubarfrac = 0.3_rprec
-    call init_random_seed()
-    do jz = 1, nz
-        do jy = 1, ny
-            do jx = 1, nx
-                call random_number(dummy_rand)
-                upi(jx,jy,jz) = ubarfrac*2._rprec*(dummy_rand-.5_rprec)*ubar(jz)/u_star
-                call random_number(dummy_rand)
-                vpi(jx,jy,jz) = ubarfrac*2._rprec*(dummy_rand-.5_rprec)*ubar(jz)/u_star
-                call random_number(dummy_rand)
-                wpi(jx,jy,jz) = ubarfrac*2._rprec*(dummy_rand-.5_rprec)*ubar(jz)/u_star
-            end do
-        end do
-    end do
-
-! localized perturbation
-elseif (pert_type==2) then
-    theta = 0._rprec ! rotates localized perturbation if not zero
-    lx = 2._rprec ! new parameter, not L_x
-    ly = 2._rprec ! new parameter, not L_y
-    p = 2._rprec ! how quickly perturbation decays near the wall
-    q = 2._rprec ! how quickly perturbation decays near the wall
-    xc = L_x/2._rprec
-    yc = L_y/2._rprec
-    zc = L_z/2._rprec
-
-    ! set up grid
-    ! x(1) and y(1) are dx and dy, respectively
-    do jx = 1, nx
-        x(jx) = real(jx,rprec) * dx
-    end do
-    do jy = 1, ny
-        y(jy) = real(jy,rprec) * dy
-    end do
-    ! z on uv-grid
-    do jz = 1, nz
-        z(jz) = (coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz
-    end do
-    
-    ! z_w on w-grid
-    do jz = 1, nz
-        z_w(jz) = (coord*(nz-1) + real(jz,rprec) - 1._rprec) * dz
-    end do
-
-    ! calculate ubulk
-    ubulk = 0.0_rprec
-    do jz=1, nz-1
-        ubulk = ubulk + ubar(jz)*dz
-    end do
-    ubulk = ubulk / L_z
-    call mpi_allreduce(ubulk,ubulk_global,1,MPI_RPREC,MPI_SUM, &
-        MPI_COMM_WORLD,ierr)
-    ubulk = ubulk_global
-    
-    eps = 0.20970_rprec*ubulk ! amplitude of perturbation    
-    
-    ! change orientation of localized perturbation
-    do jx = 1, nx
-        do jy = 1, ny
-            xp(jx,jy) = (x(jx)-xc)*cos(theta) - (y(jy)-yc)*sin(theta)
-            yp(jx,jy) = (x(jx)-xc)*sin(theta) + (y(jy)-yc)*cos(theta) 
-        end do
-    end do
-
-    ! main loop for perturbation calculations
-    do jx = 1, nx
-        do jy = 1, ny
-            do jz = 1, nz
-                f(jz) = (1._rprec+z(jz)-zc)**p*(1._rprec-z(jz)+zc)**q
-                g(jx,jy) = xp(jx,jy)/lx*yp(jx,jy)* &
-                   exp(-(xp(jx,jy)/lx)**2._rprec-(yp(jx,jy)/ly)**2._rprec)
-                dfdz(jz) = p*(1._rprec+z(jz)-zc)**(p-1._rprec)*(1._rprec-z(jz)+zc)**q- &
-                   q*(1._rprec+z(jz)-zc)**p*(1._rprec-z(jz)+zc)**(q-1._rprec)
-                dgdy(jx,jy) = (xp(jx,jy)/lx)* &
-                   (1._rprec-2._rprec*(yp(jx,jy)/ly)**2._rprec)* &
-                   exp(-(xp(jx,jy)/lx)**2._rprec-(yp(jx,jy)/ly)**2._rprec)
-
-                upi(jx,jy,jz) = -eps*g(jx,jy)*dfdz(jz)*sin(theta)
-                vpi(jx,jy,jz) = -eps*g(jx,jy)*dfdz(jz)*cos(theta)
-               ! wpi_uv(jx,jy,jz) = eps*f(jz)*dgdy(jx,jy)
-            end do
-        end do
-    end do 
-    
-    do jx = 1, nx
-        do jy = 1, ny
-            do jz = 1, nz
-                f(jz) = (1._rprec+z_w(jz)-zc)**p*(1._rprec-z_w(jz)+zc)**q
-                g(jx,jy) = xp(jx,jy)/lx*yp(jx,jy)* &
-                   exp(-(xp(jx,jy)/lx)**2._rprec-(yp(jx,jy)/ly)**2._rprec)
-                dfdz(jz) = p*(1._rprec+z_w(jz)-zc)**(p-1._rprec)* &
-                   (1._rprec-z_w(jz)+zc)**q- &
-                   q*(1._rprec+z_w(jz)-zc)**p*(1._rprec-z_w(jz)+zc)**(q-1._rprec)
-                dgdy(jx,jy) = (xp(jx,jy)/lx)* &
-                   (1._rprec-2._rprec*(yp(jx,jy)/ly)**2._rprec)* &
-                   exp(-(xp(jx,jy)/lx)**2._rprec-(yp(jx,jy)/ly)**2._rprec)
-
-                wpi(jx,jy,jz) = eps*f(jz)*dgdy(jx,jy)
-            end do
-        end do
-    end do 
-
-   ! wpi = interp_to_w_grid(wpi_uv(1:nx,1:ny,lbz:nz),lbz)
-   ! write(*,*) 'proc:',coord,'wpi(1):',wpi(60,60,1),'wpi(nz):',wpi(60,60,nz)
-    deallocate(wpi_uv)
-endif
-
-
-end subroutine ic_pert
-
 !*******************************************************************************
 subroutine ic_les()
 !*******************************************************************************
@@ -460,7 +294,6 @@ implicit none
 integer :: jz, jz_abs
 real(rprec), dimension(nz) :: ubar
 real(rprec) :: rms, sigma_rv, arg, arg2, z
-real(rprec) :: angle
 
 character(*), parameter :: sub_name = 'ic'
 
@@ -521,13 +354,6 @@ u = rms / sigma_rv * (u - 0.5_rprec)
 v = rms / sigma_rv * (v - 0.5_rprec)
 w = rms / sigma_rv * (w - 0.5_rprec)
 
-! Modify angle of bulk flow based on pressure gradient
-if (mean_p_force_x == 0._rprec) then
-    angle = 3.14159265358979323846_rprec/2._rprec
-else
-    angle = atan(mean_p_force_y/mean_p_force_x)
-end if
-
 ! Rescale noise depending on distance from wall and mean log profile
 ! z is in meters
 do jz = 1, nz
@@ -545,12 +371,12 @@ do jz = 1, nz
     if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1)*z_i - z
 
     if (z <= z_i) then
-        u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)*cos(angle)
-        v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)*sin(angle)
+        u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)
+        v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i)
         w(:,:,jz) = w(:,:,jz) * (1._rprec-z / z_i)
     else
-        u(:,:,jz) = u(:,:,jz) * 0.01_rprec + ubar(jz)*cos(angle)
-        v(:,:,jz) = v(:,:,jz) * 0.01_rprec + ubar(jz)*sin(angle)
+        u(:,:,jz) = u(:,:,jz) * 0.01_rprec + ubar(jz)
+        v(:,:,jz) = v(:,:,jz) * 0.01_rprec
         w(:,:,jz) = w(:,:,jz) * 0.01_rprec
     end if
 end do

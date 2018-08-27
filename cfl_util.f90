@@ -76,7 +76,6 @@ function get_cfl_dt() result(dt)
 ! This functions determines the maximum allowable time step based on the CFL
 ! value specified in the param module
 !
-
 use types, only : rprec
 use param, only : cfl, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
