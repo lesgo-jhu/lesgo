@@ -6,12 +6,12 @@ cmake_minimum_required(VERSION 2.8.9)
 
 # Specify Compiler
 # Options: Intel and GNU
-set(CMAKE_Fortran_COMPILER_ID "GNU")
+set(CMAKE_Fortran_COMPILER_ID "Intel")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "default")
+set(hostname "marcc")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -76,8 +76,8 @@ if (${hostname} STREQUAL "panoramix")
 elseif (${hostname} STREQUAL "marcc")
     # Intel
     if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-        include_directories(/cm/shared/apps/Intel/fftw/3.3.4/include)
-        link_directories(/cm/shared/apps/Intel/fftw/3.3.4/lib)
+        include_directories(/software/apps/compilers/intel/mkl/include/fftw/)
+        link_directories(/software/apps/compilers/intel/mkl/lib/intel64/)
     # GNU -- These have to be installed locally for now.
     elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
         if (USE_CGNS)
