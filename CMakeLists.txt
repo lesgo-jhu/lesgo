@@ -30,6 +30,9 @@ option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging,
 option(USE_SAFETYMODE "Set extra safety measures." ON)
 option(USE_CGNS "Enable CGNS data output." OFF)
 
+# Compiling options for linking
+option(USE_MKL "Enable MKL for FFTs." OFF)
+
 ################################################################################
 #                         Set up build (do not change)
 ################################################################################
@@ -51,7 +54,11 @@ project (lesgo)
 set(exec_name "lesgo")
 
 # Library links
-link_libraries(fftw3)
+if (USE_MKL)
+    set(CMAKE_Fortran_FLAGS ${CMAKE_Fortran_FLAGS} -mkl)
+else()
+    link_libraries(fftw3)
+endif()
 
 # Common include and link directories
 include_directories(/usr/local/include)
@@ -61,6 +68,8 @@ if ( NOT(${hostname} STREQUAL "darwin-brew") )
     include_directories(/usr/include)
     link_directories($ENV{HOME}/lib /usr/lib64)
 endif ()
+
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Include host-specific paths
 #  panoramix
@@ -76,10 +85,17 @@ if (${hostname} STREQUAL "panoramix")
 elseif (${hostname} STREQUAL "marcc")
     # Intel
     if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-        include_directories(/software/apps/compilers/intel/mkl/include/fftw/)
-        link_directories(/software/apps/compilers/intel/mkl/lib/intel64/)
+        if (USE_MKL) 
+            include_directories(/software/apps/compilers/intel/mkl/include/fftw/)
+            link_directories(/software/apps/compilers/intel/mkl/lib/intel64/)
+        else()
+            include_directories(/software/apps/fftw3/3.3.8/intel/18.0/include/)
+            link_directories(/software/apps/fftw3/3.3.8/intel/18.0/lib/)
+        endif()
     # GNU -- These have to be installed locally for now.
     elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+        include_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/include/)
+        link_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/lib/)
         if (USE_CGNS)
             include_directories($ENV{HOME}/cgns/include/)
             link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
@@ -197,10 +213,12 @@ endif (READ_ENDIAN STREQUAL "BIG")
 
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
+    #set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp -O0 -g -traceback -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall -fcheck=all")
+    #set (CMAKE_Fortran_FLAGS "-cpp -O0 -g -fbacktrace -fall-intrinsics -Wall -fcheck=all")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 # main lesgo executable
