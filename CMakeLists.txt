@@ -30,8 +30,8 @@ option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging,
 option(USE_SAFETYMODE "Set extra safety measures." ON)
 option(USE_CGNS "Enable CGNS data output." OFF)
 
-# Compiling options for linking
-option(USE_MKL "Enable MKL for FFTs." OFF)
+# Enable verbose mode
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 ################################################################################
 #                         Set up build (do not change)
@@ -54,8 +54,12 @@ project (lesgo)
 set(exec_name "lesgo")
 
 # Library links
-if (USE_MKL)
-    set(CMAKE_Fortran_FLAGS ${CMAKE_Fortran_FLAGS} -mkl)
+if (${hostname} STREQUAL "marcc")
+    if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+        set(CMAKE_Fortran_FLAGS ${CMAKE_Fortran_FLAGS} -mkl)
+    else()
+        link_libraries(fftw3)
+    endif()
 else()
     link_libraries(fftw3)
 endif()
@@ -68,8 +72,6 @@ if ( NOT(${hostname} STREQUAL "darwin-brew") )
     include_directories(/usr/include)
     link_directories($ENV{HOME}/lib /usr/lib64)
 endif ()
-
-set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Include host-specific paths
 #  panoramix
@@ -85,13 +87,8 @@ if (${hostname} STREQUAL "panoramix")
 elseif (${hostname} STREQUAL "marcc")
     # Intel
     if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-        if (USE_MKL) 
-            include_directories(/software/apps/compilers/intel/mkl/include/fftw/)
-            link_directories(/software/apps/compilers/intel/mkl/lib/intel64/)
-        else()
-            include_directories(/software/apps/fftw3/3.3.8/intel/18.0/include/)
-            link_directories(/software/apps/fftw3/3.3.8/intel/18.0/lib/)
-        endif()
+        include_directories(/software/apps/compilers/intel/mkl/include/fftw/)
+        link_directories(/software/apps/compilers/intel/mkl/lib/intel64/)
     # GNU -- These have to be installed locally for now.
     elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
         include_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/include/)
