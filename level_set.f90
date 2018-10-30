@@ -79,11 +79,11 @@ integer, parameter :: nd = 3
 ! real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
 ! real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
-! real (rp) :: norm(nd, ld, ny, lbz:nz) !--normal vector
+! real (rp) :: norm(nd, ld, ny, 0:nz) !--normal vector
 !                                   !--may want to change so only normals
 !                                   !  near 0-set are stored
 ! !--experimental: desired velocities for IB method
-! real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
+! real (rp) :: udes(ld, ny, 0:nz), vdes(ld, ny, 0:nz), wdes(ld, ny, 0:nz)
 
 real (rp) :: phi_cutoff
 real (rp) :: phi_0
@@ -116,7 +116,7 @@ contains
 subroutine level_set_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : path, read_endian
-use param, only : dx, dy, dz, lbz  !--in addition to those above
+use param, only : dx, dy, dz, 0  !--in addition to those above
 use trees_pre_ls_mod, only : trees_pre_ls
 implicit none
 
@@ -186,13 +186,13 @@ allocate( txxbot(ld, ny, ntaubot), &
 allocate( FMMbot(ld, ny, nFMMbot) )
 allocate( FMMtop(ld, ny, nFMMtop) )
 
-allocate( norm(nd, ld, ny, lbz:nz) )!--normal vector
+allocate( norm(nd, ld, ny, 0:nz) )!--normal vector
 !                                   !--may want to change so only normals
 !                                   !  near 0-set are stored
 ! !--experimental: desired velocities for IB method
-if( vel_BC ) allocate( udes(ld, ny, lbz:nz), &
-                       vdes(ld, ny, lbz:nz), &
-                       wdes(ld, ny, lbz:nz) )
+if( vel_BC ) allocate( udes(ld, ny, 0:nz), &
+                       vdes(ld, ny, 0:nz), &
+                       wdes(ld, ny, 0:nz) )
 
 inquire (unit=lun, exist=exst, opened=opn)
 
@@ -212,7 +212,7 @@ if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert=read_endian)
 
-read (lun) phi(:, :, lbz:nz)
+read (lun) phi(:, :, 0:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
            !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
 close (lun)
@@ -427,7 +427,7 @@ end subroutine level_set_Cs_lag_dyn
 !  * applies neumann condition on F_MM at solid surface
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_lag_dyn (S11, S12, S13, S22, S23, S33)
-use param, only: lbz
+use param, only: 0
 use sim_param, only : u, v, w
 implicit none
 
@@ -445,9 +445,9 @@ real (rp) :: phi_c
 !--part 1: smooth variables
 phi_c = 0._rp
 
-call smooth (phi_c, lbz, u)
-call smooth (phi_c, lbz, v)
-call smooth (phi_c, lbz, w, 'w')
+call smooth (phi_c, 0, u)
+call smooth (phi_c, 0, v)
+call smooth (phi_c, 0, w, 'w')
 
 call smooth (phi_c, 1, S11, 'w')
 call smooth (phi_c, 1, S12, 'w')
@@ -621,7 +621,7 @@ end do
                      comm, status, ierr)
 
   datasize = ld * ny * nFMMbot
-  kstart = nz - nFMMbot  !--F_MM is has lbz = 1
+  kstart = nz - nFMMbot  !--F_MM is has 0 = 1
   call mpi_sendrecv (F_MM(1, 1, kstart), datasize, MPI_RPREC, up, tag+4,  &
                      FMMbot(1, 1, 1), datasize, MPI_RPREC, down, tag+4,   &
                      comm, status, ierr)
@@ -1773,14 +1773,14 @@ end subroutine enforce_log_profile
 !--performs tri-linear interpolation to obtain a at point x
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
+subroutine interp_scal (a0, a, nbot, abot, ntop, atop, x, a_x, node)
 use grid_m
 use functions, only : cell_indx
 use messages
 implicit none
 
-integer, intent (in) :: albz
-real (rp), intent (in) :: a(ld, ny, albz:nz)  !--albz usually 0 or 1
+integer, intent (in) :: a0
+real (rp), intent (in) :: a(ld, ny, a0:nz)  !--a0 usually 0 or 1
 integer, intent (in) :: nbot, ntop
 real (rp), intent (in) :: abot(ld, ny, nbot)
 real (rp), intent (in) :: atop(ld, ny, ntop)
@@ -1859,9 +1859,9 @@ end if
 if ( coord == 0 ) then
   if (ks < 1) call error (sub_name, 'ks out of range, ks =', ks)
 else
-  if (ks < -nbot + albz) call error (sub_name,                       &
+  if (ks < -nbot + a0) call error (sub_name,                       &
                                      'out of range, (ks, ksmin) =',  &
-                                     (/ ks, -nbot + albz /))
+                                     (/ ks, -nbot + a0 /))
 end if
 
 #ifdef PPMPI
@@ -1900,8 +1900,8 @@ w8 = (    x1    ) * (    x2    ) * (    x3    )
 
 #ifdef PPMPI
 
-  if (ks < albz) then
-    k = nbot + ks + 1 - albz
+  if (ks < a0) then
+    k = nbot + ks + 1 - a0
     f1 = abot(i , j , k)
     f2 = abot(i1, j , k)
     f3 = abot(i , j1, k)
@@ -1920,8 +1920,8 @@ w8 = (    x1    ) * (    x2    ) * (    x3    )
     f4 = a(i1, j1, k)
   end if
 
-  if (ks1 < albz) then
-    k1 = nbot + ks1 + 1 - albz
+  if (ks1 < a0) then
+    k1 = nbot + ks1 + 1 - a0
     f5 = abot(i , j , k1)
     f6 = abot(i1, j , k1)
     f7 = abot(i , j1, k1)
@@ -2101,12 +2101,12 @@ nullify(autowrap_i, autowrap_j)
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine fill_f (abot, atop, a)
-use param, only: lbz
+use param, only: 0
 implicit none
 
 real (rp), intent (in) :: abot(ld, ny, ntaubot)
 real (rp), intent (in) :: atop(ld, ny, ntautop)
-real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
+real (rp), intent (in) :: a(ld, ny, 0:nz)  !--since tij are 0:nz
 
 !---------------------------------------------------------------------
 
@@ -2289,12 +2289,12 @@ contains
 !**********************************************************************
 subroutine fill_f (abot, atop, a)
 !**********************************************************************
-use param, only: lbz
+use param, only: 0
 implicit none
 
 real (rp), intent (in) :: abot(ld, ny, ntaubot)
 real (rp), intent (in) :: atop(ld, ny, ntautop)
-real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
+real (rp), intent (in) :: a(ld, ny, 0:nz)  !--since tij are 0:nz
 
 !---------------------------------------------------------------------
 
@@ -2838,12 +2838,12 @@ end subroutine interp_vel
 !--a driver routine for calling smooth routine with stresses
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth_tau (phi_c, txx, txy, txz, tyy, tyz, tzz)
-use param, only: lbz
+use param, only: 0
 implicit none
 
 real (rp), intent (in) :: phi_c
 
-real (rp), intent (in out), dimension (ld, ny, lbz:nz) ::  &
+real (rp), intent (in out), dimension (ld, ny, 0:nz) ::  &
                                  txx, txy, txz, tyy, tyz, tzz
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
@@ -2861,12 +2861,12 @@ character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
 !phi_c = -(filter_size * sqrt (dx**2 + dy**2 + dz**2) +  &
 !          10._rp * epsilon (0._rp))
 
-call smooth (phi_c, lbz, txx)
-call smooth (phi_c, lbz, txy)
-call smooth (phi_c, lbz, txz, node='w')
-call smooth (phi_c, lbz, tyy)
-call smooth (phi_c, lbz, tyz, node='w')
-call smooth (phi_c, lbz, tzz)
+call smooth (phi_c, 0, txx)
+call smooth (phi_c, 0, txy)
+call smooth (phi_c, 0, txz, node='w')
+call smooth (phi_c, 0, tyy)
+call smooth (phi_c, 0, tyz, node='w')
+call smooth (phi_c, 0, tzz)
 
 
 end subroutine smooth_tau
@@ -2878,10 +2878,10 @@ end subroutine smooth_tau
 !--modifies u, v, w.  Be careful.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_smooth_vel (u, v, w)
-use param, only: lbz
+use param, only: 0
 implicit none
 
-real (rp), intent (in out), dimension (ld, ny, lbz:nz) :: u, v, w
+real (rp), intent (in out), dimension (ld, ny, 0:nz) :: u, v, w
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 
@@ -2904,13 +2904,13 @@ end subroutine level_set_smooth_vel
 !--Used to NOT work near boundaries (of grid), but does now as
 !--autowrapping of points has been added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine smooth (phi0, albz, a, node)
+subroutine smooth (phi0, a0, a, node)
 use grid_m
 implicit none
 
 real (rp), intent (in) :: phi0
-integer, intent (in) :: albz
-real (rp), intent (in out) :: a(ld, ny, albz:nz)
+integer, intent (in) :: a0
+real (rp), intent (in out) :: a(ld, ny, a0:nz)
 character (*), intent (in), optional :: node  !--'u' or 'w'
 
 character (*), parameter :: sub_name = mod_name // '.smooth'
@@ -4382,13 +4382,13 @@ end subroutine level_set_forcing
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 real(rp) function safe_cd (i, j, k, d, f)
-use param, only : dx, dy, dz, lbz  !--in addition to those above
+use param, only : dx, dy, dz, 0  !--in addition to those above
 use grid_m
 implicit none
 
 integer, intent (in) :: i, j, k
 integer, intent (in) :: d  !--d is dimension to difference along
-real (rp), intent (in) :: f(ld, ny, lbz:nz)
+real (rp), intent (in) :: f(ld, ny, 0:nz)
 
 character (*), parameter :: sub_name = mod_name // '.safe_cd'
 

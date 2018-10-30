@@ -119,12 +119,12 @@ nstart = jt_total+1
 ! Declare variables for shifting the domain
 ! This gets rid of streaks in the domain
 #ifdef PPSTREAKS
-allocate( dummyu     (ld    ,ny, lbz:nz) )
-allocate( dummyv     (ld    ,ny, lbz:nz) )
-allocate( dummyw     (ld    ,ny, lbz:nz) )
-allocate( dummyRHSx  (ld    ,ny, lbz:nz) )
-allocate( dummyRHSy  (ld    ,ny, lbz:nz) )
-allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
+allocate( dummyu     (ld    ,ny, 0:nz) )
+allocate( dummyv     (ld    ,ny, 0:nz) )
+allocate( dummyw     (ld    ,ny, 0:nz) )
+allocate( dummyRHSx  (ld    ,ny, 0:nz) )
+allocate( dummyRHSy  (ld    ,ny, 0:nz) )
+allocate( dummyRHSz  (ld    ,ny, 0:nz) )
 #endif
 
 ! BEGIN TIME LOOP
@@ -159,18 +159,18 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-    call filt_da(u, dudx, dudy, lbz)
-    call filt_da(v, dvdx, dvdy, lbz)
-    call filt_da(w, dwdx, dwdy, lbz)
+    call filt_da(u, dudx, dudy)
+    call filt_da(v, dvdx, dvdy)
+    call filt_da(w, dwdx, dwdy)
 
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
-    call ddz_uv(u, dudz, lbz)
-    call ddz_uv(v, dvdz, lbz)
+    call ddz_uv(u, dudz)
+    call ddz_uv(v, dvdz)
 
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
-    call ddz_w(w, dwdz, lbz)
+    call ddz_w(w, dwdz)
 
     ! Calculate wall stress and derivatives at the wall
     ! (txz, tyz, dudz, dvdz at jz=1)

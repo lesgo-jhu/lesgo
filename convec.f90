@@ -54,9 +54,9 @@ endif
 
 if( .not. arrays_allocated ) then
    allocate( cc_big( ld_big,ny2,nz ) )
-   allocate( u_big(ld_big, ny2, lbz:nz) )
-   allocate( v_big(ld_big, ny2, lbz:nz) )
-   allocate( w_big(ld_big, ny2, lbz:nz) )
+   allocate( u_big(ld_big, ny2, 0:nz) )
+   allocate( v_big(ld_big, ny2, 0:nz) )
+   allocate( w_big(ld_big, ny2, 0:nz) )
    allocate( vort1_big( ld_big,ny2,nz ) )
    allocate( vort2_big( ld_big,ny2,nz ) )
    allocate( vort3_big( ld_big,ny2,nz ) )
@@ -70,7 +70,7 @@ endif
 ! MPI: u_big, v_big needed at jz = 0, w_big not needed though
 ! MPI: could get u{1,2}_big
 const = 1._rprec/(nx*ny)
-do jz = lbz, nz
+do jz = 0, nz
     ! use RHSx,RHSy,RHSz for temp storage
     RHSx(:,:,jz)=const*u(:,:,jz)
     RHSy(:,:,jz)=const*v(:,:,jz)

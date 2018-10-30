@@ -45,7 +45,7 @@ subroutine build(this)
 !*******************************************************************************
 !  This subroutine creates the uv grid for the domain.
 
-use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, lbz
+use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz
 #ifdef PPMPI
 use param,only:nproc,coord
 #endif
@@ -62,7 +62,7 @@ nullify(autowrap_i,autowrap_j)
 !  x and y go to nx+1, ny+1 respectively for adding
 !  the buffered points for periodicity
 allocate(this%x(nx+1),this%y(ny+1))
-allocate(this%z(lbz:nz), this%zw(lbz:nz))
+allocate(this%z(0:nz), this%zw(0:nz))
 allocate(this%autowrap_i(0:nx+1), this%autowrap_j(0:ny+1))
 
 ! Initialize built
@@ -77,7 +77,7 @@ zw => this % zw
 autowrap_i => this % autowrap_i
 autowrap_j => this % autowrap_j
 
-do k = lbz, nz
+do k = 0, nz
 #ifdef PPMPI
     z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
 #else

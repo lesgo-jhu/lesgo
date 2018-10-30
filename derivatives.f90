@@ -34,7 +34,7 @@ public ddx, ddy, ddxy, filt_da, ddz_uv, ddz_w
 contains
 
 !*******************************************************************************
-subroutine ddx(f,dfdx,lbz)
+subroutine ddx(f, dfdx)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to
@@ -46,16 +46,15 @@ use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
 
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
+real(rprec), dimension(:,:,0:), intent(in) :: f
+real(rprec), dimension(:,:,0:), intent(inout) :: dfdx
 real(rprec) :: const
 integer :: jz
 
 const = 1._rprec / ( nx * ny )
 
 ! Loop through horizontal slices
-do jz = lbz, nz
+do jz = 0, nz
     !  Use dfdx to hold f; since we are doing in place FFTs this is required
     dfdx(:,:,jz) = const*f(:,:,jz)
     call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz),dfdx(:,:,jz))
@@ -76,7 +75,7 @@ enddo
 end subroutine ddx
 
 !*******************************************************************************
-subroutine ddy(f,dfdy, lbz)
+subroutine ddy(f, dfdy)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to
@@ -88,16 +87,15 @@ use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
 
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
+real(rprec), dimension(:,:,0:), intent(in) :: f
+real(rprec), dimension(:,:,0:), intent(inout) :: dfdy
 real(rprec) :: const
 integer :: jz
 
 const = 1._rprec / ( nx * ny )
 
 ! Loop through horizontal slices
-do jz = lbz, nz
+do jz = 0, nz
     !  Use dfdy to hold f; since we are doing in place FFTs this is required
     dfdy(:,:,jz) = const * f(:,:,jz)
     call dfftw_execute_dft_r2c(forw, dfdy(:,:,jz), dfdy(:,:,jz))
@@ -118,7 +116,7 @@ end do
 end subroutine ddy
 
 !*******************************************************************************
-subroutine ddxy (f, dfdx, dfdy, lbz)
+subroutine ddxy (f, dfdx, dfdy)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to
@@ -130,16 +128,15 @@ use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
 
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx, dfdy
+real(rprec), dimension(:,:,0:), intent(in) :: f
+real(rprec), dimension(:,:,0:), intent(inout) :: dfdx, dfdy
 real(rprec) :: const
 integer :: jz
 
 const = 1._rprec / ( nx * ny )
 
 ! Loop through horizontal slices
-do jz = lbz, nz
+do jz = 0, nz
     ! Use dfdy to hold f; since we are doing in place FFTs this is required
     dfdx(:,:,jz) = const*f(:,:,jz)
     call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz), dfdx(:,:,jz))
@@ -163,7 +160,7 @@ end do
 end subroutine ddxy
 
 !*******************************************************************************
-subroutine filt_da(f,dfdx,dfdy, lbz)
+subroutine filt_da(f, dfdx, dfdy)
 !*******************************************************************************
 !
 ! This subroutine kills the oddball components in f and computes the partial
@@ -175,17 +172,15 @@ use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
 
-
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(inout) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx, dfdy
+real(rprec), dimension(:,:,0:), intent(inout) :: f
+real(rprec), dimension(:,:,0:), intent(inout) :: dfdx, dfdy
 real(rprec) :: const
 integer :: jz
 
 const = 1._rprec/(nx*ny)
 
 ! loop through horizontal slices
-do jz = lbz, nz
+do jz = 0, nz
     ! Calculate FFT in place
     f(:,:,jz) = const*f(:,:,jz)
     call dfftw_execute_dft_r2c(forw, f(:,:,jz), f(:,:,jz))
@@ -211,7 +206,7 @@ end do
 end subroutine filt_da
 
 !*******************************************************************************
-subroutine ddz_uv(f, dfdz, lbz)
+subroutine ddz_uv(f, dfdz)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to z using
@@ -227,9 +222,8 @@ use param, only : nproc, coord
 #endif
 implicit none
 
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdz
+real(rprec), dimension(:,:,0:), intent(in) :: f
+real(rprec), dimension(:,:,0:), intent(inout) :: dfdz
 integer :: jx, jy, jz
 real(rprec) :: const
 
@@ -242,7 +236,7 @@ dfdz(:,:,0) = BOGUS
 ! Calculate derivative.
 ! The ghost node information is available here
 ! if coord == 0, dudz(1) will be set in wallstress
-do jz = lbz+1, nz
+do jz = 0+1, nz
 do jy = 1, ny
 do jx = 1, nx
     dfdz(jx,jy,jz) = const*(f(jx,jy,jz)-f(jx,jy,jz-1))
@@ -264,7 +258,7 @@ end if
 end subroutine ddz_uv
 
 !*******************************************************************************
-subroutine ddz_w(f, dfdz, lbz)
+subroutine ddz_w(f, dfdz)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to z using
@@ -282,14 +276,13 @@ use param, only : coord
 #endif
 implicit none
 
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdz
-integer, intent(in) :: lbz
+real(rprec), dimension(:,:,0:), intent(in) :: f
+real(rprec), dimension(:,:,0:), intent(inout) :: dfdz
 real(rprec)::const
 integer :: jx, jy, jz
 
 const = 1._rprec/dz
-do jz = lbz, nz-1
+do jz = 0, nz-1
 do jy = 1, ny
 do jx = 1, nx
     dfdz(jx,jy,jz) = const*(f(jx,jy,jz+1)-f(jx,jy,jz))
@@ -301,7 +294,7 @@ end do
 #ifdef PPMPI
 ! bottom process cannot calculate dfdz(jz=0)
 if (coord == 0) then
-    dfdz(:,:,lbz) = BOGUS
+    dfdz(:,:,0) = BOGUS
 endif
 #endif
 ! All processes cannot calculate dfdz(jz=nz)
@@ -311,5 +304,3 @@ dfdz(:,:,nz) = BOGUS
 end subroutine ddz_w
 
 end module derivatives
-
-

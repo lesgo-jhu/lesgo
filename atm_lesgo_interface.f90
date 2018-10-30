@@ -37,7 +37,7 @@ module atm_lesgo_interface
 ! Length is non-dimensionalized by z_i
 
 ! Lesgo data used regarding the grid (LESGO)
-use param, only : dt ,nx,ny,nz,nz_tot,dx,dy,dz,coord,nproc, z_i, u_star, lbz,  &
+use param, only : dt ,nx,ny,nz,nz_tot,dx,dy,dz,coord,nproc, z_i, u_star, 0,  &
                   total_time, jt_total
 ! nx, ny, nz - nodes in every direction
 ! z_i - non-dimensionalizing length
@@ -105,7 +105,7 @@ implicit none
 integer ::  m
 
 ! Allocate space for the w_uv variable
-allocate(w_uv(nx,ny,lbz:nz))
+allocate(w_uv(nx,ny,0:nz))
 
 call atm_initialize () ! Initialize the atm (ATM)
 
@@ -367,7 +367,7 @@ integer :: i
 
 !~ call myClock % start()
 ! Get the velocity from w onto the uv grid
-w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,0:nz), 0)
 
 
 ! Update the blade positions based on the time-step
@@ -794,11 +794,11 @@ else if (turbineArray(i) % sampling == 'atPoint') then
                 ! Interpolate velocities if inside the domain
                 if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
                     velocity(1)=                                               &
-                    trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                    trilinear_interp(u(1:nx,1:ny,0:nz),0,xyz)*u_star
                     velocity(2)=                                               &
-                    trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                    trilinear_interp(v(1:nx,1:ny,0:nz),0,xyz)*u_star
                     velocity(3)=                                               &
-                    trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                    trilinear_interp(w_uv(1:nx,1:ny,0:nz),0,xyz)*u_star
 
                     ! This will compute the blade force for the specific point
                     call atm_computeBladeForce(i,m,n,q,velocity)
@@ -817,11 +817,11 @@ endif
         if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
 
             velocity(1)=                                                   &
-            trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+            trilinear_interp(u(1:nx,1:ny,0:nz),0,xyz)*u_star
             velocity(2)=                                                   &
-            trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+            trilinear_interp(v(1:nx,1:ny,0:nz),0,xyz)*u_star
             velocity(3)=                                                   &
-            trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+            trilinear_interp(w_uv(1:nx,1:ny,0:nz),0,xyz)*u_star
 
             call atm_computeNacelleForce(i,velocity)
 

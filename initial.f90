@@ -156,9 +156,9 @@ call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
 
 !--set 0-level velocities to BOGUS
 if (coord == 0) then
-    u(:, :, lbz) = BOGUS
-    v(:, :, lbz) = BOGUS
-    w(:, :, lbz) = BOGUS
+    u(:, :, 0) = BOGUS
+    v(:, :, 0) = BOGUS
+    w(:, :, 0) = BOGUS
 end if
 #endif
 
@@ -254,7 +254,7 @@ dy_f = Ly_f / ny_f
 dz_f = Lz_f / (nz_tot_f - 1)
 
 ! Figure out which processors actually need to be read
-npr1 = max(floor(grid%z(lbz)/dz_f/Nz_f), 0)
+npr1 = max(floor(grid%z(0)/dz_f/Nz_f), 0)
 npr2 = min(ceiling(grid%z(nz)/dz_f/Nz_f), nproc_f-1)
 nproc_r = npr2-npr1+1
 Nz_tot_r = ( nz_f - 1 ) * nproc_r + 1

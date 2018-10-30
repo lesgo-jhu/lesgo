@@ -49,9 +49,9 @@ use cfl_util, only : get_max_cfl
 implicit none
 
 real(rprec), dimension(3) :: xyz_past
-real(rprec), dimension(ld,ny,lbz:nz) :: tempF_LM, tempF_MM
+real(rprec), dimension(ld,ny,0:nz) :: tempF_LM, tempF_MM
 #ifdef PPDYN_TN
-real(rprec), dimension(ld,ny,lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
+real(rprec), dimension(ld,ny,0:nz) :: tempF_ee2, tempF_deedt2, tempee_past
 #endif
 integer :: i,j,k,kmin
 
@@ -99,12 +99,12 @@ do i=1,nx
     xyz_past(3) = z(k) - w(i,j,k)*lagran_dt
 
     ! Interpolate
-    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,0:nz),xyz_past)
+    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,0:nz),xyz_past)
 #ifdef PPDYN_TN
-    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,0:nz),xyz_past)
+    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,0:nz),xyz_past)
+    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,0:nz),xyz_past)
 #endif
 enddo
 enddo
@@ -124,12 +124,12 @@ if (coord.eq.nproc-1) then
         xyz_past(3) = z(k) - max(0.0_rprec,w(i,j,k))*lagran_dt
 
         ! Interpolate
-        F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-        F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+        F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,0:nz),xyz_past)
+        F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,0:nz),xyz_past)
 #ifdef PPDYN_TN
-        F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-        F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-        ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+        F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,0:nz),xyz_past)
+        F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,0:nz),xyz_past)
+        ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,0:nz),xyz_past)
 #endif
     enddo
     enddo

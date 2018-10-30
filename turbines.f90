@@ -459,14 +459,14 @@ nullify(y,z)
 y => grid % y
 z => grid % z
 
-allocate(w_uv(ld,ny,lbz:nz))
+allocate(w_uv(ld,ny,0:nz))
 
 #ifdef PPMPI
 !syncing intermediate w-velocities
 call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)
 #endif
 
-w_uv = interp_to_uv_grid(w, lbz)
+w_uv = interp_to_uv_grid(w, 0)
 
 ! Do interpolation for dynamically changing parameters
 do s = 1, nloc

@@ -21,7 +21,7 @@ module io
 !*******************************************************************************
 use types, only : rprec
 use param, only : ld, nx, ny, nz, nz_tot, path, coord, rank, nproc, jt_total
-use param, only : total_time, total_time_dim, lbz, jzmin, jzmax
+use param, only : total_time, total_time_dim, jzmin, jzmax
 use param, only : cumulative_time, fcumulative_time
 use sim_param , only : w, dudz, dvdz
 use sgs_param , only : Cs_opt2
@@ -747,10 +747,10 @@ z => grid % z
 zw => grid % zw
 
 !  Allocate space for the interpolated w values
-allocate(w_uv(nx,ny,lbz:nz))
+allocate(w_uv(nx,ny,0:nz))
 
 !  Make sure w has been interpolated to uv-grid
-w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,0:nz))
 
 !  Instantaneous velocity sampled at point
 if(itype==1) then
@@ -764,9 +764,9 @@ if(itype==1) then
 #endif
             open(unit=13, position="append", file=fname)
             write(13,*) total_time,                                            &
-            trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),      &
-            trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),      &
-            trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
+            trilinear_interp(u(1:nx,1:ny,0:nz), point_loc(n)%xyz),             &
+            trilinear_interp(v(1:nx,1:ny,0:nz), point_loc(n)%xyz),             &
+            trilinear_interp(w_uv(1:nx,1:ny,0:nz), point_loc(n)%xyz)
             close(13)
 #ifdef PPMPI
         end if
@@ -800,17 +800,17 @@ elseif(itype==2) then
 #endif
 
     ! Compute vorticity
-    allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
-    vortx(1:nx,1:ny,lbz:nz) = 0._rprec
-    vorty(1:nx,1:ny,lbz:nz) = 0._rprec
-    vortz(1:nx,1:ny,lbz:nz) = 0._rprec
+    allocate(vortx(nx,ny,0:nz), vorty(nx,ny,0:nz), vortz(nx,ny,0:nz))
+    vortx(1:nx,1:ny,0:nz) = 0._rprec
+    vorty(1:nx,1:ny,0:nz) = 0._rprec
+    vortz(1:nx,1:ny,0:nz) = 0._rprec
 
     ! Use vorticityx as an intermediate step for performing uv-w interpolation
     ! Vorticity is written in w grid
-    vortx(1:nx,1:ny,lbz:nz) = dvdx(1:nx,1:ny,lbz:nz) - dudy(1:nx,1:ny,lbz:nz)
-    vortz(1:nx,1:ny,lbz:nz) = interp_to_w_grid( vortx(1:nx,1:ny,lbz:nz), lbz)
-    vortx(1:nx,1:ny,lbz:nz) = dwdy(1:nx,1:ny,lbz:nz) - dvdz(1:nx,1:ny,lbz:nz)
-    vorty(1:nx,1:ny,lbz:nz) = dudz(1:nx,1:ny,lbz:nz) - dwdx(1:nx,1:ny,lbz:nz)
+    vortx(1:nx,1:ny,0:nz) = dvdx(1:nx,1:ny,0:nz) - dudy(1:nx,1:ny,0:nz)
+    vortz(1:nx,1:ny,0:nz) = interp_to_w_grid( vortx(1:nx,1:ny,0:nz))
+    vortx(1:nx,1:ny,0:nz) = dwdy(1:nx,1:ny,0:nz) - dvdz(1:nx,1:ny,0:nz)
+    vorty(1:nx,1:ny,0:nz) = dudz(1:nx,1:ny,0:nz) - dwdx(1:nx,1:ny,0:nz)
 
     if (coord == 0) then
         vortz(1:nx,1:ny, 1) = 0._rprec
@@ -844,14 +844,14 @@ elseif(itype==2) then
     deallocate(vortx, vorty, vortz)
 
     ! Compute pressure
-    allocate(pres_real(nx,ny,lbz:nz))
-    pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
+    allocate(pres_real(nx,ny,0:nz))
+    pres_real(1:nx,1:ny,0:nz) = 0._rprec
 
     ! Calculate real pressure
-    pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                          &
-        - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2                                       &
-        + interp_to_uv_grid( w(1:nx,1:ny,lbz:nz), lbz)**2                      &
-        + v(1:nx,1:ny,lbz:nz)**2 )
+    pres_real(1:nx,1:ny,0:nz) = p(1:nx,1:ny,0:nz)                          &
+        - 0.5 * ( u(1:nx,1:ny,0:nz)**2                                       &
+        + interp_to_uv_grid( w(1:nx,1:ny,0:nz))**2                      &
+        + v(1:nx,1:ny,0:nz)**2 )
 
     ! Common file name for all output types
     call string_splice(fname, path //'output/pres.', jt_total)
@@ -1248,7 +1248,7 @@ subroutine output_init ()
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
 !
-use param, only : dx, dy, dz, nz, lbz
+use param, only : dx, dy, dz
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc

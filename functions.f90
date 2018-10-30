@@ -48,7 +48,7 @@ end interface bilinear_interp
 contains
 
 !*******************************************************************************
-function interp_to_uv_grid(var, lbz) result(var_uv)
+function interp_to_uv_grid(var) result(var_uv)
 !*******************************************************************************
 !  This function interpolates the array var, which resides on the w-grid,
 !  onto the uv-grid variable var_uv using linear interpolation. It is
@@ -73,8 +73,7 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 #endif
 implicit none
 
-real(rprec), dimension(:,:,lbz:), intent(in) :: var
-integer, intent(in) :: lbz
+real(rprec), dimension(:,:,0:), intent(in) :: var
 real(rprec), allocatable, dimension(:,:,:) :: var_uv
 
 integer :: sx,sy,ubz
@@ -85,9 +84,9 @@ sx = size(var,1)
 sy = size(var,2)
 ubz = ubound(var,3)
 
-if( ubz .ne. nz ) call error(sub_name, 'Input array must lbz:nz z dimensions.')
+if( ubz .ne. nz ) call error(sub_name, 'Input array must 0:nz z dimensions.')
 
-allocate(var_uv(sx,sy,lbz:ubz))
+allocate(var_uv(sx,sy,0:ubz))
 
 !do k=1,ubz-1
 !  do j=1,uby
@@ -104,13 +103,13 @@ var_uv(:,:,1:ubz-1) = 0.5_rprec * (var(:,:,2:ubz) + var(:,:,1:ubz-1))
 if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
 !  Sync all overlapping data
-if( lbz == 0 ) then
-    call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWNUP )
-elseif( lbz == 1 ) then
+if( 0 == 0 ) then
+    call mpi_sync_real_array( var_uv, 0, MPI_SYNC_DOWNUP )
+elseif( 0 == 1 ) then
 !     call mpi_sendrecv(var_uv(:,:,1), ubx*uby, MPI_RPREC, down, 1,  &
 !                       var_uv(:,:,nz), ubx*uby, mpi_rprec, up, 1,   &
 !                       comm, status, ierr)
-    call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWN )
+    call mpi_sync_real_array( var_uv, 0, MPI_SYNC_DOWN )
 endif
 #else
 !  Take care of top "physical" boundary
@@ -126,7 +125,7 @@ var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 end function interp_to_uv_grid
 
 !*******************************************************************************
-function interp_to_w_grid(var, lbz) result(var_w)
+function interp_to_w_grid(var) result(var_w)
 !*******************************************************************************
 !  This function interpolates the array var, which resides on the uv-grid,
 !  onto the w-grid variable var_w using linear interpolation. It is
@@ -153,8 +152,7 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 #endif
 implicit none
 
-real(rprec), dimension(:,:,lbz:), intent(in) :: var
-integer, intent(in) :: lbz
+real(rprec), dimension(:,:,0:), intent(in) :: var
 real(rprec), allocatable, dimension(:,:,:) :: var_w
 integer :: sx,sy,ubz
 !integer :: i,j,k
@@ -165,20 +163,20 @@ sx = size(var,1)
 sy = size(var,2)
 ubz = ubound(var,3)
 
-if( ubz .ne. nz ) call error(sub_name, 'Input array must lbz:nz z dimensions.')
+if( ubz .ne. nz ) call error(sub_name, 'Input array must 0:nz z dimensions.')
 
-allocate(var_w(sx,sy,lbz:ubz))
+allocate(var_w(sx,sy,0:ubz))
 
-! Perform the interpolation - does not work for lbz level
-var_w(:,:,lbz+1:ubz) = 0.5_rprec * (var(:,:,lbz:ubz-1) + var(:,:,lbz+1:ubz))
+! Perform the interpolation - does not work for 0 level
+var_w(:,:,0+1:ubz) = 0.5_rprec * (var(:,:,0:ubz-1) + var(:,:,0+1:ubz))
 
 
 #ifdef PPMPI
 !  Sync all overlapping data
-if( lbz == 0 ) then
-    call mpi_sync_real_array( var_w, lbz, MPI_SYNC_DOWNUP )
-elseif( lbz == 1 ) then
-    call mpi_sync_real_array( var_w, lbz, MPI_SYNC_DOWN )
+if( 0 == 0 ) then
+    call mpi_sync_real_array( var_w, 0, MPI_SYNC_DOWNUP )
+elseif( 0 == 1 ) then
+    call mpi_sync_real_array( var_w, 0, MPI_SYNC_DOWN )
 endif
 #endif
 
@@ -198,12 +196,12 @@ integer function cell_indx_w(indx,dx,px)
 !  or
 !  1<= cell_indx <= Ny
 !  or
-!  lbz <= cell_indx < Nz
+!  0 <= cell_indx < Nz
 !
 use types, only : rprec
 use grid_m
 use messages
-use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
+use param, only : nx, ny, nz, L_x, L_y, L_z
 implicit none
 
 character (*), intent (in) :: indx
@@ -278,12 +276,12 @@ integer function cell_indx(indx,dx,px)
 !  or
 !  1<= cell_indx <= Ny
 !  or
-!  lbz <= cell_indx < Nz
+!  0 <= cell_indx < Nz
 !
 use types, only : rprec
 use grid_m
 use messages
-use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
+use param, only : nx, ny, nz, L_x, L_y, L_z
 implicit none
 
 character (*), intent (in) :: indx
@@ -346,7 +344,7 @@ nullify(z)
 end function cell_indx
 
 !*******************************************************************************
-real(rprec) function trilinear_interp_w(var,lbz,xyz)
+real(rprec) function trilinear_interp_w(var,xyz)
 !*******************************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
@@ -363,7 +361,7 @@ real(rprec) function trilinear_interp_w(var,lbz,xyz)
 !  models and for wall BC lesgo stores nu_t not at the wall but 0.5*dz off it.
 !
 !  The variable sent to this subroutine should have a lower-bound-on-z
-!  (lbz) set as an input so the k-index will match the k-index of z.
+!  (0) set as an input so the k-index will match the k-index of z.
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
@@ -372,8 +370,7 @@ use types, only : rprec
 use param, only : dx, dy, dz, coord, nproc, lbc_mom, ubc_mom, nz
 implicit none
 
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: var
+real(rprec), dimension(:,:,0:), intent(in) :: var
 integer :: istart, jstart, kstart, istart1, jstart1, kstart1
 real(rprec), intent(in), dimension(3) :: xyz
 !integer, parameter :: nvar = 3
@@ -442,7 +439,7 @@ else if (coord==nproc-1 .and. ubc_mom>0 .and. xyz(3) > zw(nz-1)) then
     end if
 else
     ! Determine kstart by calling cell_indx_w
-    kstart = cell_indx_w('k',dz,xyz(3)) ! lbz <= kstart < Nz
+    kstart = cell_indx_w('k',dz,xyz(3)) ! 0 <= kstart < Nz
 
     ! Set +1 values
     kstart1 = kstart + 1
@@ -474,7 +471,7 @@ nullify(autowrap_i, autowrap_j)
 end function trilinear_interp_w
 
 !*******************************************************************************
-real(rprec) function trilinear_interp(var,lbz,xyz)
+real(rprec) function trilinear_interp(var,xyz)
 !*******************************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
@@ -488,7 +485,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  that var is on the uv-grid
 !
 !  The variable sent to this subroutine should have a lower-bound-on-z
-!  (lbz) set as an input so the k-index will match the k-index of z.
+!  (0) set as an input so the k-index will match the k-index of z.
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
@@ -497,8 +494,7 @@ use types, only : rprec
 use param, only : dx, dy, dz
 implicit none
 
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: var
+real(rprec), dimension(:,:,0:), intent(in) :: var
 integer :: istart, jstart, kstart, istart1, jstart1, kstart1
 real(rprec), intent(in), dimension(3) :: xyz
 !integer, parameter :: nvar = 3
@@ -522,9 +518,9 @@ u1 = 0._rprec; u2 = 0._rprec; u3 = 0._rprec; u4 = 0._rprec; u5 = 0._rprec; u6=0.
 ! Determine istart, jstart, kstart by calling cell_indx
 istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
 jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
-kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
+kstart = cell_indx('k',dz,xyz(3)) ! 0 <= kstart < Nz
 
-! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
+! Extra term with kstart accounts for shift in var k-index if 0.ne.1
 ! Set +1 values
 istart1 = autowrap_i(istart+1) ! Autowrap index
 jstart1 = autowrap_j(jstart+1) ! Autowrap index

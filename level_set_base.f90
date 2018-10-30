@@ -20,13 +20,13 @@
 module level_set_base
 use types, only : rp => rprec
 use types, only : rprec
-use param, only : ld, ny, nz, dx, lbz
+use param, only : ld, ny, nz, dx, 0
 implicit none
 
 save
 
 public
-private :: rp, ld, ny, nz, dx, lbz
+private :: rp, ld, ny, nz, dx, 0
 
 !private
 !public :: phi
@@ -83,7 +83,7 @@ logical :: phi_cutoff_is_set = .false.
 logical :: phi_0_is_set = .false.
 
 
-!real (rp) :: phi(ld, ny, lbz:nz)
+!real (rp) :: phi(ld, ny, 0:nz)
 real(rp), allocatable, dimension(:,:,:) :: phi
 
 logical :: use_trees
@@ -120,7 +120,7 @@ subroutine level_set_base_init()
 !
 implicit none
 
-allocate( phi( ld, ny, lbz:nz ) )
+allocate( phi( ld, ny, 0:nz ) )
 
 return
 end subroutine level_set_base_init

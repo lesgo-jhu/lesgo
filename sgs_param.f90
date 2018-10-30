@@ -78,7 +78,7 @@ contains
 !*******************************************************************************
 subroutine sgs_param_init ()
 !*******************************************************************************
-use param, only : ld, ny, nz, lbz, molec, nu_molec, u_star,                    &
+use param, only : ld, ny, nz, molec, nu_molec, u_star,                         &
     z_i, dx, dy, dz, sgs_model
 use test_filtermodule, only : filter_size
 implicit none
@@ -96,7 +96,7 @@ allocate ( S(ld,ny) ); S = 0._rprec
 
 ! For dynamic models:
 if (sgs_model .ne. 1) then
-    allocate ( ee_now(ld,ny,lbz:nz) ); ee_now = 0.0_rprec
+    allocate ( ee_now(ld,ny,0:nz) ); ee_now = 0.0_rprec
     allocate ( L11(ld,ny) ); L11 = 0._rprec
     allocate ( L12(ld,ny) ); L12 = 0._rprec
     allocate ( L13(ld,ny) ); L13 = 0._rprec
@@ -131,19 +131,19 @@ if (sgs_model .ne. 1) then
 endif
 
 ! For Lagrangian models:
-allocate ( F_LM(ld,ny,lbz:nz) ); F_LM = 0.0_rprec
-allocate ( F_MM(ld,ny,lbz:nz) ); F_MM = 0.0_rprec
-allocate ( F_QN(ld,ny,lbz:nz) ); F_QN = 0.0_rprec
-allocate ( F_NN(ld,ny,lbz:nz) ); F_NN = 0.0_rprec
+allocate ( F_LM(ld,ny,0:nz) ); F_LM = 0.0_rprec
+allocate ( F_MM(ld,ny,0:nz) ); F_MM = 0.0_rprec
+allocate ( F_QN(ld,ny,0:nz) ); F_QN = 0.0_rprec
+allocate ( F_NN(ld,ny,0:nz) ); F_NN = 0.0_rprec
 if ((sgs_model .eq. 4).or.(sgs_model .eq. 5)) then
-    allocate ( Beta(ld,ny,lbz:nz) ); Beta = 0.0_rprec
-    allocate ( Tn_all(ld,ny,lbz:nz) ); Tn_all  = 0._rprec
+    allocate ( Beta(ld,ny,0:nz) ); Beta = 0.0_rprec
+    allocate ( Tn_all(ld,ny,0:nz) ); Tn_all  = 0._rprec
 
 #ifdef PPDYN_TN
     ! Lagrangian zero-crossing time scale variables
-    allocate ( F_ee2(ld,ny,lbz:nz) ) ; F_ee2 = 0._rprec
-    allocate ( F_deedt2(ld,ny,lbz:nz) ); F_deedt2 = 0._rprec
-    allocate ( ee_past(ld,ny,lbz:nz) );  ee_past = 0.0_rprec
+    allocate ( F_ee2(ld,ny,0:nz) ) ; F_ee2 = 0._rprec
+    allocate ( F_deedt2(ld,ny,0:nz) ); F_deedt2 = 0._rprec
+    allocate ( ee_past(ld,ny,0:nz) );  ee_past = 0.0_rprec
 #endif
 
 endif

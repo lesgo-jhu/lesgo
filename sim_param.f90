@@ -20,7 +20,7 @@
 module sim_param
 !*******************************************************************************
 use types, only : rprec
-use param, only : ld, ny, nz, lbz
+use param, only : ld, ny, nz
 implicit none
 
 save
@@ -47,42 +47,42 @@ subroutine sim_param_init ()
 !
 implicit none
 
-allocate ( u(ld, ny, lbz:nz) ); u = 0.0_rprec
-allocate ( v(ld, ny, lbz:nz) ); v = 0.0_rprec
-allocate ( w(ld, ny, lbz:nz) ); w = 0.0_rprec
-allocate( dudx(ld, ny, lbz:nz) ); dudx = 0.0_rprec
-allocate( dudy(ld, ny, lbz:nz) ); dudy = 0.0_rprec
-allocate( dudz(ld, ny, lbz:nz) ); dudz = 0.0_rprec
-allocate( dvdx(ld, ny, lbz:nz) ); dvdx = 0.0_rprec
-allocate( dvdy(ld, ny, lbz:nz) ); dvdy = 0.0_rprec
-allocate( dvdz(ld, ny, lbz:nz) ); dvdz = 0.0_rprec
-allocate( dwdx(ld, ny, lbz:nz) ); dwdx = 0.0_rprec
-allocate( dwdy(ld, ny, lbz:nz) ); dwdy = 0.0_rprec
-allocate( dwdz(ld, ny, lbz:nz) ); dwdz = 0.0_rprec
-allocate( RHSx(ld, ny, lbz:nz) ); RHSx = 0.0_rprec
-allocate( RHSy(ld, ny, lbz:nz) ); RHSy = 0.0_rprec
-allocate( RHSz(ld, ny, lbz:nz) ); RHSz = 0.0_rprec
-allocate( RHSx_f(ld, ny, lbz:nz) ); RHSx_f = 0.0_rprec
-allocate( RHSy_f(ld, ny, lbz:nz) ); RHSy_f = 0.0_rprec
-allocate( RHSz_f(ld, ny, lbz:nz) ); RHSz_f = 0.0_rprec
+allocate ( u(ld, ny, 0:nz) ); u = 0.0_rprec
+allocate ( v(ld, ny, 0:nz) ); v = 0.0_rprec
+allocate ( w(ld, ny, 0:nz) ); w = 0.0_rprec
+allocate( dudx(ld, ny, 0:nz) ); dudx = 0.0_rprec
+allocate( dudy(ld, ny, 0:nz) ); dudy = 0.0_rprec
+allocate( dudz(ld, ny, 0:nz) ); dudz = 0.0_rprec
+allocate( dvdx(ld, ny, 0:nz) ); dvdx = 0.0_rprec
+allocate( dvdy(ld, ny, 0:nz) ); dvdy = 0.0_rprec
+allocate( dvdz(ld, ny, 0:nz) ); dvdz = 0.0_rprec
+allocate( dwdx(ld, ny, 0:nz) ); dwdx = 0.0_rprec
+allocate( dwdy(ld, ny, 0:nz) ); dwdy = 0.0_rprec
+allocate( dwdz(ld, ny, 0:nz) ); dwdz = 0.0_rprec
+allocate( RHSx(ld, ny, 0:nz) ); RHSx = 0.0_rprec
+allocate( RHSy(ld, ny, 0:nz) ); RHSy = 0.0_rprec
+allocate( RHSz(ld, ny, 0:nz) ); RHSz = 0.0_rprec
+allocate( RHSx_f(ld, ny, 0:nz) ); RHSx_f = 0.0_rprec
+allocate( RHSy_f(ld, ny, 0:nz) ); RHSy_f = 0.0_rprec
+allocate( RHSz_f(ld, ny, 0:nz) ); RHSz_f = 0.0_rprec
 allocate ( dpdx(ld, ny, nz) ); dpdx = 0.0_rprec
 allocate ( dpdy(ld, ny, nz) ); dpdy = 0.0_rprec
 allocate ( dpdz(ld, ny, nz) ); dpdz = 0.0_rprec
-allocate ( txx(ld, ny, lbz:nz) ); txx = 0.0_rprec
-allocate ( txy(ld, ny, lbz:nz) ); txy = 0.0_rprec
-allocate ( tyy(ld, ny, lbz:nz) ); tyy = 0.0_rprec
-allocate ( txz(ld, ny, lbz:nz) ); txz = 0.0_rprec
-allocate ( tyz(ld, ny, lbz:nz) ); tyz = 0.0_rprec
-allocate ( tzz(ld, ny, lbz:nz) ); tzz = 0.0_rprec
+allocate ( txx(ld, ny, 0:nz) ); txx = 0.0_rprec
+allocate ( txy(ld, ny, 0:nz) ); txy = 0.0_rprec
+allocate ( tyy(ld, ny, 0:nz) ); tyy = 0.0_rprec
+allocate ( txz(ld, ny, 0:nz) ); txz = 0.0_rprec
+allocate ( tyz(ld, ny, 0:nz) ); tyz = 0.0_rprec
+allocate ( tzz(ld, ny, 0:nz) ); tzz = 0.0_rprec
 allocate ( p(ld, ny, 0:nz) ); p = 0.0_rprec
-allocate ( divtx(ld, ny, lbz:nz) ); divtx = 0.0_rprec
-allocate ( divty(ld, ny, lbz:nz) ); divty = 0.0_rprec
-allocate ( divtz(ld, ny, lbz:nz) ); divtz = 0.0_rprec
+allocate ( divtx(ld, ny, 0:nz) ); divtx = 0.0_rprec
+allocate ( divty(ld, ny, 0:nz) ); divty = 0.0_rprec
+allocate ( divtz(ld, ny, 0:nz) ); divtz = 0.0_rprec
 
 #if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-allocate ( fxa(ld, ny, lbz:nz) ); fxa = 0.0_rprec
-allocate ( fya(ld, ny, lbz:nz) ); fya = 0.0_rprec
-allocate ( fza(ld, ny, lbz:nz) ); fza = 0.0_rprec
+allocate ( fxa(ld, ny, 0:nz) ); fxa = 0.0_rprec
+allocate ( fya(ld, ny, 0:nz) ); fya = 0.0_rprec
+allocate ( fza(ld, ny, 0:nz) ); fza = 0.0_rprec
 #endif
 
 #if defined(PPLVLSET) || defined(PPATM)

@@ -55,7 +55,7 @@ const4 = 1._rprec/(dz)
 
 ! Allocate arrays
 if( .not. arrays_allocated ) then
-    allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
+    allocate ( rH_x(ld,ny,0:nz), rH_y(ld,ny,0:nz), rH_z(ld,ny,0:nz) )
     allocate ( rtopw(ld,ny), rbottomw(ld,ny) )
     allocate ( RHS_col(ld,ny,nz+1) )
     allocate ( a(lh,ny,nz+1), b(lh,ny,nz+1), c(lh,ny,nz+1) )

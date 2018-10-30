@@ -25,30 +25,30 @@ subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
 ! except at top, where 1:nz is provided
 !
 use types, only : rprec
-use param, only : ld, ny, nz, BOGUS, lbz
+use param, only : ld, ny, nz, BOGUS
 use derivatives, only : ddx, ddy, ddz_w,ddxy
 implicit none
 
-real(rprec), dimension(ld,ny,lbz:nz), intent(out) :: divtx, divty
-real(rprec), dimension(ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
-real(rprec), dimension(ld,ny,lbz:nz) :: dtxdx, dtydy, dtzdz
-real(rprec), dimension(ld,ny,lbz:nz) :: dtxdx2, dtydy2, dtzdz2
+real(rprec), dimension(ld,ny,0:nz), intent(out) :: divtx, divty
+real(rprec), dimension(ld, ny, 0:nz), intent (in) :: txx, txy, txz, tyy, tyz
+real(rprec), dimension(ld,ny,0:nz) :: dtxdx, dtydy, dtzdz
+real(rprec), dimension(ld,ny,0:nz) :: dtxdx2, dtydy2, dtzdz2
 
 ! compute stress gradients
 ! MPI: tx 1:nz-1 => dtxdx 1:nz-1
-call ddx(txx, dtxdx, lbz)  ! really should replace with ddxy (save an fft)
+call ddx(txx, dtxdx)  ! really should replace with ddxy (save an fft)
 
 ! MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
-call ddz_w(txz, dtzdz, lbz)
+call ddz_w(txz, dtzdz)
 
 ! MPI: ty 1:nz-1 => dtdy 1:nz-1
-call ddy(tyy, dtydy2, lbz)
+call ddy(tyy, dtydy2)
 
 ! MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
-call ddz_w(tyz, dtzdz2, lbz)
+call ddz_w(tyz, dtzdz2)
 
 ! MPI: ty 1:nz-1 => dtdy 1:nz-1
-call ddxy(txy , dtxdx2, dtydy, lbz)
+call ddxy(txy , dtxdx2, dtydy)
 
 ! MPI following comment only true at bottom process
 ! the following gives bad results...but it seems like i the
@@ -83,4 +83,3 @@ divty(:,:,nz) = BOGUS
 #endif
 
 end subroutine divstress_uv
-

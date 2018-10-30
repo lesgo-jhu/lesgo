@@ -25,18 +25,18 @@ subroutine divstress_w(divt, tx, ty, tz)
 ! except at top, where 1:nz is provided
 !
 use types, only : rprec
-use param, only : ld, nx, ny, nz, coord, BOGUS, lbz, nproc, coord
+use param, only : ld, nx, ny, nz, coord, BOGUS, nproc, coord
 use derivatives, only : ddx, ddy, ddz_uv
 implicit none
 
-real(rprec),dimension(ld,ny,lbz:nz),intent(out)::divt
-real(rprec),dimension (ld, ny, lbz:nz), intent (in) :: tx, ty, tz
-real(rprec),dimension(ld,ny,lbz:nz) :: dtxdx, dtydy, dtzdz
+real(rprec),dimension(ld,ny,0:nz),intent(out)::divt
+real(rprec),dimension (ld, ny, 0:nz), intent (in) :: tx, ty, tz
+real(rprec),dimension(ld,ny,0:nz) :: dtxdx, dtydy, dtzdz
 integer :: jx, jy, jz
 
 ! compute stress gradients
 ! tx 1:nz => dtxdx 1:nz
-call ddx(tx, dtxdx, lbz)
+call ddx(tx, dtxdx)
 #ifdef PPSAFETYMODE
 #ifdef PPMPI
 dtxdx(:, :, 0) = BOGUS
@@ -44,7 +44,7 @@ dtxdx(:, :, 0) = BOGUS
 #endif
 
 ! ty 1:nz => dtydy 1:nz
-call ddy(ty, dtydy, lbz)
+call ddy(ty, dtydy)
 #ifdef PPSAFETYMODE
 #ifdef PPMPI
 dtydy(:, :, 0) = BOGUS
@@ -53,7 +53,7 @@ dtydy(:, :, 0) = BOGUS
 
 ! tz 0:nz-1 (special case) => dtzdz 1:nz-1 (default), 2:nz-1 (bottom),
 ! and 1:nz (top)
-call ddz_uv(tz, dtzdz, lbz)
+call ddz_uv(tz, dtzdz)
 #ifdef PPSAFETYMODE
 #ifdef PPMPI
 dtzdz(:, :, 0) = BOGUS

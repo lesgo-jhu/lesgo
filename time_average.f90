@@ -20,7 +20,7 @@
 module time_average
 !*******************************************************************************
 use types, only : rprec
-use param, only : nx, ny, nz, lbz
+use param, only : nx, ny, nz
 #ifdef PPCGNS
 use cgns
 #endif
@@ -69,29 +69,29 @@ integer :: i, j, k
 logical :: exst
 
 ! Allocate
-allocate( this%u(nx,ny,lbz:nz) )
-allocate( this%v(nx,ny,lbz:nz) )
-allocate( this%w(nx,ny,lbz:nz) )
-allocate( this%u_w(nx,ny,lbz:nz) )
-allocate( this%v_w(nx,ny,lbz:nz) )
-allocate( this%w_uv(nx,ny,lbz:nz) )
-allocate( this%u2(nx,ny,lbz:nz) )
-allocate( this%v2(nx,ny,lbz:nz) )
-allocate( this%w2(nx,ny,lbz:nz) )
-allocate( this%uv(nx,ny,lbz:nz) )
-allocate( this%uw(nx,ny,lbz:nz) )
-allocate( this%vw(nx,ny,lbz:nz) )
-allocate( this%txx(nx,ny,lbz:nz) )
-allocate( this%tyy(nx,ny,lbz:nz) )
-allocate( this%tzz(nx,ny,lbz:nz) )
-allocate( this%txy(nx,ny,lbz:nz) )
-allocate( this%txz(nx,ny,lbz:nz) )
-allocate( this%tyz(nx,ny,lbz:nz) )
-allocate( this%p(nx,ny,lbz:nz) )
-allocate( this%fx(nx,ny,lbz:nz) )
-allocate( this%fy(nx,ny,lbz:nz) )
-allocate( this%fz(nx,ny,lbz:nz) )
-allocate( this%cs_opt2(nx,ny,lbz:nz) )
+allocate( this%u(nx,ny,0:nz) )
+allocate( this%v(nx,ny,0:nz) )
+allocate( this%w(nx,ny,0:nz) )
+allocate( this%u_w(nx,ny,0:nz) )
+allocate( this%v_w(nx,ny,0:nz) )
+allocate( this%w_uv(nx,ny,0:nz) )
+allocate( this%u2(nx,ny,0:nz) )
+allocate( this%v2(nx,ny,0:nz) )
+allocate( this%w2(nx,ny,0:nz) )
+allocate( this%uv(nx,ny,0:nz) )
+allocate( this%uw(nx,ny,0:nz) )
+allocate( this%vw(nx,ny,0:nz) )
+allocate( this%txx(nx,ny,0:nz) )
+allocate( this%tyy(nx,ny,0:nz) )
+allocate( this%tzz(nx,ny,0:nz) )
+allocate( this%txy(nx,ny,0:nz) )
+allocate( this%txz(nx,ny,0:nz) )
+allocate( this%tyz(nx,ny,0:nz) )
+allocate( this%p(nx,ny,0:nz) )
+allocate( this%fx(nx,ny,0:nz) )
+allocate( this%fy(nx,ny,0:nz) )
+allocate( this%fz(nx,ny,0:nz) )
+allocate( this%cs_opt2(nx,ny,0:nz) )
 
 ! Initialize the derived types tavg
 do k = 1, Nz
@@ -200,19 +200,19 @@ real(rprec), allocatable, dimension(:,:,:) :: pres_real
 real(rprec), allocatable, dimension(:,:,:) :: fza_uv
 #endif
 
-allocate(w_uv(nx,ny,lbz:nz), u_w(nx,ny,lbz:nz), v_w(nx,ny,lbz:nz))
-allocate(pres_real(nx,ny,lbz:nz))
+allocate(w_uv(nx,ny,0:nz), u_w(nx,ny,0:nz), v_w(nx,ny,0:nz))
+allocate(pres_real(nx,ny,0:nz))
 
-w_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
-u_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(u(1:nx,1:ny,lbz:nz), lbz )
-v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(v(1:nx,1:ny,lbz:nz), lbz )
-pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
-pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                              &
-    - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2 + w_uv(1:nx,1:ny,lbz:nz)**2               &
-    + v(1:nx,1:ny,lbz:nz)**2 )
+w_uv(1:nx,1:ny,0:nz) = interp_to_uv_grid(w(1:nx,1:ny,0:nz))
+u_w(1:nx,1:ny,0:nz) = interp_to_w_grid(u(1:nx,1:ny,0:nz))
+v_w(1:nx,1:ny,0:nz) = interp_to_w_grid(v(1:nx,1:ny,0:nz))
+pres_real(1:nx,1:ny,0:nz) = 0._rprec
+pres_real(1:nx,1:ny,0:nz) = p(1:nx,1:ny,0:nz)                              &
+    - 0.5 * ( u(1:nx,1:ny,0:nz)**2 + w_uv(1:nx,1:ny,0:nz)**2               &
+    + v(1:nx,1:ny,0:nz)**2 )
 #if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-allocate(fza_uv(nx,ny,lbz:nz))
-fza_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(fza(1:nx,1:ny,lbz:nz), lbz )
+allocate(fza_uv(nx,ny,0:nz))
+fza_uv(1:nx,1:ny,0:nz) = interp_to_uv_grid(fza(1:nx,1:ny,0:nz) )
 #endif
 
 ! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
@@ -222,7 +222,7 @@ if(coord==nproc-1 .and. ubc_mom>0) u_w(:,:,nz) = 0._rprec
 if(coord==0       .and. lbc_mom>0) v_w(:,:,1)  = 0._rprec
 if(coord==nproc-1 .and. ubc_mom>0) v_w(:,:,nz) = 0._rprec
 
-do k = lbz, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
+do k = 0, jzmax
 do j = 1, ny
 do i = 1, nx
     u_p = u(i,j,k)       !! uv grid
@@ -257,7 +257,7 @@ end do
 end do
 end do
 
-do k = 1, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
+do k = 0, jzmax
 do j = 1, ny
 do i = 1, nx
 #if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
@@ -282,7 +282,7 @@ end subroutine compute
 subroutine finalize(this)
 !*******************************************************************************
 use grid_m
-use param, only : write_endian, jzmin, jzmax, lbz, path, coord, nproc, nz_tot
+use param, only : write_endian, jzmin, jzmax, path, coord, nproc, nz_tot
 use string_util
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -410,18 +410,18 @@ call mpi_barrier( comm, ierr )
 
 !  Sync entire tavg structure
 #ifdef PPMPI
-call mpi_sync_real_array( this%u(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%v(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%w(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%u2(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%v2(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%w2(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%uw(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%vw(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%uv(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%p(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%fx(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( this%cs_opt2(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%u(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%v(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%w(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%u2(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%v2(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%w2(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%uw(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%vw(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%uv(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%p(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%fx(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( this%cs_opt2(1:nx,1:ny,0:nz), 0, MPI_SYNC_DOWNUP )
 #endif
 
 ! Write all the 3D data
@@ -554,12 +554,12 @@ call mpi_barrier( comm, ierr )
 ! Do the Reynolds stress calculations afterwards. Now we can interpolate w and
 ! ww to the uv grid and do the calculations. We have already written the data to
 ! the files so we can overwrite now
-allocate( up2(nx,ny,lbz:nz) )
-allocate( vp2(nx,ny,lbz:nz) )
-allocate( wp2(nx,ny,lbz:nz) )
-allocate( upvp(nx,ny,lbz:nz) )
-allocate( upwp(nx,ny,lbz:nz) )
-allocate( vpwp(nx,ny,lbz:nz) )
+allocate( up2(nx,ny,0:nz) )
+allocate( vp2(nx,ny,0:nz) )
+allocate( wp2(nx,ny,0:nz) )
+allocate( upvp(nx,ny,0:nz) )
+allocate( upwp(nx,ny,0:nz) )
+allocate( vpwp(nx,ny,0:nz) )
 up2 = this%u2 - this%u * this%u
 vp2 = this%v2 - this%v * this%v
 wp2 = this%w2 - this%w * this%w
