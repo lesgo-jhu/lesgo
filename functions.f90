@@ -199,9 +199,8 @@ integer function cell_indx_w(indx,dx,px)
 !  0 <= cell_indx < Nz
 !
 use types, only : rprec
-use grid_m
 use messages
-use param, only : nx, ny, nz, L_x, L_y, L_z
+use param, only : nx, ny, nz, L_x, L_y, L_z, grid
 implicit none
 
 character (*), intent (in) :: indx
@@ -279,9 +278,8 @@ integer function cell_indx(indx,dx,px)
 !  0 <= cell_indx < Nz
 !
 use types, only : rprec
-use grid_m
 use messages
-use param, only : nx, ny, nz, L_x, L_y, L_z
+use param, only : nx, ny, nz, L_x, L_y, L_z, grid
 implicit none
 
 character (*), intent (in) :: indx
@@ -365,9 +363,8 @@ real(rprec) function trilinear_interp_w(var,xyz)
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
-use grid_m
 use types, only : rprec
-use param, only : dx, dy, dz, coord, nproc, lbc_mom, ubc_mom, nz
+use param, only : dx, dy, dz, coord, nproc, lbc_mom, ubc_mom, nz, grid
 implicit none
 
 real(rprec), dimension(:,:,0:), intent(in) :: var
@@ -489,9 +486,8 @@ real(rprec) function trilinear_interp(var,xyz)
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
-use grid_m
 use types, only : rprec
-use param, only : dx, dy, dz
+use param, only : dx, dy, dz, grid
 implicit none
 
 real(rprec), dimension(:,:,0:), intent(in) :: var

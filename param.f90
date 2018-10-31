@@ -24,6 +24,7 @@ module param
 ! All non-parameter definitions read by the input file must be initialized.
 !
 use types, only : rprec, point3D_t
+use grid_m
 #ifdef PPMPI
 use mpi
 #endif
@@ -104,6 +105,9 @@ real(rprec) :: L_x = 2.0*pi, L_y=2.0*pi, L_z=1.0_rprec
 
 ! these values are also non-dimensionalized by z_i:
 real(rprec) :: dx, dy, dz
+
+! The actual grid
+type(grid_t) :: grid
 
 !---------------------------------------------------
 ! MODEL PARAMETERS

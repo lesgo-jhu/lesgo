@@ -22,10 +22,9 @@ module grid_m
 !*******************************************************************************
 use types, only : rprec
 implicit none
-save
-private
 
-public grid
+private
+public grid_t
 
 type grid_t
     logical :: built
@@ -34,9 +33,6 @@ type grid_t
 contains
     procedure, public :: build
 end type grid_t
-
-! The uv grid
-type(grid_t) :: grid
 
 contains
 

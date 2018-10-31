@@ -42,7 +42,7 @@ use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
 use sim_param, only : sim_param_init
-use grid_m
+use param, only : grid
 use fft, only : init_fft
 use io, only : openfiles
 

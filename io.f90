@@ -694,9 +694,7 @@ use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
-use param, only : dx, dy
-use param, only : write_endian
-use grid_m
+use param, only : dx, dy, write_endian, grid
 use sim_param, only : u, v, w, p
 use sim_param, only : dwdy, dwdx, dvdx, dudy
 use functions, only : interp_to_w_grid
@@ -1248,12 +1246,11 @@ subroutine output_init ()
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
 !
-use param, only : dx, dy, dz
+use param, only : dx, dy, dz, grid
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
 use param, only : zplane_calc, zplane_nloc, zplane_loc
-use grid_m
 use functions, only : cell_indx
 use stat_defs, only : point, xplane, yplane, zplane
 implicit none

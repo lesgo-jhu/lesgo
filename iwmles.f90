@@ -24,9 +24,7 @@ module iwmles
 ! This module contains the procedures for using the integral wall model.
 ! See Yang et al. 2015 for more details
 !
-
 use types, only : rprec
-
 implicit none
 
 private
@@ -271,10 +269,9 @@ subroutine iwm_calc_lhs()
 !
 ! Ths subroutine calculates the left hand side of the iwm system.
 !
-use grid_m, only : grid
-use types,only : rprec
-use param,only : nx,ny,dx,dy,ld
-use sim_param,only : u,v,w,p
+use types, only : rprec
+use param, only : nx,ny,dx,dy,ld,grid
+use sim_param, only : u,v,w,p
 use test_filtermodule
 implicit none
 
