@@ -81,7 +81,7 @@ integer :: up, down
 integer :: global_rank
 integer :: MPI_RPREC, MPI_CPREC
 integer, allocatable, dimension(:) ::  rank_of_coord, coord_of_rank
-integer :: jzmin, jzmax  ! levels that "belong" to this processor, set w/ grid
+integer, pointer :: jzmin, jzmax  ! levels that "belong" to this processor, set w/ grid
 
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS
@@ -90,24 +90,25 @@ integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
 real (rprec), parameter :: BOGUS = -1234567890._rprec
 real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-integer :: Nx=64, Ny=64, Nz=64
-integer :: nz_tot = 64
-integer :: nx2, ny2
-integer :: lh, ld, lh_big, ld_big
+integer, pointer :: Nx, Ny, Nz, Nz_tot, lh, ld
+integer, pointer :: nx2, ny2, lh_big, ld_big
 
 ! this value is dimensional [m]:
 real(rprec) :: z_i = 1000.0_rprec
 
 ! these values should be non-dimensionalized by z_i:
 ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-logical :: uniform_spacing = .false.
-real(rprec) :: L_x = 2.0*pi, L_y=2.0*pi, L_z=1.0_rprec
+logical, pointer :: uniform_spacing
+real(rprec), pointer :: L_x, L_y, L_z
 
 ! these values are also non-dimensionalized by z_i:
-real(rprec) :: dx, dy, dz
+real(rprec), pointer :: dx, dy, dz
 
 ! The actual grid
-type(grid_t) :: grid
+type(grid_t), target :: grid
+
+! The grid for de-ailiasing
+type(grid_t), target :: big_grid
 
 !---------------------------------------------------
 ! MODEL PARAMETERS

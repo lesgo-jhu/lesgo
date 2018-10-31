@@ -215,8 +215,6 @@ nullify(zw)
 ! Intialize result
 cell_indx_w = -1
 
-if(.not. grid % built) call grid%build()
-
 zw => grid % zw
 
 select case (indx)
@@ -293,8 +291,6 @@ real(rprec), pointer, dimension(:) :: z
 nullify(z)
 ! Intialize result
 cell_indx = -1
-
-if(.not. grid % built) call grid%build()
 
 z => grid % z
 

@@ -37,12 +37,12 @@ use param, only : chcoord, nproc
 #endif
 
 use cfl_util
+use grid_m
 use io, only : output_init
 use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
 use sim_param, only : sim_param_init
-use param, only : grid
 use fft, only : init_fft
 use io, only : openfiles
 
@@ -119,11 +119,9 @@ if (coord == 0) call param_output()
 
 ! Define simulation parameters
 call sim_param_init ()
+
 ! Initialize sgs variables
 call sgs_param_init()
-
-! Initialize uv grid (calculate x,y,z vectors)
-call grid%build()
 
 !  Initialize variables used for output statistics and instantaneous data
 call output_init()

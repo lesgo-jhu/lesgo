@@ -129,14 +129,14 @@ contains
 subroutine domain_block()
 !*******************************************************************************
 use types, only : rprec
-use param
+use param, only : pi, z_i, nproc, coord
 implicit none
 
 character(*), parameter :: block_name = 'DOMAIN'
 
-integer :: ival_read
-integer :: np
-real(rprec) :: val_read
+integer :: np, Nx=64, Ny=64, Nz_tot=64
+real(rprec) :: L_x = 2.0*pi, L_y=2.0*pi, L_z=1.0_rprec
+logical :: uniform_spacing = .false.
 
 do
     call readline( lun, line, buff, block_entry_pos, block_exit_pos,           &
@@ -186,46 +186,10 @@ do
         endif
 #endif
 
-        ! Set the processor owned vertical grid spacing
-        nz = floor ( real( nz_tot, rprec ) / nproc ) + 1
-
-        ! Recompute nz_tot to be compliant with computed nz
-        ival_read = nz_tot
-        nz_tot = ( nz - 1 ) * nproc + 1
-        if (coord == 0 .AND. ival_read /= nz_tot )                             &
-           write(*,*) 'Reseting Nz (total) to: ', nz_tot
-
-        ! Grid size for dealiasing
-        nx2 = 3 * nx / 2
-        ny2 = 3 * ny / 2
-
-        ! Grid size for FFT's
-        lh = nx / 2 + 1
-        ld = 2 * lh
-        lh_big = nx2 / 2 + 1
-        ld_big = 2 * lh_big
-
-        ! Grid spacing (x direction)
-        dx = L_x / nx
-
-        ! Check if we are to enforce uniform grid spacing
-        if (uniform_spacing) then
-            ! Adjust L_y
-            val_read = L_y
-            L_y = ny * dx
-            if (coord == 0 .AND. abs( val_read - L_y ) >= thresh)              &
-                call mesg( sub_name, 'Reseting Ly to: ', L_y )
-
-            ! Adjust L_z
-            val_read = L_z
-            L_z = (nz_tot - 1 ) * dx
-            if (coord == 0 .AND. abs( val_read - L_z ) >= thresh)              &
-                call mesg( sub_name, 'Reseting Lz to: ', L_z )
-        endif
-
-        ! Grid spacing (y and z directions)
-        dy = L_y / ny
-        dz = L_z / ( nz_tot - 1 )
+        ! Initialize uv grid (calculate x,y,z vectors)
+        grid = grid_t(nx, ny, nz_tot, L_x, L_y, L_z, nproc, coord, uniform_spacing)
+        big_grid = grid_t(3*nx/2, 3*ny/2, nz_tot, L_x, L_y, L_z, nproc, coord, uniform_spacing)
+        call set_grid_pointers()
 
         return
     else
@@ -235,6 +199,36 @@ do
 enddo
 
 end subroutine domain_block
+
+!*******************************************************************************
+subroutine set_grid_pointers()
+!*******************************************************************************
+! sets pointers that are specified in param. This is kludgy, but it doesn't
+! break other parts of the code. We can slowly move away from this.
+use param, only : nx, ny, nz, nz_tot, L_x, L_y, L_z, jzmin, jzmax, dx, dy, dz
+use param, only : ld, lh, uniform_spacing
+
+nx => grid%nx
+ny => grid%ny
+nz => grid%nz
+nz_tot => grid%nz_tot
+L_x => grid%L_x
+L_y => grid%L_y
+L_z => grid%L_z
+jzmin => grid%jzmin
+jzmax => grid%jzmax
+dx => grid%dx
+dy => grid%dy
+dz => grid%dz
+lh => grid%Nkx
+ld => grid%ld
+uniform_spacing => grid%uniform_spacing
+nx2 => big_grid%nx
+ny2 => big_grid%ny
+lh_big => big_grid%Nkx
+ld_big => big_grid%ld
+
+end subroutine set_grid_pointers
 
 !*******************************************************************************
 subroutine model_block()
