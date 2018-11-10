@@ -29,7 +29,7 @@ subroutine convec
 use types, only : rprec
 use param
 use sim_param, only : u, v, w, dudy, dudz, dvdx, dvdz, dwdx, dwdy
-use sim_param, only : RHSx, RHSy, RHSz
+use sim_param, only : fxa, fya, fza, RHSx, RHSy, RHSz
 use fft
 
 implicit none
@@ -71,20 +71,20 @@ endif
 ! MPI: could get u{1,2}_big
 const = 1._rprec/(nx*ny)
 do jz = 0, nz
-    ! use RHSx,RHSy,RHSz for temp storage
-    RHSx(1:nx,1:ny,jz)=const*u(1:nx,1:ny,jz)
-    RHSy(1:nx,1:ny,jz)=const*v(1:nx,1:ny,jz)
-    RHSz(1:nx,1:ny,jz)=const*w(1:nx,1:ny,jz)
+    ! use fxa, fya, fza for temp storage
+    fxa(1:nx,1:ny,jz)=const*u(1:nx,1:ny,jz)
+    fya(1:nx,1:ny,jz)=const*v(1:nx,1:ny,jz)
+    fza(1:nx,1:ny,jz)=const*w(1:nx,1:ny,jz)
 
     ! do forward fft on normal-size arrays
-    call dfftw_execute_dft_r2c(forw, RHSx(:,:,jz), RHSx(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, RHSy(:,:,jz), RHSy(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, RHSz(:,:,jz), RHSz(:,:,jz))
+    call dfftw_execute_dft_r2c(forw, fxa(:,:,jz), fxa(:,:,jz))
+    call dfftw_execute_dft_r2c(forw, fya(:,:,jz), fya(:,:,jz))
+    call dfftw_execute_dft_r2c(forw, fza(:,:,jz), fza(:,:,jz))
 
     ! zero pad: padd takes care of the oddballs
-    call padd(u_big(:,:,jz), RHSx(:,:,jz))
-    call padd(v_big(:,:,jz), RHSy(:,:,jz))
-    call padd(w_big(:,:,jz), RHSz(:,:,jz))
+    call padd(u_big(:,:,jz), fxa(:,:,jz))
+    call padd(v_big(:,:,jz), fya(:,:,jz))
+    call padd(w_big(:,:,jz), fza(:,:,jz))
 
     ! Back to physical space
     call dfftw_execute_dft_c2r(back_big, u_big(:,:,jz), u_big(:,:,jz))
@@ -103,16 +103,16 @@ do jz = 1, nz
         select case (lbc_mom)
         ! Stress free
         case (0)
-            RHSx(:, :, 1) = 0._rprec
-            RHSy(:, :, 1) = 0._rprec
+            fxa(:, :, 1) = 0._rprec
+            fya(:, :, 1) = 0._rprec
 
         ! Wall (all cases >= 1)
         case (1:)
             ! dwdy(jz=1) should be 0, so we can use this
-            RHSx(1:nx,1:ny,1) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,1) +             &
+            fxa(1:nx,1:ny,1) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,1) +             &
                 dwdy(1:nx,1:ny,2))  - dvdz(1:nx,1:ny,1) )
             ! dwdx(jz=1) should be 0, so we can use this
-            RHSy(1:nx,1:ny,1) = const * ( dudz(1:nx,1:ny,1) -                          &
+            fya(1:nx,1:ny,1) = const * ( dudz(1:nx,1:ny,1) -                          &
                 0.5_rprec * (dwdx(1:nx,1:ny,1) + dwdx(1:nx,1:ny,2)) )
 
         end select
@@ -125,19 +125,19 @@ do jz = 1, nz
      ! Stress free
      case (0)
 
-         RHSx(:, :, nz) = 0._rprec
-         RHSy(:, :, nz) = 0._rprec
+         fxa(:, :, nz) = 0._rprec
+         fya(:, :, nz) = 0._rprec
 
       ! No-slip and wall model
       case (1:)
 
          ! dwdy(jz=1) should be 0, so we could use this
-         ! this RHSx = vort1 is actually uvp nz-1 but stored as w nz
-         RHSx(1:nx,1:ny,nz) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,nz-1) +            &
+         ! this fxa = vort1 is actually uvp nz-1 but stored as w nz
+         fxa(1:nx,1:ny,nz) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,nz-1) +            &
             dwdy(1:nx,1:ny,nz)) - dvdz(1:nx,1:ny,nz-1) )
          ! dwdx(jz=1) should be 0, so we could use this
-         ! this RHSy = vort2 is actually uvp nz-1 but stored as w nz
-         RHSy(1:nx,1:ny,nz) = const * ( dudz(1:nx,1:ny,nz-1) -                         &
+         ! this fya = vort2 is actually uvp nz-1 but stored as w nz
+         fya(1:nx,1:ny,nz) = const * ( dudz(1:nx,1:ny,nz-1) -                         &
             0.5_rprec * (dwdx(1:nx,1:ny,nz-1) + dwdx(1:nx,1:ny,nz)) )
 
       end select
@@ -146,19 +146,19 @@ do jz = 1, nz
     ! very kludgy -- fix later      !! channel
     if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and.               &
         coord==nproc-1 .and. jz==nz)  ) then
-        RHSx(1:nx,1:ny,jz)=const*(dwdy(1:nx,1:ny,jz)-dvdz(1:nx,1:ny,jz))
-        RHSy(1:nx,1:ny,jz)=const*(dudz(1:nx,1:ny,jz)-dwdx(1:nx,1:ny,jz))
+        fxa(1:nx,1:ny,jz)=const*(dwdy(1:nx,1:ny,jz)-dvdz(1:nx,1:ny,jz))
+        fya(1:nx,1:ny,jz)=const*(dudz(1:nx,1:ny,jz)-dwdx(1:nx,1:ny,jz))
     end if
 
-    RHSz(1:nx,1:ny,jz)=const*(dvdx(1:nx,1:ny,jz)-dudy(1:nx,1:ny,jz))
+    fza(1:nx,1:ny,jz)=const*(dvdx(1:nx,1:ny,jz)-dudy(1:nx,1:ny,jz))
 
     ! do forward fft on normal-size arrays
-    call dfftw_execute_dft_r2c(forw, RHSx(:,:,jz), RHSx(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, RHSy(:,:,jz), RHSy(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, RHSz(:,:,jz), RHSz(:,:,jz))
-    call padd(vort1_big(:,:,jz), RHSx(:,:,jz))
-    call padd(vort2_big(:,:,jz), RHSy(:,:,jz))
-    call padd(vort3_big(:,:,jz), RHSz(:,:,jz))
+    call dfftw_execute_dft_r2c(forw, fxa(:,:,jz), fxa(:,:,jz))
+    call dfftw_execute_dft_r2c(forw, fya(:,:,jz), fya(:,:,jz))
+    call dfftw_execute_dft_r2c(forw, fza(:,:,jz), fza(:,:,jz))
+    call padd(vort1_big(:,:,jz), fxa(:,:,jz))
+    call padd(vort2_big(:,:,jz), fya(:,:,jz))
+    call padd(vort3_big(:,:,jz), fza(:,:,jz))
 
     ! Back to physical space
     ! the normalization should be ok...
@@ -167,7 +167,7 @@ do jz = 1, nz
     call dfftw_execute_dft_c2r(back_big, vort3_big(:,:,jz), vort3_big(:,:,jz))
 end do
 
-! RHSx
+! fxa
 ! redefinition of const
 const=1._rprec/(nx2*ny2)
 
@@ -206,13 +206,13 @@ end do
 do jz=1,nz-1
     call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
     ! un-zero pad
-    ! note: cc_big is going into RHSx
-    call unpadd(RHSx(:,:,jz),cc_big(:,:,jz))
+    ! note: cc_big is going into fxa
+    call unpadd(fxa(:,:,jz),cc_big(:,:,jz))
     ! Back to physical space
-    call dfftw_execute_dft_c2r(back, RHSx(:,:,jz), RHSx(:,:,jz))
+    call dfftw_execute_dft_c2r(back, fxa(:,:,jz), fxa(:,:,jz))
 end do
 
-! RHSy
+! fya
 ! const should be 1./(nx2*ny2) here
 if (coord == 0) then
     ! the cc's contain the normalization factor for the upcoming fft's
@@ -248,21 +248,21 @@ end do
 do jz=1,nz-1
     call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz), cc_big(:,:,jz))
     ! un-zero pad
-    ! note: cc_big is going into RHSy
-    call unpadd(RHSy(:,:,jz), cc_big(:,:,jz))
+    ! note: cc_big is going into fya
+    call unpadd(fya(:,:,jz), cc_big(:,:,jz))
 
     ! Back to physical space
-    call dfftw_execute_dft_c2r(back, RHSy(:,:,jz), RHSy(:,:,jz))
+    call dfftw_execute_dft_c2r(back, fya(:,:,jz), fya(:,:,jz))
 end do
 
-! RHSz
+! fza
 
 if (coord == 0) then
     ! There is no convective acceleration of w at wall or at top.
     !--not really true at wall, so this is an approximation?
     !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
     !--wrong, we do solve z-eqn (w-eqn) at bottom wall --pj
-    !--earlier comment is also wrong, it is true that RHSz = 0 at both walls and
+    !--earlier comment is also wrong, it is true that fza = 0 at both walls and
     ! slip BC
     cc_big(:,:,1)=0._rprec
     !! ^must change for Couette flow ... ?
@@ -276,7 +276,7 @@ if (coord == nproc-1) then     ! channel
     !--not really true at wall, so this is an approximation?
     !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
     !--but now we do solve z-eqn (w-eqn) at top wall --pj
-    !--earlier comment is also wrong, it is true that RHSz = 0 at both walls and
+    !--earlier comment is also wrong, it is true that fza = 0 at both walls and
     ! slip BC
     cc_big(:,:,nz)=0._rprec
     !! ^must change for Couette flow ... ?
@@ -309,26 +309,30 @@ do jz=1,nz !nz - 1
     call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
 
     ! un-zero pad
-    ! note: cc_big is going into RHSz!!!!
-    call unpadd(RHSz(:,:,jz),cc_big(:,:,jz))
+    ! note: cc_big is going into fza!!!!
+    call unpadd(fza(:,:,jz),cc_big(:,:,jz))
 
     ! Back to physical space
-    call dfftw_execute_dft_c2r(back,RHSz(:,:,jz),   RHSz(:,:,jz))
+    call dfftw_execute_dft_c2r(back,fza(:,:,jz),   fza(:,:,jz))
 end do
 
 #ifdef PPMPI
 #ifdef PPSAFETYMODE
-RHSx(:, :, 0) = BOGUS
-RHSy(:, :, 0) = BOGUS
-RHSz(: ,:, 0) = BOGUS
+fxa(:, :, 0) = BOGUS
+fya(:, :, 0) = BOGUS
+fza(: ,:, 0) = BOGUS
 #endif
 #endif
 
 !--top level is not valid
 #ifdef PPSAFETYMODE
-RHSx(:, :, nz) = BOGUS
-RHSy(:, :, nz) = BOGUS
-if(coord<nproc-1) RHSz(:, :, nz) = BOGUS
+fxa(:, :, nz) = BOGUS
+fya(:, :, nz) = BOGUS
+if(coord<nproc-1) fza(:, :, nz) = BOGUS
 #endif
+
+RHSx = fxa(1:nx,1:ny,0:nz)
+RHSy = fya(1:nx,1:ny,0:nz)
+RHSz = fza(1:nx,1:ny,0:nz)
 
 end subroutine convec

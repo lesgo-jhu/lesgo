@@ -29,8 +29,8 @@ public
 
 logical :: sim_param_initialized = .false.
 
-real(rprec), dimension(:,:,:), allocatable ::RHSx, RHSy, RHSz, RHSx_f, RHSy_f, &
-    RHSz_f, dpdx, dpdy, dpdz, fx, fy, fz, fxa, fya, fza
+real(rprec), dimension(:,:,:), allocatable :: dpdx, dpdy, dpdz
+real(rprec), dimension(:,:,:), allocatable :: fx, fy, fz, fxa, fya, fza
 real(rprec), target, dimension(:,:,:), allocatable :: p
 
 real(rprec), dimension(:,:,:), pointer :: u, dudx, dudy, dudz
@@ -38,6 +38,8 @@ real(rprec), dimension(:,:,:), pointer :: v, dvdx, dvdy, dvdz
 real(rprec), dimension(:,:,:), pointer :: w, dwdx, dwdy, dwdz
 real(rprec), dimension(:,:,:), pointer :: txx, txy, tyy, txz, tyz, tzz
 real(rprec), dimension(:,:,:), pointer :: divtx, divty, divtz
+real(rprec), dimension(:,:,:), pointer :: RHSx, RHSy, RHSz
+real(rprec), dimension(:,:,:), pointer :: RHSx_f, RHSy_f, RHSz_f
 
 type(sim_var_3d_t) :: u_var, dudx_var, dudy_var, dudz_var, u_filt_var
 type(sim_var_3d_t) :: v_var, dvdx_var, dvdy_var, dvdz_var, v_filt_var
@@ -47,6 +49,8 @@ type(sim_var_3d_t) :: divtx_var, divty_var, divtz_var
 type(sim_var_3d_t) :: dtxxdx, dtxydy, dtxzdz
 type(sim_var_3d_t) :: dtxydx, dtyydy, dtyzdz
 type(sim_var_3d_t) :: dtxzdx, dtyzdy, dtzzdz
+type(sim_var_3d_t) :: RHSx_var, RHSy_var, RHSz_var
+type(sim_var_3d_t) :: RHSx_f_var, RHSy_f_var, RHSz_f_var
 
 contains
 
@@ -120,6 +124,19 @@ divtx => divtx_var%real
 divty => divty_var%real
 divtz => divtz_var%real
 
+RHSx_var = sim_var_3d_t(grid, UV_GRID)
+RHSy_var = sim_var_3d_t(grid, UV_GRID)
+RHSz_var = sim_var_3d_t(grid, W_GRID)
+RHSx_f_var = sim_var_3d_t(grid, UV_GRID)
+RHSy_f_var = sim_var_3d_t(grid, UV_GRID)
+RHSz_f_var = sim_var_3d_t(grid, W_GRID)
+RHSx => RHSx_var%real
+RHSy => RHSy_var%real
+RHSz => RHSz_var%real
+RHSx_f => RHSx_f_var%real
+RHSy_f => RHSy_f_var%real
+RHSz_f => RHSz_f_var%real
+
 ! allocate ( u(ld, ny, 0:nz) ); u = 0.0_rprec
 ! allocate ( v(ld, ny, 0:nz) ); v = 0.0_rprec
 ! allocate ( w(ld, ny, 0:nz) ); w = 0.0_rprec
@@ -132,12 +149,12 @@ divtz => divtz_var%real
 ! allocate( dwdx(ld, ny, 0:nz) ); dwdx = 0.0_rprec
 ! allocate( dwdy(ld, ny, 0:nz) ); dwdy = 0.0_rprec
 ! allocate( dwdz(ld, ny, 0:nz) ); dwdz = 0.0_rprec
-allocate( RHSx(ld, ny, 0:nz) ); RHSx = 0.0_rprec
-allocate( RHSy(ld, ny, 0:nz) ); RHSy = 0.0_rprec
-allocate( RHSz(ld, ny, 0:nz) ); RHSz = 0.0_rprec
-allocate( RHSx_f(ld, ny, 0:nz) ); RHSx_f = 0.0_rprec
-allocate( RHSy_f(ld, ny, 0:nz) ); RHSy_f = 0.0_rprec
-allocate( RHSz_f(ld, ny, 0:nz) ); RHSz_f = 0.0_rprec
+! allocate( RHSx(ld, ny, 0:nz) ); RHSx = 0.0_rprec
+! allocate( RHSy(ld, ny, 0:nz) ); RHSy = 0.0_rprec
+! allocate( RHSz(ld, ny, 0:nz) ); RHSz = 0.0_rprec
+! allocate( RHSx_f(ld, ny, 0:nz) ); RHSx_f = 0.0_rprec
+! allocate( RHSy_f(ld, ny, 0:nz) ); RHSy_f = 0.0_rprec
+! allocate( RHSz_f(ld, ny, 0:nz) ); RHSz_f = 0.0_rprec
 allocate ( dpdx(ld, ny, nz) ); dpdx = 0.0_rprec
 allocate ( dpdy(ld, ny, nz) ); dpdy = 0.0_rprec
 allocate ( dpdz(ld, ny, nz) ); dpdz = 0.0_rprec
@@ -152,11 +169,9 @@ allocate ( p(ld, ny, 0:nz) ); p = 0.0_rprec
 ! allocate ( divty(ld, ny, 0:nz) ); divty = 0.0_rprec
 ! allocate ( divtz(ld, ny, 0:nz) ); divtz = 0.0_rprec
 
-#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
 allocate ( fxa(ld, ny, 0:nz) ); fxa = 0.0_rprec
 allocate ( fya(ld, ny, 0:nz) ); fya = 0.0_rprec
 allocate ( fza(ld, ny, 0:nz) ); fza = 0.0_rprec
-#endif
 
 #if defined(PPLVLSET) || defined(PPATM)
 allocate ( fx(ld, ny, nz) ); fx = 0.0_rprec

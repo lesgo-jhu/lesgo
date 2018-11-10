@@ -203,7 +203,7 @@ time_loop: do jt_step = nstart, nsteps
     ! in this version. Provides divtz 1:nz-1, except 1:nz at top process
     ! call divstress_uv(divtx, divty, txx, txy, txz, tyy, tyz)
     ! call divstress_w(divtz, txz, tyz, tzz)
-    call divstress
+    call divstress()
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable
@@ -211,20 +211,20 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Add div-tau term to RHS variable
     !   this will be used for pressure calculation
-    RHSx(1:nx,1:ny,1:nz-1) = -RHSx(1:nx,1:ny,1:nz-1) - divtx(1:nx,1:ny,1:nz-1)
-    RHSy(1:nx,1:ny,1:nz-1) = -RHSy(1:nx,1:ny,1:nz-1) - divty(1:nx,1:ny,1:nz-1)
-    RHSz(1:nx,1:ny,1:nz-1) = -RHSz(1:nx,1:ny,1:nz-1) - divtz(1:nx,1:ny,1:nz-1)
-    if (coord == nproc-1) RHSz(1:nx,1:ny,nz) = -RHSz(1:nx,1:ny,nz)-divtz(1:nx,1:ny,nz)
+    RHSx(:,:,1:nz-1) = -RHSx(:,:,1:nz-1) - divtx(:,:,1:nz-1)
+    RHSy(:,:,1:nz-1) = -RHSy(:,:,1:nz-1) - divty(:,:,1:nz-1)
+    RHSz(:,:,1:nz-1) = -RHSz(:,:,1:nz-1) - divtz(:,:,1:nz-1)
+    if (coord == nproc-1) RHSz(:,:,nz) = -RHSz(:,:,nz)-divtz(:,:,nz)
 
     ! Coriolis: add forcing to RHS
     if (coriolis_forcing) then
         ! This is to put in the coriolis forcing using coriol,ug and vg as
         ! precribed in param.f90. (ug,vg) specfies the geostrophic wind vector
         ! Note that ug and vg are non-dimensional (using u_star in param.f90)
-        RHSx(1:nx,1:ny,1:nz-1) = RHSx(1:nx,1:ny,1:nz-1) +                                  &
-            coriol * v(1:nx,1:ny,1:nz-1) - coriol * vg
-        RHSy(1:nx,1:ny,1:nz-1) = RHSy(1:nx,1:ny,1:nz-1) -                                  &
-            coriol * u(1:nx,1:ny,1:nz-1) + coriol * ug
+        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) +                                  &
+            coriol * v(:,:,1:nz-1) - coriol * vg
+        RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) -                                  &
+            coriol * u(:,:,1:nz-1) + coriol * ug
     end if
 
     !--calculate u^(*) (intermediate vel field)
@@ -267,9 +267,9 @@ time_loop: do jt_step = nstart, nsteps
 
     !  Update RHS with applied forcing
 #if defined(PPTURBINES) || defined(PPATM)
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
-    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)
+    RHSx(1:nx,1:ny,1:nz-1) = RHSx(1:nx,1:ny,1:nz-1) + fxa(1:nx,1:ny,1:nz-1)
+    RHSy(1:nx,1:ny,1:nz-1) = RHSy(1:nx,1:ny,1:nz-1) + fya(1:nx,1:ny,1:nz-1)
+    RHSz(1:nx,1:ny,1:nz-1) = RHSz(1:nx,1:ny,1:nz-1) + fza(1:nx,1:ny,1:nz-1)
 #endif
 
     !//////////////////////////////////////////////////////
@@ -290,15 +290,15 @@ time_loop: do jt_step = nstart, nsteps
     !//////////////////////////////////////////////////////
     ! Calculate intermediate velocity field
     !   only 1:nz-1 are valid
-    u(1:nx,1:ny,1:nz-1) = u(1:nx,1:ny,1:nz-1) +                                            &
-        dt * ( tadv1 * RHSx(1:nx,1:ny,1:nz-1) + tadv2 * RHSx_f(1:nx,1:ny,1:nz-1) )
-    v(1:nx,1:ny,1:nz-1) = v(1:nx,1:ny,1:nz-1) +                                            &
-        dt * ( tadv1 * RHSy(1:nx,1:ny,1:nz-1) + tadv2 * RHSy_f(1:nx,1:ny,1:nz-1) )
-    w(1:nx,1:ny,1:nz-1) = w(1:nx,1:ny,1:nz-1) +                                            &
-        dt * ( tadv1 * RHSz(1:nx,1:ny,1:nz-1) + tadv2 * RHSz_f(1:nx,1:ny,1:nz-1) )
+    u(:,:,1:nz-1) = u(:,:,1:nz-1) +                                            &
+        dt * ( tadv1 * RHSx(:,:,1:nz-1) + tadv2 * RHSx_f(:,:,1:nz-1) )
+    v(:,:,1:nz-1) = v(:,:,1:nz-1) +                                            &
+        dt * ( tadv1 * RHSy(:,:,1:nz-1) + tadv2 * RHSy_f(:,:,1:nz-1) )
+    w(:,:,1:nz-1) = w(:,:,1:nz-1) +                                            &
+        dt * ( tadv1 * RHSz(:,:,1:nz-1) + tadv2 * RHSz_f(:,:,1:nz-1) )
     if (coord == nproc-1) then
-        w(1:nx,1:ny,nz) = w(1:nx,1:ny,nz) +                                                &
-            dt * ( tadv1 * RHSz(1:nx,1:ny,nz) + tadv2 * RHSz_f(1:nx,1:ny,nz) )
+        w(:,:,nz) = w(:,:,nz) +                                                &
+            dt * ( tadv1 * RHSz(:,:,nz) + tadv2 * RHSz_f(:,:,nz) )
     end if
 
     ! Set unused values to BOGUS so unintended uses will be noticable
@@ -324,11 +324,11 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) - dpdx(:,:,1:nz-1)
-    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) - dpdy(:,:,1:nz-1)
-    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) - dpdz(:,:,1:nz-1)
+    RHSx(1:nx,1:ny,1:nz-1) = RHSx(1:nx,1:ny,1:nz-1) - dpdx(1:nx,1:ny,1:nz-1)
+    RHSy(1:nx,1:ny,1:nz-1) = RHSy(1:nx,1:ny,1:nz-1) - dpdy(1:nx,1:ny,1:nz-1)
+    RHSz(1:nx,1:ny,1:nz-1) = RHSz(1:nx,1:ny,1:nz-1) - dpdz(1:nx,1:ny,1:nz-1)
     if(coord == nproc-1) then
-        RHSz(:,:,nz) = RHSz(:,:,nz) - dpdz(:,:,nz)
+        RHSz(1:nx,1:ny,nz) = RHSz(1:nx,1:ny,nz) - dpdz(1:nx,1:ny,nz)
     end if
 
     !//////////////////////////////////////////////////////
