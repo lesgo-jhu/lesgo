@@ -23,7 +23,7 @@ subroutine initial()
 use iwmles
 use types,only:rprec
 use param
-use sim_param, only : u, v, w, RHSx, RHSy, RHSz
+use sim_param, only : u, v, w, RHSx, RHSy, RHSz, u_var, v_var, w_var
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 #ifdef PPDYN_TN
 use sgs_param, only : F_ee2, F_deedt2, ee_past
@@ -150,9 +150,12 @@ end do
 
 #ifdef PPMPI
 ! Exchange ghost node information for u, v, and w
-call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
+! call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
+! call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP )
+! call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
+call u_var%sync_downup
+call v_var%sync_downup
+call w_var%sync_downup
 
 !--set 0-level velocities to BOGUS
 if (coord == 0) then

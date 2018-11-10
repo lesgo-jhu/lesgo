@@ -75,9 +75,9 @@ end if
 ! Loop over levels
 ! Recall that the old timestep guys already contain the pressure
 do jz = 1, nz-1
-    rH_x(:,:,jz) = const2 * u(:,:,jz)
-    rH_y(:,:,jz) = const2 * v(:,:,jz)
-    rH_z(:,:,jz) = const2 * w(:,:,jz)
+    rH_x(1:nx,1:ny,jz) = const2 * u(1:nx,1:ny,jz)
+    rH_y(1:nx,1:ny,jz) = const2 * v(1:nx,1:ny,jz)
+    rH_z(1:nx,1:ny,jz) = const2 * w(1:nx,1:ny,jz)
 
     call dfftw_execute_dft_r2c(forw, rH_x(:,:,jz), rH_x(:,:,jz))
     call dfftw_execute_dft_r2c(forw, rH_y(:,:,jz), rH_y(:,:,jz))
@@ -99,7 +99,7 @@ rH_y(1:ld:2,:,nz) = BOGUS
 
 #ifdef PPMPI
 if (coord == nproc-1) then
-    rH_z(:,:,nz) = const2 * w(:,:,nz)
+    rH_z(1:nx,1:ny,nz) = const2 * w(1:nx,1:ny,nz)
     call dfftw_execute_dft_r2c(forw, rH_z(:,:,nz), rH_z(:,:,jz))
 #ifdef PPSAFETYMODE
 else
@@ -107,7 +107,7 @@ else
 #endif
 endif
 #else
-rH_z(:,:,nz) = const2 * w(:,:,nz)
+rH_z(1:nx,1:ny,nz) = const2 * w(1:nx,1:ny,nz)
 call dfftw_execute_dft_r2c(forw, rH_z(:,:,nz), rH_z(:,:,jz))
 #endif
 

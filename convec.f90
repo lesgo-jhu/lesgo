@@ -72,9 +72,9 @@ endif
 const = 1._rprec/(nx*ny)
 do jz = 0, nz
     ! use RHSx,RHSy,RHSz for temp storage
-    RHSx(:,:,jz)=const*u(:,:,jz)
-    RHSy(:,:,jz)=const*v(:,:,jz)
-    RHSz(:,:,jz)=const*w(:,:,jz)
+    RHSx(1:nx,1:ny,jz)=const*u(1:nx,1:ny,jz)
+    RHSy(1:nx,1:ny,jz)=const*v(1:nx,1:ny,jz)
+    RHSz(1:nx,1:ny,jz)=const*w(1:nx,1:ny,jz)
 
     ! do forward fft on normal-size arrays
     call dfftw_execute_dft_r2c(forw, RHSx(:,:,jz), RHSx(:,:,jz))
@@ -109,11 +109,11 @@ do jz = 1, nz
         ! Wall (all cases >= 1)
         case (1:)
             ! dwdy(jz=1) should be 0, so we can use this
-            RHSx(:, :, 1) = const * ( 0.5_rprec * (dwdy(:, :, 1) +             &
-                dwdy(:, :, 2))  - dvdz(:, :, 1) )
+            RHSx(1:nx,1:ny,1) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,1) +             &
+                dwdy(1:nx,1:ny,2))  - dvdz(1:nx,1:ny,1) )
             ! dwdx(jz=1) should be 0, so we can use this
-            RHSy(:, :, 1) = const * ( dudz(:, :, 1) -                          &
-                0.5_rprec * (dwdx(:, :, 1) + dwdx(:, :, 2)) )
+            RHSy(1:nx,1:ny,1) = const * ( dudz(1:nx,1:ny,1) -                          &
+                0.5_rprec * (dwdx(1:nx,1:ny,1) + dwdx(1:nx,1:ny,2)) )
 
         end select
   endif
@@ -133,12 +133,12 @@ do jz = 1, nz
 
          ! dwdy(jz=1) should be 0, so we could use this
          ! this RHSx = vort1 is actually uvp nz-1 but stored as w nz
-         RHSx(:, :, nz) = const * ( 0.5_rprec * (dwdy(:, :, nz-1) +            &
-            dwdy(:, :, nz)) - dvdz(:, :, nz-1) )
+         RHSx(1:nx,1:ny,nz) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,nz-1) +            &
+            dwdy(1:nx,1:ny,nz)) - dvdz(1:nx,1:ny,nz-1) )
          ! dwdx(jz=1) should be 0, so we could use this
          ! this RHSy = vort2 is actually uvp nz-1 but stored as w nz
-         RHSy(:, :, nz) = const * ( dudz(:, :, nz-1) -                         &
-            0.5_rprec * (dwdx(:, :, nz-1) + dwdx(:, :, nz)) )
+         RHSy(1:nx,1:ny,nz) = const * ( dudz(1:nx,1:ny,nz-1) -                         &
+            0.5_rprec * (dwdx(1:nx,1:ny,nz-1) + dwdx(1:nx,1:ny,nz)) )
 
       end select
    endif
@@ -146,11 +146,11 @@ do jz = 1, nz
     ! very kludgy -- fix later      !! channel
     if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and.               &
         coord==nproc-1 .and. jz==nz)  ) then
-        RHSx(:,:,jz)=const*(dwdy(:,:,jz)-dvdz(:,:,jz))
-        RHSy(:,:,jz)=const*(dudz(:,:,jz)-dwdx(:,:,jz))
+        RHSx(1:nx,1:ny,jz)=const*(dwdy(1:nx,1:ny,jz)-dvdz(1:nx,1:ny,jz))
+        RHSy(1:nx,1:ny,jz)=const*(dudz(1:nx,1:ny,jz)-dwdx(1:nx,1:ny,jz))
     end if
 
-    RHSz(:,:,jz)=const*(dvdx(:,:,jz)-dudy(:,:,jz))
+    RHSz(1:nx,1:ny,jz)=const*(dvdx(1:nx,1:ny,jz)-dudy(1:nx,1:ny,jz))
 
     ! do forward fft on normal-size arrays
     call dfftw_execute_dft_r2c(forw, RHSx(:,:,jz), RHSx(:,:,jz))

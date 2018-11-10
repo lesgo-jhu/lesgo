@@ -84,7 +84,8 @@ do
 
     if (ios /= 0) exit
 
-    if (block_entry_pos == 0) then  !--for now, invalid format if no block entry found
+    !--for now, invalid format if no block entry found
+    if (block_entry_pos == 0) then
         call error (sub_name, 'block entry not found on line', line)
     end if
 
@@ -109,7 +110,7 @@ do
             call turbines_block()
 #endif
         case default
-            if (coord == 0) write(*,*) 'Found unused input block: '//          &
+            if (global_rank == 0) write(*,*) 'Found unused input block: '//    &
                 buff(1:block_entry_pos-1)
             ! Now need to 'fast-forward' until we reach the end of the block
             do while ( block_exit_pos == 0 )
@@ -129,7 +130,7 @@ contains
 subroutine domain_block()
 !*******************************************************************************
 use types, only : rprec
-use param, only : pi, z_i, nproc, coord
+use param, only : pi, z_i, nproc, global_rank
 implicit none
 
 character(*), parameter :: block_name = 'DOMAIN'
@@ -167,10 +168,15 @@ do
             case ('UNIFORM_SPACING')
                 read (buff(equal_pos+1:), *) uniform_spacing
             case default
-                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                if (global_rank == 0) write(*,*) 'Found unused data value in ' &
                     // block_name // ' block: ' // buff(1:equal_pos-1)
         end select
     elseif (block_exit_pos == 1) then
+        ! Initialize uv grid (calculate x,y,z vectors)
+        grid = grid_t(nx, ny, nz_tot, L_x, L_y, L_z, uniform_spacing, globalComm)
+        big_grid = grid_t(3*nx/2, 3*ny/2, nz_tot, L_x, L_y, L_z, uniform_spacing, globalComm)
+        call set_grid_pointers()
+
         ! Check or reset nproc based on MPI setup
 #ifndef PPMPI
         ! Reset to nproc to 1 when not using MPI
@@ -185,11 +191,6 @@ do
                 ' is not equal to nproc = ', np)
         endif
 #endif
-
-        ! Initialize uv grid (calculate x,y,z vectors)
-        grid = grid_t(nx, ny, nz_tot, L_x, L_y, L_z, nproc, coord, uniform_spacing)
-        big_grid = grid_t(3*nx/2, 3*ny/2, nz_tot, L_x, L_y, L_z, nproc, coord, uniform_spacing)
-        call set_grid_pointers()
 
         return
     else
@@ -227,6 +228,15 @@ nx2 => big_grid%nx
 ny2 => big_grid%ny
 lh_big => big_grid%Nkx
 ld_big => big_grid%ld
+
+nproc => grid%nproc
+rank => grid%rank
+coord => grid%coord
+comm => grid%comm
+up => grid%up
+down => grid%down
+rank_of_coord => grid%rank_of_coord
+coord_of_rank => grid%coord_of_rank
 
 end subroutine set_grid_pointers
 
@@ -281,7 +291,7 @@ do
             case ('SGS')
                 read (buff(equal_pos+1:), *) sgs
             case default
-                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                if (global_rank == 0) write(*,*) 'Found unused data value in ' &
                     // block_name // ' block: ' // buff(1:equal_pos-1)
         end select
     elseif( block_exit_pos == 1 ) then
@@ -328,7 +338,7 @@ do
             case('CUMULATIVE_TIME')
                 read (buff(equal_pos+1:), *) cumulative_time
             case default
-                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                if (global_rank == 0) write(*,*) 'Found unused data value in ' &
                     // block_name // ' block: ' // buff(1:equal_pos-1)
         end select
 
@@ -452,7 +462,7 @@ do
 #endif
 
             case default
-                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                if (global_rank == 0) write(*,*) 'Found unused data value in ' &
                     // block_name // ' block: ' // buff(1:equal_pos-1)
         end select
     elseif (block_exit_pos == 1) then
@@ -460,7 +470,7 @@ do
             val_read = mean_p_force_x
             ! Evaluate the mean pressure force
             mean_p_force_x = 1.0_rprec / L_z
-            if (coord == 0 .AND. abs( val_read - mean_p_force_x ) >= thresh)     &
+            if (global_rank == 0 .AND. abs( val_read - mean_p_force_x ) >= thresh)     &
                 call mesg(sub_name, 'Reseting mean_p_force_x to: ', mean_p_force_x)
         endif
         return
@@ -563,7 +573,7 @@ do
             case ('ZPLANE_LOC')
                 call parse_vector( buff(equal_pos+1:), zplane_nloc, zplane_loc )
             case default
-                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                if (global_rank == 0) write(*,*) 'Found unused data value in ' &
                     // block_name // ' block: ' // buff(1:equal_pos-1)
         end select
     elseif (block_exit_pos == 1 ) then
@@ -644,7 +654,7 @@ do
                 read (buff(equal_pos+1:), *) nFMMbot
 #endif
             case default
-                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                if (global_rank == 0) write(*,*) 'Found unused data value in ' &
                     // block_name // ' block: ' // buff(1:equal_pos-1)
         end select
     elseif( block_exit_pos == 1 ) then
@@ -717,7 +727,7 @@ do
             case ('TBASE')
                 read (buff(equal_pos+1:), *) tbase
             case default
-                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                if (global_rank == 0) write(*,*) 'Found unused data value in ' &
                     // block_name // ' block: ' // buff(1:equal_pos-1)
         end select
     elseif (block_exit_pos == 1) then

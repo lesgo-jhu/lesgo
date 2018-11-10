@@ -159,9 +159,13 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-    call filt_da(u, dudx, dudy)
-    call filt_da(v, dvdx, dvdy)
-    call filt_da(w, dwdx, dwdy)
+
+    call u_var%filt_ddxy(dudx_var, dudy_var)
+    call v_var%filt_ddxy(dvdx_var, dvdy_var)
+    call w_var%filt_ddxy(dwdx_var, dwdy_var)
+    ! call filt_da(u, dudx, dudy)
+    ! call filt_da(v, dvdx, dvdy)
+    ! call filt_da(w, dwdx, dwdy)
 
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
@@ -176,9 +180,7 @@ time_loop: do jt_step = nstart, nsteps
     ! (txz, tyz, dudz, dvdz at jz=1)
     ! using the velocity log-law
     ! MPI: bottom and top processes only
-    if (coord == 0 .or. coord == nproc-1) then
-        call wallstress()
-    end if
+    call wallstress()
 
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
@@ -205,20 +207,20 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Add div-tau term to RHS variable
     !   this will be used for pressure calculation
-    RHSx(:,:,1:nz-1) = -RHSx(:,:,1:nz-1) - divtx(:,:,1:nz-1)
-    RHSy(:,:,1:nz-1) = -RHSy(:,:,1:nz-1) - divty(:,:,1:nz-1)
-    RHSz(:,:,1:nz-1) = -RHSz(:,:,1:nz-1) - divtz(:,:,1:nz-1)
-    if (coord == nproc-1) RHSz(:,:,nz) = -RHSz(:,:,nz)-divtz(:,:,nz)
+    RHSx(1:nx,1:ny,1:nz-1) = -RHSx(1:nx,1:ny,1:nz-1) - divtx(1:nx,1:ny,1:nz-1)
+    RHSy(1:nx,1:ny,1:nz-1) = -RHSy(1:nx,1:ny,1:nz-1) - divty(1:nx,1:ny,1:nz-1)
+    RHSz(1:nx,1:ny,1:nz-1) = -RHSz(1:nx,1:ny,1:nz-1) - divtz(1:nx,1:ny,1:nz-1)
+    if (coord == nproc-1) RHSz(1:nx,1:ny,nz) = -RHSz(1:nx,1:ny,nz)-divtz(1:nx,1:ny,nz)
 
     ! Coriolis: add forcing to RHS
     if (coriolis_forcing) then
         ! This is to put in the coriolis forcing using coriol,ug and vg as
         ! precribed in param.f90. (ug,vg) specfies the geostrophic wind vector
         ! Note that ug and vg are non-dimensional (using u_star in param.f90)
-        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) +                                  &
-            coriol * v(:,:,1:nz-1) - coriol * vg
-        RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) -                                  &
-            coriol * u(:,:,1:nz-1) + coriol * ug
+        RHSx(1:nx,1:ny,1:nz-1) = RHSx(1:nx,1:ny,1:nz-1) +                                  &
+            coriol * v(1:nx,1:ny,1:nz-1) - coriol * vg
+        RHSy(1:nx,1:ny,1:nz-1) = RHSy(1:nx,1:ny,1:nz-1) -                                  &
+            coriol * u(1:nx,1:ny,1:nz-1) + coriol * ug
     end if
 
     !--calculate u^(*) (intermediate vel field)
@@ -284,15 +286,15 @@ time_loop: do jt_step = nstart, nsteps
     !//////////////////////////////////////////////////////
     ! Calculate intermediate velocity field
     !   only 1:nz-1 are valid
-    u(:,:,1:nz-1) = u(:,:,1:nz-1) +                                            &
-        dt * ( tadv1 * RHSx(:,:,1:nz-1) + tadv2 * RHSx_f(:,:,1:nz-1) )
-    v(:,:,1:nz-1) = v(:,:,1:nz-1) +                                            &
-        dt * ( tadv1 * RHSy(:,:,1:nz-1) + tadv2 * RHSy_f(:,:,1:nz-1) )
-    w(:,:,1:nz-1) = w(:,:,1:nz-1) +                                            &
-        dt * ( tadv1 * RHSz(:,:,1:nz-1) + tadv2 * RHSz_f(:,:,1:nz-1) )
+    u(1:nx,1:ny,1:nz-1) = u(1:nx,1:ny,1:nz-1) +                                            &
+        dt * ( tadv1 * RHSx(1:nx,1:ny,1:nz-1) + tadv2 * RHSx_f(1:nx,1:ny,1:nz-1) )
+    v(1:nx,1:ny,1:nz-1) = v(1:nx,1:ny,1:nz-1) +                                            &
+        dt * ( tadv1 * RHSy(1:nx,1:ny,1:nz-1) + tadv2 * RHSy_f(1:nx,1:ny,1:nz-1) )
+    w(1:nx,1:ny,1:nz-1) = w(1:nx,1:ny,1:nz-1) +                                            &
+        dt * ( tadv1 * RHSz(1:nx,1:ny,1:nz-1) + tadv2 * RHSz_f(1:nx,1:ny,1:nz-1) )
     if (coord == nproc-1) then
-        w(:,:,nz) = w(:,:,nz) +                                                &
-            dt * ( tadv1 * RHSz(:,:,nz) + tadv2 * RHSz_f(:,:,nz) )
+        w(1:nx,1:ny,nz) = w(1:nx,1:ny,nz) +                                                &
+            dt * ( tadv1 * RHSz(1:nx,1:ny,nz) + tadv2 * RHSz_f(1:nx,1:ny,nz) )
     end if
 
     ! Set unused values to BOGUS so unintended uses will be noticable

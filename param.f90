@@ -70,17 +70,13 @@ logical, parameter :: USE_MPI = .false.
 
 !--this stuff must be defined, even if not using MPI
 ! Setting defaults for ones that can be used even with no MPI
-integer :: nproc = 1 !--this must be 1 if no MPI
-integer :: rank = 0   !--init to 0 (so its defined, even if no MPI)
-integer :: coord = 0  !--same here
+integer, pointer :: nproc, rank, coord, comm, up, down
+integer, dimension(:), pointer ::  rank_of_coord, coord_of_rank
 
-character (8) :: chcoord  !--holds character representation of coord
 integer :: ierr
-integer :: comm
-integer :: up, down
+integer :: globalComm
 integer :: global_rank
 integer :: MPI_RPREC, MPI_CPREC
-integer, allocatable, dimension(:) ::  rank_of_coord, coord_of_rank
 integer, pointer :: jzmin, jzmax  ! levels that "belong" to this processor, set w/ grid
 
 !---------------------------------------------------

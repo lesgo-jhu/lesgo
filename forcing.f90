@@ -269,9 +269,12 @@ if ( inflow ) call inflow_cond ()
 
 #ifdef PPMPI
 ! Exchange ghost node information (since coords overlap)
-call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
+! call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
+! call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP )
+! call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
+call u_var%sync_downup
+call v_var%sync_downup
+call w_var%sync_downup
 #endif
 
 !--enfore bc at top

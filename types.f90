@@ -23,12 +23,17 @@ module types
 !
 ! This module provides generic types
 !
+use iso_c_binding
+use mpi
 implicit none
 
 public
 
-! rprec is used to specify precision
-integer, parameter :: rprec = kind(1.d0)
+! Specify precision (make compliant with FFTW)
+integer, parameter :: rprec = c_double
+integer, parameter :: cprec = c_double_complex
+integer, parameter :: MPI_RPREC = MPI_DOUBLE_PRECISION
+integer, parameter :: MPI_CPREC = MPI_DOUBLE_COMPLEX
 
 type point3D_t
     real(rprec), dimension(3) :: xyz

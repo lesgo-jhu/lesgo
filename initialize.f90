@@ -26,7 +26,7 @@ subroutine initialize()
 !
 use types, only : rprec
 use param, only : path
-use param, only : USE_MPI, coord, dt, jt_total, nsteps
+use param, only : USE_MPI, global_rank, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use iwmles
 use param, only : lbc_mom
@@ -75,8 +75,7 @@ implicit none
 
 character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
 
-! Create output directory
-if (coord == 0) call system( make_output_dir )
+
 
 ! Initialize MPI
 #ifdef PPMPI
@@ -93,6 +92,9 @@ end if
 chcoord = ''
 #endif
 
+! Create output directory
+if (global_rank == 0) call system( make_output_dir )
+
 ! Read input file
 ! This obtains all major data defined in param
 call read_input_conf()
@@ -102,7 +104,7 @@ call openfiles()
 
 if( jt_total >= nsteps ) then
 
-    if (coord == 0) write(*,'(a)') 'Full number of time steps reached'
+    if (global_rank == 0) write(*,'(a)') 'Full number of time steps reached'
 #ifdef PPMPI
     ! First make sure everyone in has finished
     call mpi_barrier( MPI_COMM_WORLD, ierr )
@@ -115,7 +117,7 @@ endif
 ! Commented out since we now have an input file and case information
 ! can be preserved via it; may still be useful for double checking that
 ! the input was read correctly and is sane.
-if (coord == 0) call param_output()
+if (global_rank == 0) call param_output()
 
 ! Define simulation parameters
 call sim_param_init ()
@@ -161,7 +163,7 @@ call initial()
 
 ! Initialize integral wall model xiang
 if (lbc_mom == 3) then
-    if (coord==0) call iwm_init()
+    if (global_rank==0) call iwm_init()
 endif
 
 ! Initialize concurrent precursor stuff
@@ -172,7 +174,7 @@ call initialize_cps()
 ! Initialize dt if needed to force 1st order Euler
 if( use_cfl_dt ) then
     if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-        if (coord == 0) write(*,*)                                             &
+        if (global_rank == 0) write(*,*)                                             &
             '--> Using 1st order Euler for first time step.'
         dt = get_cfl_dt()
         dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
