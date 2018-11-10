@@ -29,19 +29,20 @@ public
 
 logical :: sim_param_initialized = .false.
 
-real(rprec), dimension(:,:,:), allocatable :: dudz, dvdz,  dwdz,               &
+real(rprec), dimension(:,:,:), allocatable ::  &
     RHSx, RHSy, RHSz, RHSx_f, RHSy_f, RHSz_f,                                  &
     dpdx, dpdy, dpdz, txx, txy, tyy,                                           &
     txz, tyz, tzz, divtx, divty, divtz,                                        &
     fx, fy, fz, fxa, fya, fza
+
 real(rprec), target, dimension(:,:,:), allocatable :: p
 
-type(sim_var_3d_t) :: u_var, dudx_var, dudy_var
-type(sim_var_3d_t) :: v_var, dvdx_var, dvdy_var
-type(sim_var_3d_t) :: w_var, dwdx_var, dwdy_var
-real(rprec), dimension(:,:,:), pointer :: u, dudx, dudy
-real(rprec), dimension(:,:,:), pointer :: v, dvdx, dvdy
-real(rprec), dimension(:,:,:), pointer :: w, dwdx, dwdy
+type(sim_var_3d_t) :: u_var, dudx_var, dudy_var, dudz_var
+type(sim_var_3d_t) :: v_var, dvdx_var, dvdy_var, dvdz_var
+type(sim_var_3d_t) :: w_var, dwdx_var, dwdy_var, dwdz_var
+real(rprec), dimension(:,:,:), pointer :: u, dudx, dudy, dudz
+real(rprec), dimension(:,:,:), pointer :: v, dvdx, dvdy, dvdz
+real(rprec), dimension(:,:,:), pointer :: w, dwdx, dwdy, dwdz
 
 contains
 
@@ -58,39 +59,45 @@ implicit none
 u_var = sim_var_3d_t(grid, UV_GRID)
 dudx_var = sim_var_3d_t(grid, UV_GRID)
 dudy_var = sim_var_3d_t(grid, UV_GRID)
+dudz_var = sim_var_3d_t(grid, W_GRID)
 
 v_var = sim_var_3d_t(grid, UV_GRID)
 dvdx_var = sim_var_3d_t(grid, UV_GRID)
 dvdy_var = sim_var_3d_t(grid, UV_GRID)
+dvdz_var = sim_var_3d_t(grid, W_GRID)
 
 w_var = sim_var_3d_t(grid, W_GRID)
 dwdx_var = sim_var_3d_t(grid, W_GRID)
 dwdy_var = sim_var_3d_t(grid, W_GRID)
+dwdz_var = sim_var_3d_t(grid, UV_GRID)
 
 u => u_var%real
 dudx => dudx_var%real
 dudy => dudy_var%real
+dudz => dudz_var%real
 
 v => v_var%real
 dvdx => dvdx_var%real
 dvdy => dvdy_var%real
+dvdz => dvdz_var%real
 
 w => w_var%real
 dwdx => dwdx_var%real
 dwdy => dwdy_var%real
+dwdz => dwdz_var%real
 
 ! allocate ( u(ld, ny, 0:nz) ); u = 0.0_rprec
 ! allocate ( v(ld, ny, 0:nz) ); v = 0.0_rprec
 ! allocate ( w(ld, ny, 0:nz) ); w = 0.0_rprec
 ! allocate( dudx(ld, ny, 0:nz) ); dudx = 0.0_rprec
 ! allocate( dudy(ld, ny, 0:nz) ); dudy = 0.0_rprec
-allocate( dudz(ld, ny, 0:nz) ); dudz = 0.0_rprec
+! allocate( dudz(ld, ny, 0:nz) ); dudz = 0.0_rprec
 ! allocate( dvdx(ld, ny, 0:nz) ); dvdx = 0.0_rprec
 ! allocate( dvdy(ld, ny, 0:nz) ); dvdy = 0.0_rprec
-allocate( dvdz(ld, ny, 0:nz) ); dvdz = 0.0_rprec
+! allocate( dvdz(ld, ny, 0:nz) ); dvdz = 0.0_rprec
 ! allocate( dwdx(ld, ny, 0:nz) ); dwdx = 0.0_rprec
 ! allocate( dwdy(ld, ny, 0:nz) ); dwdy = 0.0_rprec
-allocate( dwdz(ld, ny, 0:nz) ); dwdz = 0.0_rprec
+! allocate( dwdz(ld, ny, 0:nz) ); dwdz = 0.0_rprec
 allocate( RHSx(ld, ny, 0:nz) ); RHSx = 0.0_rprec
 allocate( RHSy(ld, ny, 0:nz) ); RHSy = 0.0_rprec
 allocate( RHSz(ld, ny, 0:nz) ); RHSz = 0.0_rprec

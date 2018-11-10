@@ -472,7 +472,7 @@ subroutine calc_Sij()
 
 use types, only : rprec
 use param
-use sim_param, only : dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
+use sim_param, only : dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz, dwdz_var
 use sgs_param
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
@@ -611,7 +611,8 @@ end if
 ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
 ! (only 1:nz-1) exchange information between processors to set
 ! values at nz from jz=1 above to jz=nz below
-call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
+call dwdz_var%sync_down
+! call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
 #endif
 
 ! Calculate Sij for the rest of the domain

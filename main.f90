@@ -159,7 +159,6 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-
     call u_var%filt_ddxy(dudx_var, dudy_var)
     call v_var%filt_ddxy(dvdx_var, dvdy_var)
     call w_var%filt_ddxy(dwdx_var, dwdy_var)
@@ -169,12 +168,15 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
-    call ddz_uv(u, dudz)
-    call ddz_uv(v, dvdz)
+    call u_var%ddz(dudz_var)
+    call v_var%ddz(dvdz_var)
+    ! call ddz_uv(u, dudz)
+    ! call ddz_uv(v, dvdz)
 
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
-    call ddz_w(w, dwdz)
+    call w_var%ddz(dwdz_var)
+    ! call ddz_w(w, dwdz)
 
     ! Calculate wall stress and derivatives at the wall
     ! (txz, tyz, dudz, dvdz at jz=1)
@@ -198,7 +200,7 @@ time_loop: do jt_step = nstart, nsteps
     ! Compute divergence of SGS shear stresses
     ! the divt's and the diagonal elements of t are not equivalenced
     ! in this version. Provides divtz 1:nz-1, except 1:nz at top process
-    call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
+    call divstress_uv(divtx, divty, txx, txy, txz, tyy, tyz)
     call divstress_w(divtz, txz, tyz, tzz)
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
