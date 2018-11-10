@@ -46,7 +46,7 @@ subroutine sgs_stag ()
 
 use types, only : rprec
 use param
-use sim_param, only : txx, txy, txz, tyy, tyz, tzz
+use sim_param, only : txx, txy, txz, tyy, tyz, tzz, txz_var, tyz_var
 use sgs_param
 use messages
 
@@ -441,8 +441,10 @@ call level_set_BC ()
 ! txz,tyz calculated for 1:nz-1 (on w-nodes) except bottom process
 ! (only 2:nz-1) exchange information between processors to set
 ! values at nz from jz=1 above to jz=nz below
-call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWN )
-call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
+call txz_var%sync_down
+call tyz_var%sync_down
+! call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWN )
+! call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
 #ifdef PPSAFETYMODE
 ! Set bogus values (easier to catch if there's an error)
 txx(:, :, 0) = BOGUS

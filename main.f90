@@ -144,12 +144,12 @@ time_loop: do jt_step = nstart, nsteps
 
     end if
 
-   ! Advance time
-   jt_total = jt_step
-   jt = jt + 1
-   total_time = total_time + dt
-   total_time_dim = total_time_dim + dt_dim
-   tt = tt+dt
+    ! Advance time
+    jt_total = jt_step
+    jt = jt + 1
+    total_time = total_time + dt
+    total_time_dim = total_time_dim + dt_dim
+    tt = tt+dt
 
     ! Save previous time's right-hand-sides for Adams-Bashforth Integration
     ! NOTE: RHS does not contain the pressure gradient
@@ -192,16 +192,18 @@ time_loop: do jt_step = nstart, nsteps
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
 #ifdef PPMPI
-    call mpi_sendrecv (tzz(:,:,nz-1), ld*ny, MPI_RPREC, up, 6,                 &
-                       tzz(:,:,0), ld*ny, MPI_RPREC, down, 6,                  &
-                       comm, status, ierr)
+    call tzz_var%sync_up
+    ! call mpi_sendrecv (tzz(:,:,nz-1), ld*ny, MPI_RPREC, up, 6,                 &
+    !                    tzz(:,:,0), ld*ny, MPI_RPREC, down, 6,                  &
+    !                    comm, status, ierr)
 #endif
 
     ! Compute divergence of SGS shear stresses
     ! the divt's and the diagonal elements of t are not equivalenced
     ! in this version. Provides divtz 1:nz-1, except 1:nz at top process
-    call divstress_uv(divtx, divty, txx, txy, txz, tyy, tyz)
-    call divstress_w(divtz, txz, tyz, tzz)
+    ! call divstress_uv(divtx, divty, txx, txy, txz, tyy, tyz)
+    ! call divstress_w(divtz, txz, tyz, tzz)
+    call divstress
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable

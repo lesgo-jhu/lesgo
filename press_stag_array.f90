@@ -112,14 +112,14 @@ call dfftw_execute_dft_r2c(forw, rH_z(:,:,nz), rH_z(:,:,jz))
 #endif
 
 if (coord == 0) then
-    rbottomw(:,:) = const * divtz(:,:,1)
+    rbottomw(1:nx,1:ny) = const * divtz(1:nx,1:ny,1)
     call dfftw_execute_dft_r2c(forw, rbottomw, rbottomw )
 end if
 
 #ifdef PPMPI
 if (coord == nproc-1) then
 #endif
-    rtopw(:,:) = const * divtz(:,:,nz)
+    rtopw(1:nx,1:ny) = const * divtz(1:nx,1:ny,nz)
     call dfftw_execute_dft_r2c(forw, rtopw, rtopw)
 #ifdef PPMPI
 endif
