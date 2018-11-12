@@ -29,7 +29,12 @@ subroutine convec
 use types, only : rprec
 use param
 use sim_param, only : u, v, w, dudy, dudz, dvdx, dvdz, dwdx, dwdy
-use sim_param, only : fxa, fya, fza, RHSx, RHSy, RHSz
+use sim_param, only : RHSx, RHSy, RHSz
+use sim_param, only : RHSx_var, RHSy_var, RHSz_var
+use sim_param, only : u_big, v_big, w_big, u_big_var, v_big_var, w_big_var
+use sim_param, only : u_var, v_var, w_var, vortx_big_var, vorty_big_var, vortz_big_var
+use sim_param, only : vortx_big, vorty_big, vortz_big, RHSx_var, RHSy_var, RHSz_var
+use sim_param, only : cc_big, cc_big_var
 use fft
 
 implicit none
@@ -38,9 +43,9 @@ integer :: jz
 integer :: jz_min
 integer :: jzLo, jzHi, jz_max  ! added for full channel capabilities
 
-real(rprec), save, allocatable, dimension(:,:,:) :: cc_big,                    &
-    u_big, v_big, w_big, vort1_big, vort2_big, vort3_big
-logical, save :: arrays_allocated = .false.
+! real(rprec), save, allocatable, dimension(:,:,:) :: cc_big!,                    &
+     ! vortx_big, vorty_big, vortz_big
+! logical, save :: arrays_allocated = .false.
 
 real(rprec) :: const
 
@@ -52,16 +57,13 @@ else
     jzHi = nz-1     !! can remove after testing
 endif
 
-if( .not. arrays_allocated ) then
-   allocate( cc_big( ld_big,ny2,nz ) )
-   allocate( u_big(ld_big, ny2, 0:nz) )
-   allocate( v_big(ld_big, ny2, 0:nz) )
-   allocate( w_big(ld_big, ny2, 0:nz) )
-   allocate( vort1_big( ld_big,ny2,nz ) )
-   allocate( vort2_big( ld_big,ny2,nz ) )
-   allocate( vort3_big( ld_big,ny2,nz ) )
-   arrays_allocated = .true.
-endif
+! if( .not. arrays_allocated ) then
+!    allocate( cc_big( ld_big,ny2,nz ) )
+!    ! allocate( vortx_big( ld_big,ny2,nz ) )
+!    ! allocate( vorty_big( ld_big,ny2,nz ) )
+!    ! allocate( vortz_big( ld_big,ny2,nz ) )
+!    arrays_allocated = .true.
+! endif
 
 ! Recall dudz, and dvdz are on UVP node for k=1 only
 ! So du2 does not vary from arg2a to arg2b in 1st plane (k=1)
@@ -69,221 +71,343 @@ endif
 ! Loop through horizontal slices
 ! MPI: u_big, v_big needed at jz = 0, w_big not needed though
 ! MPI: could get u{1,2}_big
-const = 1._rprec/(nx*ny)
-do jz = 0, nz
-    ! use fxa, fya, fza for temp storage
-    fxa(1:nx,1:ny,jz)=const*u(1:nx,1:ny,jz)
-    fya(1:nx,1:ny,jz)=const*v(1:nx,1:ny,jz)
-    fza(1:nx,1:ny,jz)=const*w(1:nx,1:ny,jz)
+! const = 1._rprec/(nx*ny)
+! do jz = 0, nz
+!     use RHSx, RHSy, RHSz for temp storage
+!     RHSx(1:nx,1:ny,jz)=const*u(1:nx,1:ny,jz)
+!     RHSy(1:nx,1:ny,jz)=const*v(1:nx,1:ny,jz)
+!     RHSz(1:nx,1:ny,jz)=const*w(1:nx,1:ny,jz)
+!
+!     do forward fft on normal-size arrays
+!     call dfftw_execute_dft_r2c(forw, RHSx(:,:,jz), RHSx(:,:,jz))
+!     call dfftw_execute_dft_r2c(forw, RHSy(:,:,jz), RHSy(:,:,jz))
+!     call dfftw_execute_dft_r2c(forw, RHSz(:,:,jz), RHSz(:,:,jz))
+!
+!     zero pad: padd takes care of the oddballs
+!     call padd(u_big(:,:,jz), RHSx(:,:,jz))
+!     call padd(v_big(:,:,jz), RHSy(:,:,jz))
+!     call padd(w_big(:,:,jz), RHSz(:,:,jz))
+!
+!     Back to physical space
+!     call dfftw_execute_dft_c2r(back_big, u_big(:,:,jz), u_big(:,:,jz))
+!     call dfftw_execute_dft_c2r(back_big, v_big(:,:,jz), v_big(:,:,jz))
+!     call dfftw_execute_dft_c2r(back_big, w_big(:,:,jz), w_big(:,:,jz))
+! end do
 
-    ! do forward fft on normal-size arrays
-    call dfftw_execute_dft_r2c(forw, fxa(:,:,jz), fxa(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, fya(:,:,jz), fya(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, fza(:,:,jz), fza(:,:,jz))
+! Calculate vorticity, using RHSx, RHSy, and RHSz as temporary storage locations
+RHSx(:,:,1:nz) = dwdy(:,:,1:nz) - dvdz(:,:,1:nz)
+RHSy(:,:,1:nz) = dudz(:,:,1:nz) - dwdx(:,:,1:nz)
+RHSz(:,:,1:nz) = dvdx(:,:,1:nz) - dudy(:,:,1:nz)
 
-    ! zero pad: padd takes care of the oddballs
-    call padd(u_big(:,:,jz), fxa(:,:,jz))
-    call padd(v_big(:,:,jz), fya(:,:,jz))
-    call padd(w_big(:,:,jz), fza(:,:,jz))
-
-    ! Back to physical space
-    call dfftw_execute_dft_c2r(back_big, u_big(:,:,jz), u_big(:,:,jz))
-    call dfftw_execute_dft_c2r(back_big, v_big(:,:,jz), v_big(:,:,jz))
-    call dfftw_execute_dft_c2r(back_big, w_big(:,:,jz), w_big(:,:,jz))
-end do
-
-
-! Do the same thing with the vorticity
-do jz = 1, nz
-    ! if dudz, dvdz are on u-nodes for jz=1, then we need a special
-    ! definition of the vorticity in that case which also interpolates
-    ! dwdx, dwdy to the u-node at jz=1
-    if ( (coord == 0) .and. (jz == 1) ) then
-
-        select case (lbc_mom)
+! Bottom boundary condition
+if (coord == 0) then
+    if (lbc_mom == 0) then
         ! Stress free
-        case (0)
-            fxa(:, :, 1) = 0._rprec
-            fya(:, :, 1) = 0._rprec
+        RHSx(:,:,1) = 0._rprec
+        RHSy(:,:,1) = 0._rprec
+    else
+        ! Wall
+        ! if dudz, dvdz are on u-nodes for jz=1, then we need a special
+        ! definition of the vorticity in that case which also interpolates
+        ! dwdx, dwdy to the u-node at jz=1
+        ! dwdy(1) and dwdx(1) should be 0
+        RHSx(:,:,1) = 0.5_rprec*(dwdy(:,:,1) + dwdy(:,:,2)) - dvdz(:,:,1)
+        RHSy(:,:,1) = dudz(:,:,1) - 0.5_rprec*(dwdx(:,:,1) + dwdx(:,:,2))
+    endif
+end if
 
-        ! Wall (all cases >= 1)
-        case (1:)
-            ! dwdy(jz=1) should be 0, so we can use this
-            fxa(1:nx,1:ny,1) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,1) +             &
-                dwdy(1:nx,1:ny,2))  - dvdz(1:nx,1:ny,1) )
-            ! dwdx(jz=1) should be 0, so we can use this
-            fya(1:nx,1:ny,1) = const * ( dudz(1:nx,1:ny,1) -                          &
-                0.5_rprec * (dwdx(1:nx,1:ny,1) + dwdx(1:nx,1:ny,2)) )
+! Top boundary condition
+if (coord == nproc-1) then
+    if (ubc_mom == 0) then
+        ! Stress free
+        RHSx(:,:,nz) = 0._rprec
+        RHSy(:,:,nz) = 0._rprec
+    else
+        ! Wall
+        ! if dudz, dvdz are on u-nodes for jz=nz, then we need a special
+        ! definition of the vorticity in that case which also interpolates
+        ! dwdx, dwdy to the u-node at jz=nz
+        ! dwdy(1) and dwdx(1) should be 0
+        RHSx(:,:,nz) = 0.5_rprec*(dwdy(:,:,nz-1) + dwdy(:,:,nz)) - dvdz(:,:,nz-1)
+        RHSy(:,:,nz) = dudz(:,:,nz-1) - 0.5_rprec*(dwdx(:,:,nz-1) + dwdx(:,:,nz))
+    endif
+end if
 
-        end select
-  endif
+! Transfer onto larger grid
+call u_var%padd(u_big_var)
+call v_var%padd(v_big_var)
+call w_var%padd(w_big_var)
+call RHSx_var%padd(vortx_big_var)
+call RHSy_var%padd(vorty_big_var)
+call RHSz_var%padd(vortz_big_var)
 
-  if ( (coord == nproc-1) .and. (jz == nz) ) then
+! ! Do the same thing with the vorticity
+! do jz = 1, nz
+!     ! if dudz, dvdz are on u-nodes for jz=1, then we need a special
+!     ! definition of the vorticity in that case which also interpolates
+!     ! dwdx, dwdy to the u-node at jz=1
+!     if ( (coord == 0) .and. (jz == 1) ) then
+!
+!         select case (lbc_mom)
+!         ! Stress free
+!         case (0)
+!             RHSx(:, :, 1) = 0._rprec
+!             RHSy(:, :, 1) = 0._rprec
+!
+!         ! Wall (all cases >= 1)
+!         case (1:)
+!             ! dwdy(jz=1) should be 0, so we can use this
+!             RHSx(1:nx,1:ny,1) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,1) +             &
+!                 dwdy(1:nx,1:ny,2))  - dvdz(1:nx,1:ny,1) )
+!             ! dwdx(jz=1) should be 0, so we can use this
+!             RHSy(1:nx,1:ny,1) = const * ( dudz(1:nx,1:ny,1) -                          &
+!                 0.5_rprec * (dwdx(1:nx,1:ny,1) + dwdx(1:nx,1:ny,2)) )
+!
+!         end select
+!   endif
+!
+!   if ( (coord == nproc-1) .and. (jz == nz) ) then
+!
+!      select case (ubc_mom)
+!
+!      ! Stress free
+!      case (0)
+!
+!          RHSx(:, :, nz) = 0._rprec
+!          RHSy(:, :, nz) = 0._rprec
+!
+!       ! No-slip and wall model
+!       case (1:)
+!
+!          ! dwdy(jz=1) should be 0, so we could use this
+!          ! this RHSx = vort1 is actually uvp nz-1 but stored as w nz
+!          RHSx(1:nx,1:ny,nz) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,nz-1) +            &
+!             dwdy(1:nx,1:ny,nz)) - dvdz(1:nx,1:ny,nz-1) )
+!          ! dwdx(jz=1) should be 0, so we could use this
+!          ! this RHSy = vort2 is actually uvp nz-1 but stored as w nz
+!          RHSy(1:nx,1:ny,nz) = const * ( dudz(1:nx,1:ny,nz-1) -                         &
+!             0.5_rprec * (dwdx(1:nx,1:ny,nz-1) + dwdx(1:nx,1:ny,nz)) )
+!
+!       end select
+!    endif
+!
+!     ! very kludgy -- fix later      !! channel
+!     if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and.               &
+!         coord==nproc-1 .and. jz==nz)  ) then
+!         RHSx(1:nx,1:ny,jz)=const*(dwdy(1:nx,1:ny,jz)-dvdz(1:nx,1:ny,jz))
+!         RHSy(1:nx,1:ny,jz)=const*(dudz(1:nx,1:ny,jz)-dwdx(1:nx,1:ny,jz))
+!     end if
+!
+!     RHSz(1:nx,1:ny,jz)=const*(dvdx(1:nx,1:ny,jz)-dudy(1:nx,1:ny,jz))
 
-     select case (ubc_mom)
+    ! ! do forward fft on normal-size arrays
+    ! call dfftw_execute_dft_r2c(forw, RHSx(:,:,jz), RHSx(:,:,jz))
+    ! call dfftw_execute_dft_r2c(forw, RHSy(:,:,jz), RHSy(:,:,jz))
+    ! call dfftw_execute_dft_r2c(forw, RHSz(:,:,jz), RHSz(:,:,jz))
+    ! call padd(vortx_big(:,:,jz), RHSx(:,:,jz))
+    ! call padd(vorty_big(:,:,jz), RHSy(:,:,jz))
+    ! call padd(vortz_big(:,:,jz), RHSz(:,:,jz))
+    !
+    ! ! Back to physical space
+    ! ! the normalization should be ok...
+    ! call dfftw_execute_dft_c2r(back_big, vortx_big(:,:,jz), vortx_big(:,:,jz))
+    ! call dfftw_execute_dft_c2r(back_big, vorty_big(:,:,jz), vorty_big(:,:,jz))
+    ! call dfftw_execute_dft_c2r(back_big, vortz_big(:,:,jz), vortz_big(:,:,jz))
+! end do
 
-     ! Stress free
-     case (0)
-
-         fxa(:, :, nz) = 0._rprec
-         fya(:, :, nz) = 0._rprec
-
-      ! No-slip and wall model
-      case (1:)
-
-         ! dwdy(jz=1) should be 0, so we could use this
-         ! this fxa = vort1 is actually uvp nz-1 but stored as w nz
-         fxa(1:nx,1:ny,nz) = const * ( 0.5_rprec * (dwdy(1:nx,1:ny,nz-1) +            &
-            dwdy(1:nx,1:ny,nz)) - dvdz(1:nx,1:ny,nz-1) )
-         ! dwdx(jz=1) should be 0, so we could use this
-         ! this fya = vort2 is actually uvp nz-1 but stored as w nz
-         fya(1:nx,1:ny,nz) = const * ( dudz(1:nx,1:ny,nz-1) -                         &
-            0.5_rprec * (dwdx(1:nx,1:ny,nz-1) + dwdx(1:nx,1:ny,nz)) )
-
-      end select
-   endif
-
-    ! very kludgy -- fix later      !! channel
-    if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and.               &
-        coord==nproc-1 .and. jz==nz)  ) then
-        fxa(1:nx,1:ny,jz)=const*(dwdy(1:nx,1:ny,jz)-dvdz(1:nx,1:ny,jz))
-        fya(1:nx,1:ny,jz)=const*(dudz(1:nx,1:ny,jz)-dwdx(1:nx,1:ny,jz))
-    end if
-
-    fza(1:nx,1:ny,jz)=const*(dvdx(1:nx,1:ny,jz)-dudy(1:nx,1:ny,jz))
-
-    ! do forward fft on normal-size arrays
-    call dfftw_execute_dft_r2c(forw, fxa(:,:,jz), fxa(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, fya(:,:,jz), fya(:,:,jz))
-    call dfftw_execute_dft_r2c(forw, fza(:,:,jz), fza(:,:,jz))
-    call padd(vort1_big(:,:,jz), fxa(:,:,jz))
-    call padd(vort2_big(:,:,jz), fya(:,:,jz))
-    call padd(vort3_big(:,:,jz), fza(:,:,jz))
-
-    ! Back to physical space
-    ! the normalization should be ok...
-    call dfftw_execute_dft_c2r(back_big, vort1_big(:,:,jz), vort1_big(:,:,jz))
-    call dfftw_execute_dft_c2r(back_big, vort2_big(:,:,jz), vort2_big(:,:,jz))
-    call dfftw_execute_dft_c2r(back_big, vort3_big(:,:,jz), vort3_big(:,:,jz))
-end do
-
-! fxa
+! RHSx
 ! redefinition of const
-const=1._rprec/(nx2*ny2)
+! const=1._rprec/(nx2*ny2)
+!
+! if (coord == 0) then
+!     ! the cc's contain the normalization factor for the upcoming fft's
+!     cc_big(1:nx2,1:ny2,1)=const*(v_big(1:nx2,1:ny2,1)*(-vortz_big(1:nx2,1:ny2,1))&
+!        +0.5_rprec*w_big(1:nx2,1:ny2,2)*(vorty_big(1:nx2,1:ny2,jzLo)))   ! (default index was 2)
+!     !--vort2(jz=1) is located on uvp-node        ^  try with 1 (experimental)
+!     !--the 0.5 * w(:,:,2) is the interpolation of w to the first uvp node
+!     !  above the wall (could arguably be 0.25 * w(:,:,2))
+!     jz_min = 2
+! else
+!     jz_min = 1
+! end if
+!
+! if (coord == nproc-1 ) then  ! channel
+!     ! the cc's contain the normalization factor for the upcoming fft's
+!     cc_big(1:nx2,1:ny2,nz-1)=const*(v_big(1:nx2,1:ny2,nz-1)*(-vortz_big(1:nx2,1:ny2,nz-1))&
+!         +0.5_rprec*w_big(1:nx2,1:ny2,nz-1)*(vorty_big(1:nx2,1:ny2,jzHi)))   ! channel
+!     !--vort2(jz=1) is located on uvp-node        ^  try with nz-1 (experimental)
+!     !--the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
+!     !  below the wall (could arguably be 0.25 * w(:,:,2))
+!
+!     jz_max = nz-2
+! else
+!     jz_max = nz-1
+! end if
+!
+! do jz = jz_min, jz_max    !nz-1   ! channel
+!     cc_big(1:nx2,1:ny2,jz)=const*(v_big(1:nx2,1:ny2,jz)*(-vortz_big(1:nx2,1:ny2,jz))&
+!         +0.5_rprec*(w_big(1:nx2,1:ny2,jz+1)*(vorty_big(1:nx2,1:ny2,jz+1))&
+!         +w_big(1:nx2,1:ny2,jz)*(vorty_big(1:nx2,1:ny2,jz))))
+! end do
+!
+! ! Loop through horizontal slices
+! do jz=1,nz-1
+!     call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
+!     ! un-zero pad
+!     ! note: cc_big is going into RHSx
+!     call unpadd(RHSx(:,:,jz),cc_big(:,:,jz))
+!     ! Back to physical space
+!     call dfftw_execute_dft_c2r(back, RHSx(:,:,jz), RHSx(:,:,jz))
+! end do
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Compute (u x omega)_x
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+cc_big(:,:,0:nz-1) = -v_big(:,:,0:nz-1) * vortz_big(:,:,0:nz-1)                &
+    + 0.5_rprec * (w_big(:,:,1:nz)*(vorty_big(:,:,1:nz))                       &
+    + w_big(:,:,0:nz-1) * (vorty_big(:,:,0:nz-1)))
+
+! Boundary conditions
 if (coord == 0) then
-    ! the cc's contain the normalization factor for the upcoming fft's
-    cc_big(:,:,1)=const*(v_big(:,:,1)*(-vort3_big(:,:,1))&
-       +0.5_rprec*w_big(:,:,2)*(vort2_big(:,:,jzLo)))   ! (default index was 2)
-    !--vort2(jz=1) is located on uvp-node        ^  try with 1 (experimental)
-    !--the 0.5 * w(:,:,2) is the interpolation of w to the first uvp node
-    !  above the wall (could arguably be 0.25 * w(:,:,2))
-    jz_min = 2
-else
-    jz_min = 1
+    ! vort(1) is located on uvp-node
+    ! the 0.5 * w(:,:,2) is the interpolation of w to the first uvp node
+    ! above the wall (could arguably be 0.25 * w(:,:,2))
+    cc_big(:,:,1) = -v_big(:,:,1) * vortz_big(:,:,1)                           &
+       + 0.5_rprec * w_big(:,:,2) * vorty_big(:,:,jzLo)
+end if
+if (coord == nproc-1) then
+    ! vort(nz-1) is located on uvp-node
+    ! the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
+    cc_big(:,:,nz-1) = -v_big(:,:,nz-1) * vortz_big(:,:,nz-1)                 &
+       + 0.5_rprec * w_big(:,:,nz-1) * vorty_big(:,:,jzHi)
 end if
 
-if (coord == nproc-1 ) then  ! channel
-    ! the cc's contain the normalization factor for the upcoming fft's
-    cc_big(:,:,nz-1)=const*(v_big(:,:,nz-1)*(-vort3_big(:,:,nz-1))&
-        +0.5_rprec*w_big(:,:,nz-1)*(vort2_big(:,:,jzHi)))   ! channel
-    !--vort2(jz=1) is located on uvp-node        ^  try with nz-1 (experimental)
-    !--the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
-    !  below the wall (could arguably be 0.25 * w(:,:,2))
+! Dealias
+call cc_big_var%unpadd(RHSx_var)
 
-    jz_max = nz-2
-else
-    jz_max = nz-1
-end if
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Compute (u x omega)_y
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+cc_big(:,:,0:nz-1) = u_big(:,:,0:nz-1) * vortz_big(:,:,0:nz-1)                &
+    - 0.5_rprec * (w_big(:,:,1:nz)*(vortx_big(:,:,1:nz))                       &
+    - w_big(:,:,0:nz-1) * (vortx_big(:,:,0:nz-1)))
 
-do jz = jz_min, jz_max    !nz-1   ! channel
-    cc_big(:,:,jz)=const*(v_big(:,:,jz)*(-vort3_big(:,:,jz))&
-        +0.5_rprec*(w_big(:,:,jz+1)*(vort2_big(:,:,jz+1))&
-        +w_big(:,:,jz)*(vort2_big(:,:,jz))))
-end do
-
-! Loop through horizontal slices
-do jz=1,nz-1
-    call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-    ! un-zero pad
-    ! note: cc_big is going into fxa
-    call unpadd(fxa(:,:,jz),cc_big(:,:,jz))
-    ! Back to physical space
-    call dfftw_execute_dft_c2r(back, fxa(:,:,jz), fxa(:,:,jz))
-end do
-
-! fya
-! const should be 1./(nx2*ny2) here
+! Boundary conditions
 if (coord == 0) then
-    ! the cc's contain the normalization factor for the upcoming fft's
-    cc_big(:,:,1)=const*(u_big(:,:,1)*(vort3_big(:,:,1))&
-        +0.5_rprec*w_big(:,:,2)*(-vort1_big(:,:,jzLo)))   ! channel
-    !--vort1(jz=1) is uvp-node                    ^ try with 1 (experimental)
-    !--the 0.5 * w(:,:,2) is the interpolation of w to the first uvp node
-    !  above the wall (could arguably be 0.25 * w(:,:,2))
-    jz_min = 2
-else
-    jz_min = 1
+    ! vort(1) is located on uvp-node
+    ! the 0.5 * w(:,:,2) is the interpolation of w to the first uvp node
+    ! above the wall (could arguably be 0.25 * w(:,:,2))
+    cc_big(:,:,1) = u_big(:,:,1) * vortz_big(:,:,1)                           &
+       - 0.5_rprec * w_big(:,:,2) * vortx_big(:,:,jzLo)
+end if
+if (coord == nproc-1) then
+    ! vort(nz-1) is located on uvp-node
+    ! the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
+    cc_big(:,:,nz-1) = u_big(:,:,nz-1) * vortz_big(:,:,nz-1)                 &
+       - 0.5_rprec * w_big(:,:,nz-1) * vortx_big(:,:,jzHi)
 end if
 
-if (coord == nproc-1) then   ! channel
-    ! the cc's contain the normalization factor for the upcoming fft's
-    cc_big(:,:,nz-1)=const*(u_big(:,:,nz-1)*(vort3_big(:,:,nz-1))&
-        +0.5_rprec*w_big(:,:,nz-1)*(-vort1_big(:,:,jzHi)))    ! channel
-    !--vort1(jz=1) is uvp-node                    ^ try with nz-1 (experimental)
-    !--the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
-    !  below the wall
+! Dealias
+call cc_big_var%unpadd(RHSy_var)
 
-    jz_max = nz-2
-else
-    jz_max = nz-1
-end if
+! ! RHSy
+! ! const should be 1./(nx2*ny2) here
+! if (coord == 0) then
+!     ! the cc's contain the normalization factor for the upcoming fft's
+!     cc_big(1:nx2,1:ny2,1)=const*(u_big(1:nx2,1:ny2,1)*(vortz_big(1:nx2,1:ny2,1))&
+!         +0.5_rprec*w_big(1:nx2,1:ny2,2)*(-vortx_big(1:nx2,1:ny2,jzLo)))   ! channel
+!     !--vort1(jz=1) is uvp-node                    ^ try with 1 (experimental)
+!     !--the 0.5 * w(:,:,2) is the interpolation of w to the first uvp node
+!     !  above the wall (could arguably be 0.25 * w(:,:,2))
+!     jz_min = 2
+! else
+!     jz_min = 1
+! end if
+!
+! if (coord == nproc-1) then   ! channel
+!     ! the cc's contain the normalization factor for the upcoming fft's
+!     cc_big(1:nx2,1:ny2,nz-1)=const*(u_big(1:nx2,1:ny2,nz-1)*(vortz_big(1:nx2,1:ny2,nz-1))&
+!         +0.5_rprec*w_big(1:nx2,1:ny2,nz-1)*(-vortx_big(1:nx2,1:ny2,jzHi)))    ! channel
+!     !--vort1(jz=1) is uvp-node                    ^ try with nz-1 (experimental)
+!     !--the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
+!     !  below the wall
+!
+!     jz_max = nz-2
+! else
+!     jz_max = nz-1
+! end if
+!
+! do jz = jz_min, jz_max  !nz - 1   ! channel
+!    cc_big(1:nx2,1:ny2,jz)=const*(u_big(1:nx2,1:ny2,jz)*(vortz_big(1:nx2,1:ny2,jz))&
+!         +0.5_rprec*(w_big(1:nx2,1:ny2,jz+1)*(-vortx_big(1:nx2,1:ny2,jz+1))&
+!         +w_big(1:nx2,1:ny2,jz)*(-vortx_big(1:nx2,1:ny2,jz))))
+! end do
+!
+! do jz=1,nz-1
+!     call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz), cc_big(:,:,jz))
+!     ! un-zero pad
+!     ! note: cc_big is going into RHSy
+!     call unpadd(RHSy(:,:,jz), cc_big(:,:,jz))
+!
+!     ! Back to physical space
+!     call dfftw_execute_dft_c2r(back, RHSy(:,:,jz), RHSy(:,:,jz))
+! end do
 
-do jz = jz_min, jz_max  !nz - 1   ! channel
-   cc_big(:,:,jz)=const*(u_big(:,:,jz)*(vort3_big(:,:,jz))&
-        +0.5_rprec*(w_big(:,:,jz+1)*(-vort1_big(:,:,jz+1))&
-        +w_big(:,:,jz)*(-vort1_big(:,:,jz))))
-end do
 
-do jz=1,nz-1
-    call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz), cc_big(:,:,jz))
-    ! un-zero pad
-    ! note: cc_big is going into fya
-    call unpadd(fya(:,:,jz), cc_big(:,:,jz))
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Compute (u x omega)_z
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+cc_big(:,:,0:nz-1) = 0.5_rprec * (                                             &
+    - (u_big(:,:,0:nz-1) + u_big(:,:,1:nz)) * vorty_big(:,:,0:nz-1)            &
+    + (v_big(:,:,0:nz-1) + v_big(:,:,1:nz)) * vortx_big(:,:,0:nz-1) )
 
-    ! Back to physical space
-    call dfftw_execute_dft_c2r(back, fya(:,:,jz), fya(:,:,jz))
-end do
-
-! fza
-
-if (coord == 0) then
+! Boundary conditions
+! Some previous musings on this:
     ! There is no convective acceleration of w at wall or at top.
     !--not really true at wall, so this is an approximation?
     !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
     !--wrong, we do solve z-eqn (w-eqn) at bottom wall --pj
-    !--earlier comment is also wrong, it is true that fza = 0 at both walls and
+    !--earlier comment is also wrong, it is true that RHS = 0 at both walls and
     ! slip BC
-    cc_big(:,:,1)=0._rprec
-    !! ^must change for Couette flow ... ?
-    jz_min = 2
-else
-    jz_min = 1
+if (coord == 0) then
+    cc_big(:,:,1) = 0._rprec
+end if
+if (coord == nproc-1) then
+    cc_big(:,:,nz-1) = 0._rprec
 end if
 
-if (coord == nproc-1) then     ! channel
-    ! There is no convective acceleration of w at wall or at top.
-    !--not really true at wall, so this is an approximation?
-    !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
-    !--but now we do solve z-eqn (w-eqn) at top wall --pj
-    !--earlier comment is also wrong, it is true that fza = 0 at both walls and
-    ! slip BC
-    cc_big(:,:,nz)=0._rprec
-    !! ^must change for Couette flow ... ?
-    jz_max = nz-1
-else
-    jz_max = nz-1   !! or nz ?       ! channel
-end if
+! Dealias
+call cc_big_var%unpadd(RHSz_var)
+!
+! ! RHSz
+!
+! if (coord == 0) then
+!     ! There is no convective acceleration of w at wall or at top.
+!     !--not really true at wall, so this is an approximation?
+!     !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
+!     !--wrong, we do solve z-eqn (w-eqn) at bottom wall --pj
+!     !--earlier comment is also wrong, it is true that RHSz = 0 at both walls and
+!     ! slip BC
+!     cc_big(:,:,1)=0._rprec
+!     !! ^must change for Couette flow ... ?
+!     jz_min = 2
+! else
+!     jz_min = 1
+! end if
+!
+! if (coord == nproc-1) then     ! channel
+!     ! There is no convective acceleration of w at wall or at top.
+!     !--not really true at wall, so this is an approximation?
+!     !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
+!     !--but now we do solve z-eqn (w-eqn) at top wall --pj
+!     !--earlier comment is also wrong, it is true that RHSz = 0 at both walls and
+!     ! slip BC
+!     cc_big(:,:,nz)=0._rprec
+!     !! ^must change for Couette flow ... ?
+!     jz_max = nz-1
+! else
+!     jz_max = nz-1   !! or nz ?       ! channel
+! end if
 
 !#ifdef PPMPI
 !  if (coord == nproc-1) then
@@ -296,43 +420,39 @@ end if
 !  cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
 !  jz_max = nz - 1
 !#endif
-
-! channel
-do jz = jz_min, jz_max    !nz - 1
-    cc_big(:,:,jz) = const*0.5_rprec*(                                         &
-        (u_big(:,:,jz)+u_big(:,:,jz-1))*(-vort2_big(:,:,jz))                   &
-        +(v_big(:,:,jz)+v_big(:,:,jz-1))*(vort1_big(:,:,jz)))
-end do
-
-! Loop through horizontal slices
-do jz=1,nz !nz - 1
-    call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
-
-    ! un-zero pad
-    ! note: cc_big is going into fza!!!!
-    call unpadd(fza(:,:,jz),cc_big(:,:,jz))
-
-    ! Back to physical space
-    call dfftw_execute_dft_c2r(back,fza(:,:,jz),   fza(:,:,jz))
-end do
+!
+! ! channel
+! do jz = jz_min, jz_max    !nz - 1
+!     cc_big(1:nx2,1:ny2,jz) = const*0.5_rprec*(                                         &
+!         (u_big(1:nx2,1:ny2,jz)+u_big(1:nx2,1:ny2,jz-1))*(-vorty_big(1:nx2,1:ny2,jz))                   &
+!         +(v_big(1:nx2,1:ny2,jz)+v_big(1:nx2,1:ny2,jz-1))*(vortx_big(1:nx2,1:ny2,jz)))
+! end do
+!
+! ! Loop through horizontal slices
+! do jz=1,nz !nz - 1
+!     call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
+!
+!     ! un-zero pad
+!     ! note: cc_big is going into RHSz!!!!
+!     call unpadd(RHSz(:,:,jz),cc_big(:,:,jz))
+!
+!     ! Back to physical space
+!     call dfftw_execute_dft_c2r(back,RHSz(:,:,jz),   RHSz(:,:,jz))
+! end do
 
 #ifdef PPMPI
 #ifdef PPSAFETYMODE
-fxa(:, :, 0) = BOGUS
-fya(:, :, 0) = BOGUS
-fza(: ,:, 0) = BOGUS
+RHSx(:, :, 0) = BOGUS
+RHSy(:, :, 0) = BOGUS
+RHSz(: ,:, 0) = BOGUS
 #endif
 #endif
 
 !--top level is not valid
 #ifdef PPSAFETYMODE
-fxa(:, :, nz) = BOGUS
-fya(:, :, nz) = BOGUS
-if(coord<nproc-1) fza(:, :, nz) = BOGUS
+RHSx(:, :, nz) = BOGUS
+RHSy(:, :, nz) = BOGUS
+if(coord<nproc-1) RHSz(:, :, nz) = BOGUS
 #endif
-
-RHSx = fxa(1:nx,1:ny,0:nz)
-RHSy = fya(1:nx,1:ny,0:nz)
-RHSz = fza(1:nx,1:ny,0:nz)
 
 end subroutine convec

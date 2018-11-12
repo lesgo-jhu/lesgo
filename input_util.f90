@@ -174,7 +174,7 @@ do
     elseif (block_exit_pos == 1) then
         ! Initialize uv grid (calculate x,y,z vectors)
         grid = grid_t(nx, ny, nz_tot, L_x, L_y, L_z, uniform_spacing, globalComm)
-        big_grid = grid_t(3*nx/2, 3*ny/2, nz_tot, L_x, L_y, L_z, uniform_spacing, globalComm)
+        grid_big = grid_t(3*nx/2, 3*ny/2, nz_tot, L_x, L_y, L_z, uniform_spacing, globalComm)
         call set_grid_pointers()
 
         ! Check or reset nproc based on MPI setup
@@ -224,10 +224,10 @@ dz => grid%dz
 lh => grid%Nkx
 ld => grid%ld
 uniform_spacing => grid%uniform_spacing
-nx2 => big_grid%nx
-ny2 => big_grid%ny
-lh_big => big_grid%Nkx
-ld_big => big_grid%ld
+nx2 => grid_big%nx
+ny2 => grid_big%ny
+lh_big => grid_big%Nkx
+ld_big => grid_big%ld
 
 nproc => grid%nproc
 rank => grid%rank

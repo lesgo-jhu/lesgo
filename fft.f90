@@ -28,7 +28,8 @@ implicit none
 include 'fftw3.f'
 save
 
-public :: padd, unpadd, init_fft
+! public :: padd, unpadd
+public :: init_fft
 
 public :: kx, ky, k2
 public :: forw, back, forw_big, back_big
@@ -38,65 +39,65 @@ integer*8 :: forw, back, forw_big, back_big
 real (rprec), dimension (:, :), allocatable :: data, data_big
 
 contains
-
-!*******************************************************************************
-subroutine padd (u_big,u)
-!*******************************************************************************
-! puts arrays into larger, zero-padded arrays
-! automatically zeroes the oddballs
-use types, only : rprec
-use param, only : ld,ld_big,nx,ny,ny2
-implicit none
-
-!  u and u_big are interleaved as complex arrays
-real(rprec), dimension(ld,ny), intent(in) :: u
-real(rprec), dimension(ld_big,ny2), intent(out) :: u_big
-
-integer :: ny_h, j_s, j_big_s
-
-ny_h = ny/2
-
-! make sure the big array is zeroed!
-u_big(:,:) = 0._rprec
-
-! note: split access in an attempt to maintain locality
-u_big(:nx,:ny_h) = u(:nx,:ny_h)
-
-! Compute starting j locations for second transfer
-j_s = ny_h + 2
-j_big_s = ny2 - ny_h + 2
-
-u_big(:nx,j_big_s:ny2) = u(:nx,j_s:ny)
-
-end subroutine padd
-
-!*******************************************************************************
-subroutine unpadd(cc,cc_big)
-!*******************************************************************************
-use types, only : rprec
-use param, only : ld,nx,ny,ny2,ld_big
-implicit none
-
-!  cc and cc_big are interleaved as complex arrays
-real(rprec), dimension( ld, ny ) :: cc
-real(rprec), dimension( ld_big, ny2 ) :: cc_big
-
-integer :: ny_h, j_s, j_big_s
-
-ny_h = ny/2
-
-cc(:nx,:ny_h) = cc_big(:nx,:ny_h)
-
-! oddballs
-cc(ld-1:ld,:) = 0._rprec
-cc(:,ny_h+1) = 0._rprec
-
-! Compute starting j locations for second transfer
-j_s = ny_h + 2
-j_big_s = ny2 - ny_h + 2
-cc(:nx,j_s:ny) = cc_big(:nx,j_big_s:ny2)
-
-end subroutine unpadd
+!
+! !*******************************************************************************
+! subroutine padd (u_big,u)
+! !*******************************************************************************
+! ! puts arrays into larger, zero-padded arrays
+! ! automatically zeroes the oddballs
+! use types, only : rprec
+! use param, only : ld,ld_big,nx,ny,ny2
+! implicit none
+!
+! !  u and u_big are interleaved as complex arrays
+! real(rprec), dimension(ld,ny), intent(in) :: u
+! real(rprec), dimension(ld_big,ny2), intent(out) :: u_big
+!
+! integer :: ny_h, j_s, j_big_s
+!
+! ny_h = ny/2
+!
+! ! make sure the big array is zeroed!
+! u_big(:,:) = 0._rprec
+!
+! ! note: split access in an attempt to maintain locality
+! u_big(:nx,:ny_h) = u(:nx,:ny_h)
+!
+! ! Compute starting j locations for second transfer
+! j_s = ny_h + 2
+! j_big_s = ny2 - ny_h + 2
+!
+! u_big(:nx,j_big_s:ny2) = u(:nx,j_s:ny)
+!
+! end subroutine padd
+!
+! !*******************************************************************************
+! subroutine unpadd(cc,cc_big)
+! !*******************************************************************************
+! use types, only : rprec
+! use param, only : ld,nx,ny,ny2,ld_big
+! implicit none
+!
+! !  cc and cc_big are interleaved as complex arrays
+! real(rprec), dimension( ld, ny ) :: cc
+! real(rprec), dimension( ld_big, ny2 ) :: cc_big
+!
+! integer :: ny_h, j_s, j_big_s
+!
+! ny_h = ny/2
+!
+! cc(:nx,:ny_h) = cc_big(:nx,:ny_h)
+!
+! ! oddballs
+! cc(ld-1:ld,:) = 0._rprec
+! cc(:,ny_h+1) = 0._rprec
+!
+! ! Compute starting j locations for second transfer
+! j_s = ny_h + 2
+! j_big_s = ny2 - ny_h + 2
+! cc(:nx,j_s:ny) = cc_big(:nx,j_big_s:ny2)
+!
+! end subroutine unpadd
 
 !*******************************************************************************
 subroutine init_fft()

@@ -29,6 +29,7 @@ contains
     procedure, public :: zero_nyquist
     procedure, public :: ddx, ddy, ddxy, filt_ddxy, ddz
     procedure, public :: test_filter
+    procedure, public :: padd, unpadd
     procedure, public :: sync_down, sync_up, sync_downup
     final :: destructor
 end type sim_var_3d_t
@@ -353,6 +354,155 @@ end do
 call f%backward()
 
 end subroutine test_filter
+
+! !*******************************************************************************
+! subroutine padd (u_big,u)
+! !*******************************************************************************
+! ! puts arrays into larger, zero-padded arrays
+! ! automatically zeroes the oddballs
+! use types, only : rprec
+! use param, only : ld,ld_big,nx,ny,ny2
+! implicit none
+!
+! !  u and u_big are interleaved as complex arrays
+! real(rprec), dimension(ld,ny), intent(in) :: u
+! real(rprec), dimension(ld_big,ny2), intent(out) :: u_big
+!
+! integer :: ny_h, j_s, j_big_s
+!
+! ny_h = ny/2
+!
+! ! make sure the big array is zeroed!
+! u_big(:,:) = 0._rprec
+!
+! ! note: split access in an attempt to maintain locality
+! u_big(:nx,:ny_h) = u(:nx,:ny_h)
+!
+! ! Compute starting j locations for second transfer
+! j_s = ny_h + 2
+! j_big_s = ny2 - ny_h + 2
+!
+! u_big(:nx,j_big_s:ny2) = u(:nx,j_s:ny)
+!
+! end subroutine padd
+
+!*******************************************************************************
+subroutine padd(this, this_big)
+!*******************************************************************************
+class(sim_var_3d_t), intent(inout) :: this, this_big
+integer :: nx_h, ny_h, j_s, j_big_s
+real(rprec) :: const
+
+! Go to spectral space
+call this%forward()
+
+! Make sure big variable is zeroed
+this_big%cmplx(:,:,:) = cmplx(0._rprec, cprec)
+
+! First set of wavenumbers
+nx_h = this%grid%Nkx
+ny_h = this%grid%Ny/2
+const = (this_big%grid%Ny*this_big%grid%Nx)
+const = const/(this%grid%Ny*this%grid%Nx)
+this_big%cmplx(1:nx_h,1:ny_h,:) = const*this%cmplx(1:nx_h,1:ny_h,:)
+
+! Second set of wavenumbers
+j_s = ny_h + 2
+j_big_s = this_big%grid%Ny - ny_h + 2
+this_big%cmplx(1:nx_h,j_big_s:this_big%grid%Ny,:) =                            &
+    const*this%cmplx(1:nx_h,j_s:this%grid%Ny,:)
+
+! Make sure nyquist is not included
+call this_big%zero_nyquist()
+
+! Go back to physical space
+call this%backward
+call this_big%backward
+
+end subroutine padd
+
+!*******************************************************************************
+subroutine unpadd(this_big, this)
+!*******************************************************************************
+class(sim_var_3d_t), intent(inout) :: this_big, this
+integer :: nx_h, ny_h, j_s, j_big_s
+real(rprec) :: const
+
+! Go to spectral space
+call this_big%forward()
+
+! Make sure  variable is zeroed
+this%cmplx(:,:,:) = cmplx(0._rprec, cprec)
+
+! First set of wavenumbers
+nx_h = this%grid%Nkx
+ny_h = this%grid%Ny/2
+const = (this%grid%Ny*this%grid%Nx)
+const = const/(this_big%grid%Ny*this_big%grid%Nx)
+this%cmplx(1:nx_h,1:ny_h,:) = const*this_big%cmplx(1:nx_h,1:ny_h,:)
+
+! Second set of wavenumbers
+j_s = ny_h + 2
+j_big_s = this_big%grid%Ny - ny_h + 2
+this%cmplx(1:nx_h,j_s:this%grid%Ny,:) =                                       &
+    const*this_big%cmplx(1:nx_h,j_big_s:this_big%grid%Ny,:)
+
+! Make sure nyquist is not included
+call this%zero_nyquist()
+
+! Go back to physical space
+call this%backward
+call this_big%backward
+
+end subroutine unpadd
+
+
+! !*******************************************************************************
+! subroutine unpadd(cc,cc_big)
+! !*******************************************************************************
+! use types, only : rprec
+! use param, only : ld,nx,ny,ny2,ld_big
+! implicit none
+!
+! !  cc and cc_big are interleaved as complex arrays
+! real(rprec), dimension( ld, ny ) :: cc
+! real(rprec), dimension( ld_big, ny2 ) :: cc_big
+!
+! integer :: ny_h, j_s, j_big_s
+!
+! ny_h = ny/2
+!
+! cc(:nx,:ny_h) = cc_big(:nx,:ny_h)
+!
+! ! oddballs
+! cc(ld-1:ld,:) = 0._rprec
+! cc(:,ny_h+1) = 0._rprec
+!
+! ! Compute starting j locations for second transfer
+! j_s = ny_h + 2
+! j_big_s = ny2 - ny_h + 2
+! cc(:nx,j_s:ny) = cc_big(:nx,j_big_s:ny2)
+!
+! end subroutine unpadd
+
+! !*******************************************************************************
+! subroutine spectral_project(this, this_big)
+! !*******************************************************************************
+! class(sim_var_3d_t), intent(inout) :: this, this_big
+!
+! ! Go to spectral space
+! call this%forward()
+!
+! ! Transfer onto larger grid
+! this_big%cmplx(:,:,:) = cmplx(0._rprec, cprec)
+! this_big%cmplx(1:this%grid%Nkx, 1:this%grid%Ny, :) =                           &
+!     (this_big%grid%Ny*this_big%grid%Nx)*this%cmplx(1:this%grid%Nkx, 1:this%grid%Ny, :)/(this%grid%Ny*this%grid%Nx)
+!
+! ! Go back to physical space
+! call this%backward()
+! call this_big%backward()
+!
+! end subroutine spectral_project
 
 !*******************************************************************************
 subroutine sync_down(this)

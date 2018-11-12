@@ -20,7 +20,7 @@
 module sim_param
 !*******************************************************************************
 use types, only : rprec
-use param, only : ld, nx, ny, nz, grid
+use param, only : ld, nx, ny, nz, grid, grid_big
 use sim_var_3d_m
 implicit none
 
@@ -33,17 +33,18 @@ real(rprec), dimension(:,:,:), allocatable :: dpdx, dpdy, dpdz
 real(rprec), dimension(:,:,:), allocatable :: fx, fy, fz, fxa, fya, fza
 real(rprec), target, dimension(:,:,:), allocatable :: p
 
-real(rprec), dimension(:,:,:), pointer :: u, dudx, dudy, dudz
-real(rprec), dimension(:,:,:), pointer :: v, dvdx, dvdy, dvdz
-real(rprec), dimension(:,:,:), pointer :: w, dwdx, dwdy, dwdz
+real(rprec), dimension(:,:,:), pointer :: u, dudx, dudy, dudz, u_big
+real(rprec), dimension(:,:,:), pointer :: v, dvdx, dvdy, dvdz, v_big
+real(rprec), dimension(:,:,:), pointer :: w, dwdx, dwdy, dwdz, w_big
 real(rprec), dimension(:,:,:), pointer :: txx, txy, tyy, txz, tyz, tzz
 real(rprec), dimension(:,:,:), pointer :: divtx, divty, divtz
 real(rprec), dimension(:,:,:), pointer :: RHSx, RHSy, RHSz
 real(rprec), dimension(:,:,:), pointer :: RHSx_f, RHSy_f, RHSz_f
+real(rprec), dimension(:,:,:), pointer :: vortx_big, vorty_big, vortz_big, cc_big
 
-type(sim_var_3d_t) :: u_var, dudx_var, dudy_var, dudz_var, u_filt_var
-type(sim_var_3d_t) :: v_var, dvdx_var, dvdy_var, dvdz_var, v_filt_var
-type(sim_var_3d_t) :: w_var, dwdx_var, dwdy_var, dwdz_var, w_filt_var
+type(sim_var_3d_t) :: u_var, dudx_var, dudy_var, dudz_var, u_big_var
+type(sim_var_3d_t) :: v_var, dvdx_var, dvdy_var, dvdz_var, v_big_var
+type(sim_var_3d_t) :: w_var, dwdx_var, dwdy_var, dwdz_var, w_big_var
 type(sim_var_3d_t) :: txx_var, txy_var, tyy_var, txz_var, tyz_var, tzz_var
 type(sim_var_3d_t) :: divtx_var, divty_var, divtz_var
 type(sim_var_3d_t) :: dtxxdx, dtxydy, dtxzdz
@@ -51,6 +52,7 @@ type(sim_var_3d_t) :: dtxydx, dtyydy, dtyzdz
 type(sim_var_3d_t) :: dtxzdx, dtyzdy, dtzzdz
 type(sim_var_3d_t) :: RHSx_var, RHSy_var, RHSz_var
 type(sim_var_3d_t) :: RHSx_f_var, RHSy_f_var, RHSz_f_var
+type(sim_var_3d_t) :: vortx_big_var, vorty_big_var, vortz_big_var, cc_big_var
 
 contains
 
@@ -68,31 +70,34 @@ u_var = sim_var_3d_t(grid, UV_GRID)
 dudx_var = sim_var_3d_t(grid, UV_GRID)
 dudy_var = sim_var_3d_t(grid, UV_GRID)
 dudz_var = sim_var_3d_t(grid, W_GRID)
-u_filt_var = sim_var_3d_t(grid, UV_GRID)
+u_big_var = sim_var_3d_t(grid_big, UV_GRID)
 u => u_var%real
 dudx => dudx_var%real
 dudy => dudy_var%real
 dudz => dudz_var%real
+u_big => u_big_var%real
 
 v_var = sim_var_3d_t(grid, UV_GRID)
 dvdx_var = sim_var_3d_t(grid, UV_GRID)
 dvdy_var = sim_var_3d_t(grid, UV_GRID)
 dvdz_var = sim_var_3d_t(grid, W_GRID)
-v_filt_var = sim_var_3d_t(grid, UV_GRID)
+v_big_var = sim_var_3d_t(grid_big, UV_GRID)
 v => v_var%real
 dvdx => dvdx_var%real
 dvdy => dvdy_var%real
 dvdz => dvdz_var%real
+v_big => v_big_var%real
 
 w_var = sim_var_3d_t(grid, W_GRID)
 dwdx_var = sim_var_3d_t(grid, W_GRID)
 dwdy_var = sim_var_3d_t(grid, W_GRID)
 dwdz_var = sim_var_3d_t(grid, UV_GRID)
-w_filt_var = sim_var_3d_t(grid, W_GRID)
+w_big_var = sim_var_3d_t(grid_big, W_GRID)
 w => w_var%real
 dwdx => dwdx_var%real
 dwdy => dwdy_var%real
 dwdz => dwdz_var%real
+w_big => w_big_var%real
 
 txx_var = sim_var_3d_t(grid, UV_GRID)
 txy_var = sim_var_3d_t(grid, UV_GRID)
@@ -136,6 +141,15 @@ RHSz => RHSz_var%real
 RHSx_f => RHSx_f_var%real
 RHSy_f => RHSy_f_var%real
 RHSz_f => RHSz_f_var%real
+
+vortx_big_var = sim_var_3d_t(grid_big, UV_GRID)
+vorty_big_var = sim_var_3d_t(grid_big, UV_GRID)
+vortz_big_var = sim_var_3d_t(grid_big, W_GRID)
+cc_big_var = sim_var_3d_t(grid_big, UV_GRID)
+vortx_big => vortx_big_var%real
+vorty_big => vorty_big_var%real
+vortz_big => vortz_big_var%real
+cc_big => cc_big_var%real
 
 ! allocate ( u(ld, ny, 0:nz) ); u = 0.0_rprec
 ! allocate ( v(ld, ny, 0:nz) ); v = 0.0_rprec

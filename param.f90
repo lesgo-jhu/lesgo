@@ -104,7 +104,7 @@ real(rprec), pointer :: dx, dy, dz
 type(grid_t), target :: grid
 
 ! The grid for de-ailiasing
-type(grid_t), target :: big_grid
+type(grid_t), target :: grid_big
 
 !---------------------------------------------------
 ! MODEL PARAMETERS
