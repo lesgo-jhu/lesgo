@@ -41,10 +41,7 @@ use sim_param, only : cc_big, cc_big_var
 use fft
 
 implicit none
-
-integer :: jz
-integer :: jz_min
-integer :: jzLo, jzHi, jz_max  ! added for full channel capabilities
+integer :: jzLo, jzHi
 
 real(rprec) :: const
 
@@ -104,7 +101,7 @@ call RHSy_var%padd(vorty_big_var)
 call RHSz_var%padd(vortz_big_var)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Compute (u x omega)_x
+! Compute -(u x omega)_x
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cc_big(:,:,0:nz-1) = -v_big(:,:,0:nz-1) * vortz_big(:,:,0:nz-1)                &
     + 0.5_rprec * (w_big(:,:,1:nz)*(vorty_big(:,:,1:nz))                       &
@@ -121,7 +118,7 @@ end if
 if (coord == nproc-1) then
     ! vort(nz-1) is located on uvp-node
     ! the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
-    cc_big(:,:,nz-1) = -v_big(:,:,nz-1) * vortz_big(:,:,nz-1)                 &
+    cc_big(:,:,nz-1) = -v_big(:,:,nz-1) * vortz_big(:,:,nz-1)                  &
        + 0.5_rprec * w_big(:,:,nz-1) * vorty_big(:,:,jzHi)
 end if
 
@@ -129,24 +126,24 @@ end if
 call cc_big_var%unpadd(RHSx_var)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Compute (u x omega)_y
+! Compute -(u x omega)_y
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-cc_big(:,:,0:nz-1) = u_big(:,:,0:nz-1) * vortz_big(:,:,0:nz-1)                &
-    - 0.5_rprec * (w_big(:,:,1:nz)*(vortx_big(:,:,1:nz))                       &
-    - w_big(:,:,0:nz-1) * (vortx_big(:,:,0:nz-1)))
+cc_big(:,:,0:nz-1) = u_big(:,:,0:nz-1) * vortz_big(:,:,0:nz-1)                 &
+    - 0.5_rprec * (w_big(:,:,1:nz) * vortx_big(:,:,1:nz)                       &
+    + w_big(:,:,0:nz-1) * (vortx_big(:,:,0:nz-1)) )
 
 ! Boundary conditions
 if (coord == 0) then
     ! vort(1) is located on uvp-node
     ! the 0.5 * w(:,:,2) is the interpolation of w to the first uvp node
     ! above the wall (could arguably be 0.25 * w(:,:,2))
-    cc_big(:,:,1) = u_big(:,:,1) * vortz_big(:,:,1)                           &
+    cc_big(:,:,1) = u_big(:,:,1) * vortz_big(:,:,1)                            &
        - 0.5_rprec * w_big(:,:,2) * vortx_big(:,:,jzLo)
 end if
 if (coord == nproc-1) then
     ! vort(nz-1) is located on uvp-node
     ! the 0.5 * w(:,:,nz-1) is the interpolation of w to the uvp node at nz-1
-    cc_big(:,:,nz-1) = u_big(:,:,nz-1) * vortz_big(:,:,nz-1)                 &
+    cc_big(:,:,nz-1) = u_big(:,:,nz-1) * vortz_big(:,:,nz-1)                   &
        - 0.5_rprec * w_big(:,:,nz-1) * vortx_big(:,:,jzHi)
 end if
 
@@ -154,7 +151,7 @@ end if
 call cc_big_var%unpadd(RHSy_var)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Compute (u x omega)_z
+! Compute -(u x omega)_z
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cc_big(:,:,0:nz-1) = 0.5_rprec * (                                             &
     - (u_big(:,:,0:nz-1) + u_big(:,:,1:nz)) * vorty_big(:,:,0:nz-1)            &
@@ -178,19 +175,18 @@ end if
 ! Dealias
 call cc_big_var%unpadd(RHSz_var)
 
-!
-
 #ifdef PPSAFETYMODE
+! Safety mode assignments
 #ifdef PPMPI
-RHSx(:, :, 0) = BOGUS
-RHSy(:, :, 0) = BOGUS
-RHSz(: ,:, 0) = BOGUS
+RHSx(:,:,0) = BOGUS
+RHSy(:,:,0) = BOGUS
+RHSz(:,:,0) = BOGUS
 #endif
 
 !--top level is not valid
-RHSx(:, :, nz) = BOGUS
-RHSy(:, :, nz) = BOGUS
-if (coord < nproc-1) RHSz(:, :, nz) = BOGUS
+RHSx(:,:,nz) = BOGUS
+RHSy(:,:,nz) = BOGUS
+if (coord < nproc-1) RHSz(:,:,nz) = BOGUS
 #endif
 
 end subroutine convec
