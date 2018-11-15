@@ -25,7 +25,9 @@ type :: sim_var_3d_t
     type(grid_t), pointer, private :: grid
     logical, public :: uvw_grid
 contains
-    procedure, public :: forward, backward
+    procedure, public :: forward => forward_inplace, forward_outofplace
+    ! procedure, public :: forward_inplace, forward_outofplace
+    procedure, public :: backward
     procedure, public :: zero_nyquist
     procedure, public :: ddx, ddy, ddxy, filt_ddxy, ddz
     procedure, public :: test_filter
@@ -91,14 +93,14 @@ this%cmplx(1:,1:,0:) => this%cdata(1:this%grid%Nkx, 1:this%grid%Ny, 0:this%grid%
 
 ! Create plans
 this%forward_plan = fftw_plan_dft_r2c_2d(this%grid%Ny, this%grid%Nx,             &
-    this%rdata(:,:,0), this%cdata(:,:,0), FFTW_ESTIMATE)
+    this%rdata(:,:,0), this%cdata(:,:,0), FFTW_MEASURE)
 this%backward_plan = fftw_plan_dft_c2r_2d(this%grid%Ny, this%grid%Nx,            &
-    this%cdata(:,:,0), this%rdata(:,:,0), FFTW_ESTIMATE)
+    this%cdata(:,:,0), this%rdata(:,:,0), FFTW_MEASURE)
 
 end function constructor
 
 !*******************************************************************************
-subroutine forward(this)
+subroutine forward_inplace(this)
 !*******************************************************************************
 class(sim_var_3d_t) :: this
 integer :: i
@@ -108,7 +110,20 @@ do i = 0, this%grid%Nz
         this%cdata(:,:,i))
 end do
 
-end subroutine forward
+end subroutine forward_inplace
+
+!*******************************************************************************
+subroutine forward_outofplace(this, that)
+!*******************************************************************************
+class(sim_var_3d_t), intent(inout) :: this, that
+integer :: i
+
+do i = 0, this%grid%Nz
+    call fftw_execute_dft_r2c(this%forward_plan, this%rdata(:,:,i),        &
+        that%cdata(:,:,i))
+end do
+
+end subroutine forward_outofplace
 
 !*******************************************************************************
 subroutine backward(this)
@@ -141,9 +156,6 @@ subroutine ddx(this, dudx)
 !*******************************************************************************
 class(sim_var_3d_t), intent(inout) :: this
 class(sim_var_3d_t), intent(inout) :: dudx
-
-! integer, dimension(:), allocatable :: tv
-
 integer :: i
 
 ! Check that derivative array is associated with the same grid
@@ -316,12 +328,12 @@ else
     end do
 
 #ifdef PPSAFETYMODE
-    ! bottom process cannot calculate dfdz(0)
+    ! bottom process cannot calculate dudz(0)
     if (this%grid%coord == 0) then
         dudz%real(:,:,0) = BOGUS
     endif
 
-    ! All processes cannot calculate dfdz(nz)
+    ! All processes cannot calculate dudz(nz)
     dudz%real(:,:,this%grid%nz) = BOGUS
 #endif
 
@@ -397,7 +409,7 @@ real(rprec) :: const
 call this%forward()
 
 ! Make sure big variable is zeroed
-this_big%cmplx(:,:,:) = cmplx(0._rprec, cprec)
+this_big%cmplx(:,:,:) = cmplx(0._rprec, 0._rprec, cprec)
 
 ! First set of wavenumbers
 nx_h = this%grid%Nkx
@@ -432,7 +444,7 @@ real(rprec) :: const
 call this_big%forward()
 
 ! Make sure  variable is zeroed
-this%cmplx(:,:,:) = cmplx(0._rprec, cprec)
+this%cmplx(:,:,:) = cmplx(0._rprec, 0._rprec, cprec)
 
 ! First set of wavenumbers
 nx_h = this%grid%Nkx
@@ -509,6 +521,8 @@ subroutine sync_down(this)
 !*******************************************************************************
 class(sim_var_3d_t), intent(inout) :: this
 integer :: ierr, status
+! Very Kludgy---Forced gfortran not to do an optimization
+if (this%grid%coord == -1) write(*,*) shape(this%cmplx(:,:,1))
 
 call mpi_sendrecv(this%cmplx(:,:,1), this%alloc_size, MPI_CPREC,      &
     this%grid%down, 1, this%cmplx(:,:,this%grid%Nz), this%alloc_size, &
@@ -522,6 +536,8 @@ subroutine sync_up(this)
 !*******************************************************************************
 class(sim_var_3d_t), intent(inout) :: this
 integer :: ierr, status
+! Very Kludgy---Forced gfortran not to do an optimization
+if (this%grid%coord == -1) write(*,*) shape(this%cmplx(:,:,1))
 
 call mpi_sendrecv(this%cmplx(:,:,this%grid%Nz-1), this%alloc_size,    &
     MPI_CPREC, this%grid%up, 2, this%cmplx(:,:,0), this%alloc_size, &
