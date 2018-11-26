@@ -45,6 +45,7 @@ use test_filtermodule, only : test_filter_init
 use sim_param, only : sim_param_init
 use fft, only : init_fft
 use io, only : openfiles
+use pressure_poisson_m
 
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
@@ -120,13 +121,16 @@ endif
 if (global_rank == 0) call param_output()
 
 ! Define simulation parameters
-call sim_param_init ()
+call sim_param_init()
 
 ! Initialize sgs variables
 call sgs_param_init()
 
-!  Initialize variables used for output statistics and instantaneous data
+! Initialize variables used for output statistics and instantaneous data
 call output_init()
+
+! Initialize pressure poision variables
+call pressure_poisson_init()
 
 ! Initialize turbines
 #ifdef PPTURBINES
