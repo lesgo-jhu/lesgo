@@ -716,8 +716,10 @@ do
                 read (buff(equal_pos+1:), *) dyn_Ct_prime
             case ('T_AVG_DIM')
                 read (buff(equal_pos+1:), *) T_avg_dim
-            case ('ALPHA')
-                read (buff(equal_pos+1:), *) alpha
+            case ('ALPHA1')
+                read (buff(equal_pos+1:), *) alpha1
+            case ('ALPHA2')
+                read (buff(equal_pos+1:), *) alpha2
             case ('FILTER_CUTOFF')
                 read (buff(equal_pos+1:), *) filter_cutoff
             case ('TBASE')

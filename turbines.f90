@@ -74,7 +74,8 @@ logical, public :: dyn_Ct_prime
 ! disk-avg time scale in seconds (default 600)
 real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
-real(rprec), public :: alpha
+real(rprec), public :: alpha1
+real(rprec), public :: alpha2
 ! indicator function only includes values above this threshold
 real(rprec), public :: filter_cutoff
 ! Number of timesteps between the output
@@ -129,7 +130,7 @@ implicit none
 real(rprec), pointer, dimension(:) :: x,y,z
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
 integer :: fid
-real(rprec) :: T_avg_dim_file, delta2
+real(rprec) :: T_avg_dim_file, delta1, delta2
 logical :: test_logical, exst
 character (100) :: string1
 
@@ -201,9 +202,10 @@ end do
 call read_control_files
 
 !Compute a lookup table object for the indicator function
-delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
+delta1 = alpha1 * sqrt(dx**2 + dy**2 + dz**2)
+delta2 = alpha2 * sqrt(dx**2 + dy**2 + dz**2)
 do s = 1, nloc
-    call  wind_farm%turbine(s)%turb_ind_func%init(delta2,                      &
+    call  wind_farm%turbine(s)%turb_ind_func%init(delta1, delta2,              &
             wind_farm%turbine(s)%thk, wind_farm%turbine(s)%dia)
 end do
 

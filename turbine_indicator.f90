@@ -30,7 +30,7 @@ public :: turb_ind_func_t
 type turb_ind_func_t
     real(rprec), dimension(:), allocatable :: r
     real(rprec), dimension(:), allocatable :: R2
-    real(rprec) :: sqrt6overdelta, t_half
+    real(rprec) :: sqrt6overdelta1, ell, delta1, delta2, thk
 contains
     procedure, public :: init
     procedure, public :: val
@@ -45,17 +45,20 @@ use functions, only : linear_interp
 implicit none
 class(turb_ind_func_t), intent(in) :: this
 real(rprec), intent(in) :: r, x
-real(rprec) :: R1, R2, Rval
+real(rprec) :: R1, R2, Rval, rr, xx
 
-R2 = linear_interp(this%r, this%R2, r)
-R1 = 0.5_rprec * ( erf(this%sqrt6overdelta*(x + this%t_half)) -                &
-    erf(this%sqrt6overdelta*(x - this%t_half)) )
+rr = r / this%ell
+xx = x / this%ell
+
+R2 = linear_interp(this%r, this%R2, rr)
+R1 = 0.5_rprec / this%thk * ( erf(this%sqrt6overdelta1*(xx + 0.5*this%thk))    &
+    - erf(this%sqrt6overdelta1*(xx - 0.5*this%thk)) )
 Rval = R1 * R2
 
 end function val
 
 !*******************************************************************************
-subroutine init(this, delta2, thk, dia)
+subroutine init(this, delta1, delta2, thk, dia)
 !*******************************************************************************
 use param, only : write_endian, path, pi
 use functions, only : bilinear_interp
@@ -63,54 +66,43 @@ implicit none
 include'fftw3.f'
 
 class(turb_ind_func_t), intent(inout) :: this
-real(rprec), intent(in) :: delta2, thk, dia
+real(rprec), intent(in) :: delta1, delta2, thk, dia
 
-real(rprec) :: L, d, R
-integer :: N
-integer, dimension(:), allocatable :: ind
+real(rprec) :: L, d, dr
+integer :: i, j, N
 real(rprec), dimension(:), allocatable :: yz
 real(rprec), dimension(:,:), allocatable :: g, f, h
-real(rprec), dimension(:), allocatable :: xi
-real(rprec) :: dr, Lr
-integer :: i, j
 
 integer*8 plan
 complex(rprec), dimension(:,:), allocatable :: ghat, fhat, hhat
 
-L = 3._rprec * dia
-N = 4*ceiling(2._rprec*L / sqrt(delta2))
-d = L / N
-R = 0.5 * dia
+! Units for all values
+this%ell = 0.5_rprec * dia
+this%delta1 = delta1 / this%ell
+this%delta2 = delta2 / this%ell
+this%thk = thk / this%ell
+this%sqrt6overdelta1 = sqrt(6._rprec) / this%delta1
 
+! Size of radial domain
+L = 1 + 10*this%delta2/sqrt(12._rprec)
+N = 2 * 1024
+d = 2 * L / N
+
+! Create yz grid
 allocate(yz(N))
-allocate(ind(N))
-allocate(g(N, N))
+do i = 1, N
+    yz(i) = -L + d * (i - 0.5_rprec)
+end do
+
+! Create Circle and Gaussian
 allocate(h(N, N))
-allocate(f(N, N))
-allocate(ghat(N/2+1, N))
-allocate(hhat(N/2+1, N))
-allocate(fhat(N/2+1, N))
-
-! Calculate constants
-this%t_half = 0.5 * thk
-this%sqrt6overdelta = sqrt(6._rprec) / sqrt(delta2)
-
-! Calculate yz and indices to sort the result
-do i = 1, N/2
-    yz(i) = d*(i-0.5)
-    ind(i) = N/2+i
-end do
-do i = N/2+1, N
-    yz(i) = -L + d*(i-0.5)
-    ind(i) = i-N/2
-end do
-
-! Calculate g and f
-do j = 1, N
-    do i = 1, N
-        g(i,j) = exp(-6*(yz(i)**2+yz(j)**2)/delta2)
-        if (sqrt(yz(i)**2 + yz(j)**2) < R) then
-            h(i,j) = 1.0
+allocate(g(N, N))
+do i = 1, N
+    do j = 1, N
+        g(i,j) = 6._rprec/(pi*this%delta2**2)                                  &
+            * exp(-6*(yz(i)**2+yz(j)**2)/this%delta2**2)
+        if (sqrt(yz(i)**2 + yz(j)**2) < 1) then
+            h(i,j) = 1.0_rprec / pi
         else
             h(i,j) = 0.0
         end if
@@ -118,6 +110,11 @@ do j = 1, N
 end do
 
 ! Do the convolution f = g*h in fourier space
+allocate(ghat(N/2+1, N))
+allocate(hhat(N/2+1, N))
+allocate(fhat(N/2+1, N))
+allocate(f(N, N))
+
 call dfftw_plan_dft_r2c_2d(plan, N, N, g, ghat, FFTW_ESTIMATE)
 call dfftw_execute_dft_r2c(plan, g, ghat)
 call dfftw_destroy_plan(plan)
@@ -126,36 +123,21 @@ call dfftw_plan_dft_r2c_2d(plan, N, N, h, hhat, FFTW_ESTIMATE)
 call dfftw_execute_dft_r2c(plan, h, hhat)
 call dfftw_destroy_plan(plan)
 
-fhat = ghat*hhat
+fhat = ghat * hhat * d**2!* d**2!*d**2!* d**2! * (d)**2
 
-! Compute the inverse fft of fhat
 call dfftw_plan_dft_c2r_2d(plan, N, N, fhat, f, FFTW_ESTIMATE)
 call dfftw_execute_dft_c2r(plan, fhat, f)
 call dfftw_destroy_plan(plan)
 
-! Normalize
-f = f / N**2 * d**2
+! Place into the lookup table
+allocate(this%r(N/2))
+allocate(this%R2(N/2))
+this%r = yz(1:N/2) + L
+this%R2 = f(1,1:N/2) / N**2
 
-! Sort the results
-f = f(ind,ind)
-yz = yz(ind);
-
-! Interpolate onto the lookup table
-allocate(xi(N))
-if (allocated(this%r) ) then
-    deallocate(this%r)
-end if
-allocate( this%r(N) )
-allocate( this%R2(N) )
-
-Lr = R + 4 * sqrt(delta2)
-dr = Lr / (N - 1)
-do i = 1,N
-    this%r(i) = (i-1)*dr
-    xi(i) = 0
-end do
-this%R2 = max(6._rprec / pi / delta2 * bilinear_interp(yz, yz, f, xi, this%r), &
-    0._rprec)
+! Normalize to integrate to unity
+dr = this%r(2) - this%r(1)
+this%R2 = this%R2/sum(2*pi*this%r*this%R2*dr)
 
 end subroutine init
 
