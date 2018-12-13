@@ -722,6 +722,8 @@ do
                 read (buff(equal_pos+1:), *) alpha2
             case ('FILTER_CUTOFF')
                 read (buff(equal_pos+1:), *) filter_cutoff
+            case ('ADM_CORRECTION')
+                read (buff(equal_pos+1:), *) adm_correction
             case ('TBASE')
                 read (buff(equal_pos+1:), *) tbase
             case default

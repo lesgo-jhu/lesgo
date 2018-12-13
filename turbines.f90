@@ -78,6 +78,8 @@ real(rprec), public :: alpha1
 real(rprec), public :: alpha2
 ! indicator function only includes values above this threshold
 real(rprec), public :: filter_cutoff
+! Correct ADM for filtered indicator function
+logical, public :: adm_correction
 ! Number of timesteps between the output
 integer, public :: tbase
 
@@ -544,6 +546,10 @@ do s=1,nloc
 
     !add this current value to the "running average" (first order filter)
     p_u_d = disk_avg_vel(s)
+    if (adm_correction) then
+        p_u_d = p_u_d /(1 + 0.25_rprec                                         &
+            * (1-wind_farm%turbine(s)%turb_ind_func%M)*p_Ct_prime)
+    end if
     p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
 
     !calculate total thrust force for each turbine  (per unit mass)

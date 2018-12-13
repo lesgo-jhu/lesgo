@@ -31,6 +31,7 @@ type turb_ind_func_t
     real(rprec), dimension(:), allocatable :: r
     real(rprec), dimension(:), allocatable :: R2
     real(rprec) :: sqrt6overdelta1, ell, delta1, delta2, thk
+    real(rprec) :: M
 contains
     procedure, public :: init
     procedure, public :: val
@@ -138,6 +139,9 @@ this%R2 = f(1,1:N/2) / N**2
 ! Normalize to integrate to unity
 dr = this%r(2) - this%r(1)
 this%R2 = this%R2/sum(2*pi*this%r*this%R2*dr)
+
+! Calculate correction factor
+this%M = sum(2*pi*this%r*this%R2**2*dr)*pi
 
 end subroutine init
 
