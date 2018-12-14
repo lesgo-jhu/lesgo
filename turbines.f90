@@ -167,8 +167,8 @@ call place_turbines
 ! and set baseline values for size
 do k = 1, nloc
     wind_farm%turbine(k)%thk = max(wind_farm%turbine(k)%thk, dx * 1.01)
-    wind_farm%turbine(k)%vol_c = dx*dy*dz/(pi/4.*(wind_farm%turbine(k)%dia)**2 &
-        * wind_farm%turbine(k)%thk)
+    ! wind_farm%turbine(k)%vol_c = dx*dy*dz/(pi/4.*(wind_farm%turbine(k)%dia)**2 &
+    !     * wind_farm%turbine(k)%thk)
 end do
 
 ! Specify starting and ending indices for the processor
@@ -288,7 +288,7 @@ real(rprec), dimension(nloc) :: buffer_array
 #endif
 real(rprec), pointer, dimension(:) :: x, y, z
 
-real(rprec) :: filt
+real(rprec) :: filt, search_rad, filt_max
 real(rprec), dimension(nloc) :: sumA, turbine_vol
 
 nullify(x,y,z)
@@ -322,9 +322,10 @@ do s=1,nloc
     p_nhat3 => wind_farm%turbine(s)%nhat(3)
 
     !identify "search area"
-    imax = int(p_dia/dx + 2)
-    jmax = int(p_dia/dy + 2)
-    kmax = int(p_dia/dz + 2)
+    search_rad = 0.5_rprec*p_dia + 3*max(alpha1, alpha2) * sqrt(dx**2 + dy**2 + dz**2)
+    imax = min(int(search_rad/dx + 2), Nx/2)
+    jmax = min(int(search_rad/dy + 2), Ny/2)
+    kmax = int(search_rad/dz + 2)
 
     !determine unit normal vector for each turbine
     p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
@@ -339,9 +340,9 @@ do s=1,nloc
     !determine limits for checking i,j,k
     !due to spectral BCs, i and j may be < 1 or > nx,ny
     !the mod function accounts for this when these values are used
-    min_i = icp-imax
+    min_i = icp-imax+1
     max_i = icp+imax
-    min_j = jcp-jmax
+    min_j = jcp-jmax+1
     max_j = jcp+jmax
     min_k = max((kcp-kmax),1)
     max_k = min((kcp+kmax),nz_tot)
@@ -362,6 +363,9 @@ do s=1,nloc
     wind_farm%turbine(s)%num_nodes = 0
     count_n = 0
     count_i = 1
+
+    ! Maximum value the filter takes (should be 1/volume)
+    filt_max = wind_farm%turbine(s)%turb_ind_func%val(0._rprec, 0._rprec)
 
     do k=k_start,k_end  !global k
         do j=min_j,max_j
@@ -396,7 +400,8 @@ do s=1,nloc
                 r_disk = sqrt(r*r - r_norm*r_norm)
                 ! get the filter value
                 filt = wind_farm%turbine(s)%turb_ind_func%val(r_disk, r_norm)
-                if ( filt > filter_cutoff ) then
+
+                if ( filt > filter_cutoff * filt_max ) then
                     wind_farm%turbine(s)%ind(count_i) = filt
                     wind_farm%turbine(s)%nodes(count_i,1) = i2
                     wind_farm%turbine(s)%nodes(count_i,2) = j2
@@ -422,8 +427,6 @@ call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)
 #endif
 
 ! Normalize the indicator function integrate to 1
-! All integration will simply use a sum, so include the volume of each cell
-! in ind
 do s = 1, nloc
     wind_farm%turbine(s)%ind=wind_farm%turbine(s)%ind(:)/sumA(s)
 end do
@@ -498,10 +501,11 @@ do s=1,nloc
         i2 = wind_farm%turbine(s)%nodes(l,1)
         j2 = wind_farm%turbine(s)%nodes(l,2)
         k2 = wind_farm%turbine(s)%nodes(l,3)
-        disk_avg_vel(s) = disk_avg_vel(s) + dx*dy*dz*wind_farm%turbine(s)%ind(l)&
-                        * ( wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2)       &
-                          + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2)       &
-                          + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2) )
+        disk_avg_vel(s) = disk_avg_vel(s)                                      &
+            + dx*dy*dz*wind_farm%turbine(s)%ind(l)                             &
+            * ( wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2)                       &
+            + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2)                         &
+            + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2) )
     end do
 
     ! Set pointers

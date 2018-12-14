@@ -51,7 +51,7 @@ end type zplane_t
 type turbine_t
     real(rprec) :: xloc, yloc, height, dia, thk
     ! term used for volume correction
-    real(rprec) :: vol_c
+    ! real(rprec) :: vol_c
     ! angle CCW(from above) from -x direction [degrees]
     real(rprec) :: theta1
     ! angle above the horizontal, from -x dir [degrees]

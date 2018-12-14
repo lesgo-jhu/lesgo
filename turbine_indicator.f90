@@ -48,13 +48,15 @@ class(turb_ind_func_t), intent(in) :: this
 real(rprec), intent(in) :: r, x
 real(rprec) :: R1, R2, Rval, rr, xx
 
+! Make dimensionless to lookup value
 rr = r / this%ell
 xx = x / this%ell
 
+! Calculate as a dimensionless value, then return as dimensional
 R2 = linear_interp(this%r, this%R2, rr)
 R1 = 0.5_rprec / this%thk * ( erf(this%sqrt6overdelta1*(xx + 0.5*this%thk))    &
     - erf(this%sqrt6overdelta1*(xx - 0.5*this%thk)) )
-Rval = R1 * R2
+Rval = R1 * R2 / this%ell**3
 
 end function val
 
