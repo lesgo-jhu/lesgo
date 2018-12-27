@@ -71,11 +71,11 @@ type turbine_t
     ! (nx,ny,nz) of unit normal for each turbine
     real(rprec), dimension(3) :: nhat
     ! indicator function - weighting of each node
-    real(rprec), dimension(10000) :: ind
+    real(rprec), dimension(50000) :: ind
     ! object to calculate indicator function
     type(turb_ind_func_t) :: turb_ind_func
     ! (i,j,k) of each included node
-    integer, dimension(10000,3) :: nodes
+    integer, dimension(50000,3) :: nodes
     ! search area for nearby nodes
     integer, dimension(6) :: nodes_max
 end type turbine_t
