@@ -141,8 +141,8 @@ end if
 ! stop
 
 ! Write averaged vertical profiles to standard output
-do jz = 1, nz
-    write(6,7780) jz+coord*nz, sum (u(1:nx, :, jz)) / (nx * ny),               &
+do jz = 1, nz-1
+    write(6,7780) jz+coord*(nz-1), sum (u(1:nx, :, jz)) / (nx * ny),               &
                   sum (v(1:nx, :, jz)) / (nx * ny),                            &
                   sum (w(1:nx, :, jz)) / (nx * ny)
 end do
