@@ -17,6 +17,11 @@ disk averaged velocity is also found using the smoothed indicator function
 
 \\[ \left\langle u_d \right\rangle = \int \mathcal{R}(\mathbf{x}) \, \tilde{\mathbf{u}}(\mathbf{x}) \, d^3\mathbf{x}. \\]
 
+A correction factor can also be included to correct measured disk-averaged velocity when running simulations on coarse grids.
+
+\\[ \left\langle u_d \right\rangle = M \int \mathcal{R}(\mathbf{x}) \, \tilde{\mathbf{u}}(\mathbf{x}) \, d^3\mathbf{x}. \\]
+
+
 ## Settings
 The first settings specify the wind-turbine array geometry and orientation.
 The user can set the number of turbines in each direction as well
@@ -58,4 +63,7 @@ Calaf M, Meneveau C, and Meyers J. "[Large eddy simulation study of fully develo
 wind-turbine array boundary layers](http://dx.doi.org/10.1063/1.3291077)."
 *Physics of Fluids* **22** (2010). 015110.
 
-Meyers J, Meneveau C. "[Large eddy simulations of large wind-turbine arrays in the atmospheric boundary layer](http://dx.doi.org/10.2514/6.2010-827)." *50th AIAA Aerospace Sciences Meeting*, (2010). Orlando, FL. AIAA Paper No. 2010-827.
+Meyers J and Meneveau C. "[Large eddy simulations of large wind-turbine arrays in the atmospheric boundary layer](http://dx.doi.org/10.2514/6.2010-827)." *50th AIAA Aerospace Sciences Meeting*, (2010). Orlando, FL. AIAA Paper No. 2010-827.
+
+Shapiro C, Gayme D, and Meneveau C. "[Filtered actuator disks: Theory and application to wind turbine models in large eddy simulation](https://arxiv.org/abs/1901.10056). arXiv.org. (2019).
+
