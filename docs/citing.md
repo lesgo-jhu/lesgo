@@ -4,7 +4,7 @@ If you use LESGO, please cite the code appropriately. In addition to a citation
 to this website:
 
 *LESGO: A parallel pseudo-spectral large-eddy simulation code.*
-[https://lesgo-jhu.github.io/lesgo](https://lesgo-jhu.github.io/lesgo) (2017)
+[https://lesgo-jhu.github.io/lesgo](https://lesgo.me.jhu.edu) (2017)
 
 include references to the relevant research articles. The articles that should
 be cited depend on the features used. See the list below to select the appropriate
