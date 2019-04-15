@@ -1,6 +1,6 @@
 Welcome to LESGO, the Large-Eddy Simulation framework from the Turbulence Research Group at Johns Hopkins University.
 
-Visit [https://lesgo-jhu.github.io/lesgo/](lesgo-jhu.github.io/lesgo) for documentation, installation instructions, and 
+Visit [https://lesgo.me.jhu.edu](https://lesgo.me.jhu.edu) for documentation, installation instructions, and 
 more.
 
 If you use LESGO for any purpose, please cite appropriately.
