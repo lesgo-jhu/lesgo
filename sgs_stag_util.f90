@@ -246,7 +246,7 @@ if (coord == 0) then
             if (sgs) then
                 do jy = 1, ny
                 do jx = 1, nx
-                   ! Total viscosity
+                    ! Total viscosity
                     const = 0.5_rprec*(Nu_t(jx,jy,1) + Nu_t(jx,jy,2)) + nu
                     txx(jx,jy,1) = -const*(S11(jx,jy,1) + S11(jx,jy,2))
                     txy(jx,jy,1) = -const*(S12(jx,jy,1) + S12(jx,jy,2))

@@ -75,8 +75,8 @@ write(2,i_fmt) 'cs_count : ', cs_count
 write(2,i_fmt) 'ifilter : ', ifilter
 write(2,x2f_fmt) 'u_star : ', u_star
 write(2,f_fmt) 'vonk : ', vonk
-write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
-write(2,x3f_fmt) 'coriol : ', coriol, ug, vg
+! write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
+! write(2,x3f_fmt) 'coriol : ', coriol, ug, vg
 write(2,f_fmt) 'nu_molec : ', nu_molec
 write(2,x3l_fmt) 'molec, sgs : ', molec, sgs
 write(2,c_fmt) ''

@@ -28,6 +28,7 @@ use grid_m
 use messages
 use string_util
 use turbine_indicator
+use functions, only : count_lines
 use stat_defs, only : wind_farm
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array
@@ -887,43 +888,5 @@ if (dyn_Ct_prime) then
 end if
 
 end subroutine read_control_files
-
-!*******************************************************************************
-function count_lines(fname) result(N)
-!*******************************************************************************
-!
-! This function counts the number of lines in a file
-!
-use messages
-use param, only : CHAR_BUFF_LENGTH
-implicit none
-character(*), intent(in) :: fname
-logical :: exst
-integer :: fid, ios
-integer :: N
-
-character(*), parameter :: sub_name = mod_name // '.count_lines'
-
-! Check if file exists and open
-inquire (file = trim(fname), exist = exst)
-if (.not. exst) then
-    call error (sub_name, 'file ' // trim(fname) // 'does not exist')
-end if
-open(newunit=fid, file=trim(fname), status='unknown', form='formatted',        &
-    position='rewind')
-
-! count number of lines and close
-ios = 0
-N = 0
-do
-    read(fid, *, IOstat = ios)
-    if (ios /= 0) exit
-    N = N + 1
-end do
-
-! Close file
-close(fid)
-
-end function count_lines
 
 end module turbines

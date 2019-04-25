@@ -35,8 +35,11 @@ use turbines, only : turbines_finalize
 #ifdef PPATM
 use atm_lesgo_interface, only : atm_lesgo_finalize
 #endif
+use coriolis, only : coriolis_finalize
 
 implicit none
+
+call coriolis_finalize()
 
 ! Turbines:
 #ifdef PPTURBINES

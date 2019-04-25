@@ -20,7 +20,7 @@
 !*******************************************************************************
 subroutine wallstress
 !*******************************************************************************
-! 
+!
 ! This subroutine calculates the wall stress txz, tyz (w-nodes) and dudz,
 ! dvdz (w-nodes) at the first z-location k = 1. The wall stress is calculated
 ! depending on lower boundary condition lbc_mom. This subroutine should only
@@ -30,17 +30,17 @@ subroutine wallstress
 !   0 - stress free
 !       txz, tyz, dudz, and dvdz are all 0
 !
-!   1 - DNS wall boundary conditions 
+!   1 - DNS wall boundary conditions
 !       calculates wall stress values from the first grid point
 !
 !   2 - Equilibirum wall model
 !       See John D. Albertson's dissertation, eqns (2.46)-(2.52)
-!       Also see E. Bou-Zeid, C. Meneveau & M.B. Parlange, "A scale-dependent 
-!           Lagrangian dynamic model for large eddy simulation of complex 
+!       Also see E. Bou-Zeid, C. Meneveau & M.B. Parlange, "A scale-dependent
+!           Lagrangian dynamic model for large eddy simulation of complex
 !           turbulent flows" (2005) -- Appendix
 !
 !   3 - Integral wall model
-!       See X.I.A. Yang, J. Sadique, R. Mittal & C. Meneveau, "Integral wall 
+!       See X.I.A. Yang, J. Sadique, R. Mittal & C. Meneveau, "Integral wall
 !           model for large eddy simulations of wall-bounded turbulent flows." (2015)
 !
 use types, only : rprec
@@ -56,19 +56,19 @@ character(*), parameter :: sub_name = 'wallstress'
 if (coord == 0) then
     select case (lbc_mom)
         ! Stress free
-        case (0)                        
+        case (0)
             call ws_free_lbc
 
         ! DNS wall
-        case (1)                        
+        case (1)
             call ws_dns_lbc
 
         ! Equilibrium wall model
-        case (2)                       
+        case (2)
             call ws_equilibrium_lbc
 
         ! Integral wall model (not implemented for top wall)
-        case (3)                        
+        case (3)
             call iwm_wallstress()
 
         ! Otherwise, invalid
@@ -80,23 +80,23 @@ end if
 if (coord == nproc-1) then
     select case (ubc_mom)
         ! Stress free
-        case (0)                        
+        case (0)
             call ws_free_ubc
 
         ! DNS wall
-        case (1)                        
+        case (1)
             call ws_dns_ubc
 
         ! Equilibrium wall model
-        case (2)                       
+        case (2)
             call ws_equilibrium_ubc
 
         ! Integral wall model (not implemented for top wall)
-        case (3)                        
+        case (3)
             call error(sub_name, 'invalid ubc_mom')
 
         ! Otherwise, invalid
-        case default       
+        case default
             call error(sub_name, 'invalid ubc_mom')
     end select
 end if
@@ -120,7 +120,7 @@ subroutine ws_free_ubc
 !*******************************************************************************
 implicit none
 
-txz(:, :,nz) = 0._rprec 
+txz(:, :,nz) = 0._rprec
 tyz(:, :,nz) = 0._rprec
 dudz(:,:,nz) = 0._rprec
 dvdz(:,:,nz) = 0._rprec
@@ -171,11 +171,16 @@ end subroutine ws_dns_ubc
 subroutine ws_equilibrium_lbc
 !*******************************************************************************
 use param, only : dz, ld, nx, ny, vonk, zo
-use sim_param, only : u, v
+use sim_param, only : u, v, ustar_lbc
 use test_filtermodule
+#ifdef PPSCALARS
+use scalars, only : obukhov, phi_m
+#endif
+
 implicit none
+
 integer :: i, j
-real(rprec), dimension(nx, ny) :: denom, u_avg, ustar
+real(rprec), dimension(nx, ny) :: denom, u_avg
 real(rprec), dimension(ld, ny) :: u1, v1
 real(rprec) :: const
 
@@ -185,16 +190,27 @@ call test_filter(u1)
 call test_filter(v1)
 denom = log(0.5_rprec*dz/zo)
 u_avg = sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)
-ustar = u_avg*vonk/denom
+#ifdef PPSCALARS
+call obukhov(u_avg)
+#else
+ustar_lbc = u_avg*vonk/denom
+#endif
 
 do j = 1, ny
     do i = 1, nx
-        const = -(ustar(i,j)**2)/u_avg(i,j)
+        const = -(ustar_lbc(i,j)**2)/u_avg(i,j)
         txz(i,j,1) = const*u1(i,j)
         tyz(i,j,1) = const*v1(i,j)
         !this is as in Moeng 84
-        dudz(i,j,1) = ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,1)/u_avg(i,j)
-        dvdz(i,j,1) = ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,1)/u_avg(i,j)
+#ifdef PPSCALARS
+        dudz(i,j,1) = ustar_lbc(i,j)/(0.5_rprec*dz*vonK)*u(i,j,1)/u_avg(i,j)   &
+            * phi_m(i,j)
+        dvdz(i,j,1) = ustar_lbc(i,j)/(0.5_rprec*dz*vonK)*v(i,j,1)/u_avg(i,j)   &
+            * phi_m(i,j)
+#else
+        dudz(i,j,1) = ustar_lbc(i,j)/(0.5_rprec*dz*vonK)*u(i,j,1)/u_avg(i,j)
+        dvdz(i,j,1) = ustar_lbc(i,j)/(0.5_rprec*dz*vonK)*v(i,j,1)/u_avg(i,j)
+#endif
         dudz(i,j,1) = merge(0._rprec,dudz(i,j,1),u(i,j,1).eq.0._rprec)
         dvdz(i,j,1) = merge(0._rprec,dvdz(i,j,1),v(i,j,1).eq.0._rprec)
     end do

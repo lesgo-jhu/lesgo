@@ -30,6 +30,7 @@ use param, only : USE_MPI, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use iwmles
 use param, only : lbc_mom
+use sponge
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
 #else
@@ -45,6 +46,7 @@ use sim_param, only : sim_param_init
 use grid_m
 use fft, only : init_fft
 use io, only : openfiles
+use coriolis
 
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
@@ -68,7 +70,11 @@ use hit_inflow, only : initialize_HIT
 #endif
 
 #ifdef PPATM
-use atm_lesgo_interface, only: atm_lesgo_initialize
+use atm_lesgo_interface, only : atm_lesgo_initialize
+#endif
+
+#ifdef PPSCALARS
+use scalars, only : scalars_init
 #endif
 
 implicit none
@@ -119,11 +125,15 @@ if (coord == 0) call param_output()
 
 ! Define simulation parameters
 call sim_param_init ()
+
 ! Initialize sgs variables
 call sgs_param_init()
 
 ! Initialize uv grid (calculate x,y,z vectors)
 call grid%build()
+
+! Initialize coriolis forcing
+call coriolis_init()
 
 !  Initialize variables used for output statistics and instantaneous data
 call output_init()
@@ -147,8 +157,14 @@ call initialize_HIT()
 ! If using level set method
 #ifdef PPLVLSET
 call level_set_base_init()
-call level_set_init ()
+call level_set_init()
 #endif
+
+#ifdef PPSCALARS
+call scalars_init()
+#endif
+
+call sponge_init()
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! Initialize the kx,ky arrays

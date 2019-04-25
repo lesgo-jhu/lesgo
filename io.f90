@@ -697,9 +697,12 @@ use param, only : zplane_nloc, zplane_loc
 use param, only : dx, dy
 use param, only : write_endian
 use grid_m
-use sim_param, only : u, v, w, p
+use sim_param, only : u, v, w, p, txx, txy, tyy, tzz, txz, tyz
 use sim_param, only : dwdy, dwdx, dvdx, dudy
 use functions, only : interp_to_w_grid
+#ifdef PPSCALARS
+use scalars, only : pi_x, pi_y, pi_z
+#endif
 
 use stat_defs, only : xplane, yplane
 #ifdef PPMPI
@@ -709,6 +712,9 @@ use param, only : ny, nz, dz
 #ifdef PPLVLSET
 use level_set_base, only : phi
 use sim_param, only : fx, fy, fz, fxa, fya, fza
+#endif
+#ifdef PPSCALARS
+use scalars, only : theta
 #endif
 
 implicit none
@@ -799,6 +805,35 @@ elseif(itype==2) then
     close(13)
 #endif
 
+#ifdef PPSCALARS
+    ! Common file name for all output types
+    call string_splice(fname, path //'output/sgs_uv.', jt_total)
+    
+    ! Write binary Output
+    call string_concat(fname, bin_ext)
+    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
+        access='direct', recl=nx*ny*nz*rprec)
+    write(13,rec=1) txx(:nx,:ny,1:nz)
+    write(13,rec=2) txy(:nx,:ny,1:nz)
+    write(13,rec=3) tyy(:nx,:ny,1:nz)
+    write(13,rec=4) tzz(:nx,:ny,1:nz)
+    write(13,rec=5) pi_x(:nx,:ny,1:nz)
+    write(13,rec=6) pi_y(:nx,:ny,1:nz)
+    close(13)
+    
+    ! Common file name for all output types
+    call string_splice(fname, path //'output/sgs_w.', jt_total)
+    
+    ! Write binary Output
+    call string_concat(fname, bin_ext)
+    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
+        access='direct', recl=nx*ny*nz*rprec)
+    write(13,rec=1) txz(:nx,:ny,1:nz)
+    write(13,rec=2) tyz(:nx,:ny,1:nz)
+    write(13,rec=3) pi_z(:nx,:ny,1:nz)
+    close(13)
+#endif
+    
     ! Compute vorticity
     allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
     vortx(1:nx,1:ny,lbz:nz) = 0._rprec
@@ -876,6 +911,26 @@ elseif(itype==2) then
 
      deallocate(pres_real)
 
+#ifdef PPSCALARS
+    ! Common file name for all output types
+    call string_splice(fname, path //'output/theta.', jt_total)
+#if defined(PPCGNS) && defined(PPMPI)
+    ! Write CGNS Output
+    call string_concat(fname, '.cgns')
+    call write_parallel_cgns(fname, nx, ny, nz - nz_end, nz_tot,               &
+     (/ 1, 1,   (nz-1)*coord + 1 /),                                           &
+     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                              &
+     x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
+     1, (/ 'Theta' /), (/ theta(1:nx,1:ny,1:(nz-nz_end)) /) )
+#else
+    ! Write binary Output
+    call string_concat(fname, bin_ext)
+    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
+     access='direct', recl=nx*ny*nz*rprec)
+    write(13,rec=1) theta(:nx,:ny,1:nz)
+    close(13)
+#endif
+#endif
 
 !  Write instantaneous x-plane values
 elseif(itype==3) then
@@ -1157,6 +1212,9 @@ use string_util, only : string_concat
 #if PPUSE_TURBINES
 use turbines, only : turbines_checkpoint
 #endif
+#ifdef PPSCALARS
+use scalars, only : scalars_checkpoint
+#endif
 
 ! HIT Inflow
 #ifdef PPHIT
@@ -1215,6 +1273,10 @@ end if
 
 #if PPUSE_TURBINES
 call turbines_checkpoint
+#endif
+
+#ifdef PPSCALARS
+call scalars_checkpoint
 #endif
 
 !  Update total_time.dat after simulation

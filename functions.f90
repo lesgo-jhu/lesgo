@@ -29,7 +29,7 @@ private
 
 public interp_to_uv_grid, trilinear_interp, trilinear_interp_w, binary_search, &
     bilinear_interp, linear_interp, cell_indx, buff_indx, interp_to_w_grid,    &
-    get_tau_wall_bot, get_tau_wall_top
+    get_tau_wall_bot, get_tau_wall_top, count_lines
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -918,5 +918,43 @@ enddo
 twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
 
 end function get_tau_wall_top
+
+!*******************************************************************************
+function count_lines(fname) result(N)
+!*******************************************************************************
+!
+! This function counts the number of lines in a file
+!
+use messages
+use param, only : CHAR_BUFF_LENGTH
+implicit none
+character(*), intent(in) :: fname
+logical :: exst
+integer :: fid, ios
+integer :: N
+
+character(*), parameter :: sub_name = mod_name // '.count_lines'
+
+! Check if file exists and open
+inquire (file = trim(fname), exist = exst)
+if (.not. exst) then
+    call error (sub_name, 'file ' // trim(fname) // 'does not exist')
+end if
+open(newunit=fid, file=trim(fname), status='unknown', form='formatted',        &
+    position='rewind')
+
+! count number of lines and close
+ios = 0
+N = 0
+do
+    read(fid, *, IOstat = ios)
+    if (ios /= 0) exit
+    N = N + 1
+end do
+
+! Close file
+close(fid)
+
+end function count_lines
 
 end module functions

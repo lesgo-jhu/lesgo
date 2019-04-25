@@ -55,9 +55,15 @@ use turbines, only : turbines_forcing, turbine_vel_init
 #endif
 
 #ifdef PPSTREAKS
-use sgs_param, only: F_LM, F_MM, F_QN, F_NN
+use sgs_param, only : F_LM, F_MM, F_QN, F_NN
 #endif
 
+#ifdef PPSCALARS
+use scalars, only : buoyancy_force, scalars_transport, scalars_deriv
+#endif
+
+use sponge
+use coriolis, only : coriolis_calc
 use messages
 
 implicit none
@@ -172,6 +178,10 @@ time_loop: do jt_step = nstart, nsteps
     !  except bottom coord, only 1:nz-1
     call ddz_w(w, dwdz, lbz)
 
+#ifdef PPSCALARS
+    call scalars_deriv()
+#endif
+
     ! Calculate wall stress and derivatives at the wall
     ! (txz, tyz, dudz, dvdz at jz=1)
     ! using the velocity log-law
@@ -196,7 +206,7 @@ time_loop: do jt_step = nstart, nsteps
     ! Compute divergence of SGS shear stresses
     ! the divt's and the diagonal elements of t are not equivalenced
     ! in this version. Provides divtz 1:nz-1, except 1:nz at top process
-    call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
+    call divstress_uv(divtx, divty, txx, txy, txz, tyy, tyz)
     call divstress_w(divtz, txz, tyz, tzz)
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
@@ -210,16 +220,13 @@ time_loop: do jt_step = nstart, nsteps
     RHSz(:,:,1:nz-1) = -RHSz(:,:,1:nz-1) - divtz(:,:,1:nz-1)
     if (coord == nproc-1) RHSz(:,:,nz) = -RHSz(:,:,nz)-divtz(:,:,nz)
 
-    ! Coriolis: add forcing to RHS
-    if (coriolis_forcing) then
-        ! This is to put in the coriolis forcing using coriol,ug and vg as
-        ! precribed in param.f90. (ug,vg) specfies the geostrophic wind vector
-        ! Note that ug and vg are non-dimensional (using u_star in param.f90)
-        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) +                                  &
-            coriol * v(:,:,1:nz-1) - coriol * vg
-        RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) -                                  &
-            coriol * u(:,:,1:nz-1) + coriol * ug
-    end if
+    call coriolis_calc()
+
+#ifdef PPSCALARS
+    call scalars_transport(jt_total)
+    call buoyancy_force()
+#endif
+    call sponge_force()
 
     !--calculate u^(*) (intermediate vel field)
     !  at this stage, p, dpdx_i are from previous time step
@@ -274,9 +281,9 @@ time_loop: do jt_step = nstart, nsteps
         ! if initu, then this is read from the initialization file
         ! else for the first step put RHS_f=RHS
         !--i.e. at first step, take an Euler step
-        RHSx_f=RHSx
-        RHSy_f=RHSy
-        RHSz_f=RHSz
+        RHSx_f = RHSx
+        RHSy_f = RHSy
+        RHSz_f = RHSz
     end if
 
     !//////////////////////////////////////////////////////
@@ -403,6 +410,7 @@ time_loop: do jt_step = nstart, nsteps
             write(*,'(a)') 'Time step information:'
             write(*,'(a,i9)') '  Iteration: ', jt_total
             write(*,'(a,E15.7)') '  Time step: ', dt
+            write(*,'(a,E15.7)') '  Dimensional time: ', total_time_dim
             write(*,'(a,E15.7)') '  CFL: ', maxcfl
             write(*,'(a,2E15.7)') '  AB2 TADV1, TADV2: ', tadv1, tadv2
             write(*,*)
@@ -429,6 +437,8 @@ time_loop: do jt_step = nstart, nsteps
         if(coord == nproc-1) then
             call write_tau_wall_top()
         end if
+
+        call mpi_barrier(comm, ierr)
 
         ! Check if we are to check the allowable runtime
         if (runtime > 0) then

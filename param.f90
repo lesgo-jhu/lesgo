@@ -133,12 +133,6 @@ real(rprec) :: u_star = 0.45_rprec
 ! von Karman constant
 real(rprec) :: vonk = 0.4_rprec
 
-! Coriolis stuff
-! coriol=non-dim coriolis parameter,
-! ug=horiz geostrophic vel, vg=transverse geostrophic vel
-logical :: coriolis_forcing = .true.
-real(rprec) :: coriol = 1.0e-4_rprec, ug=1.0_rprec, vg=0.0_rprec
-
 ! nu_molec is dimensional m^2/s
 real(rprec) :: nu_molec = 1.14e-5_rprec
 
@@ -203,8 +197,8 @@ real(rprec) :: fringe_region_len = 0.125_rprec
 logical :: uniform_inflow = .false.
 real(rprec) :: inflow_velocity = 1.0_rprec
 
-! if true, imposes a pressure gradient in the x-direction to force the flow
-logical :: use_mean_p_force = .true.
+! if true, imposes a pressure gradient to force the flow
+logical :: use_mean_p_force = .false.
 ! Specify whether mean_p_force should be evaluated as 1/L_z
 logical :: eval_mean_p_force = .false.
 real(rprec) :: mean_p_force_x = 1.0_rprec
