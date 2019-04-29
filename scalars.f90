@@ -113,13 +113,15 @@ scal_bot = scal_bot/T_scale
 abl_height = abl_height/z_i
 lapse_rate = lapse_rate/T_scale*z_i
 
-! Count number of entries and allocate
-num_t = count_lines('lbc_scal.dat')
-allocate( t_interp(num_t) )
-allocate( lbc_interp(num_t) )
 
 ! Read values from file
 if (read_lbc_scal) then
+    ! Count number of entries and allocate
+    num_t = count_lines('lbc_scal.dat')
+    allocate( t_interp(num_t) )
+    allocate( lbc_interp(num_t) )
+
+    ! Read entries
     open(newunit=fid, file='lbc_scal.dat', status='unknown', form='formatted', &
         position='rewind')
     do i = 1, num_t
