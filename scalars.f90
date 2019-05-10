@@ -293,8 +293,6 @@ end if
 dTdz(1:nx,:,1) = tstar_lbc/(vonk*dz*0.5_rprec)*phi_h
 pi_z(1:nx,:,1) = -tstar_lbc*ustar_lbc
 
-!write(*,*) tstar_lbc(1,1), theta1(1,1), L(1,1), pi_z(1,1,1), dTdz(1,1,1), psi_h(1,1)
-
 end subroutine obukhov
 
 !*******************************************************************************
