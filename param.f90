@@ -203,6 +203,11 @@ real(rprec) :: fringe_region_len = 0.125_rprec
 logical :: uniform_inflow = .false.
 real(rprec) :: inflow_velocity = 1.0_rprec
 
+! Use shifting to eliminate streaks in time average
+! The domain will be shifted by one spanwise grid point every shift_base steps
+logical :: use_shift = .false.
+integer :: shift_base = 1000
+
 ! if true, imposes a pressure gradient in the x-direction to force the flow
 logical :: use_mean_p_force = .true.
 ! Specify whether mean_p_force should be evaluated as 1/L_z
