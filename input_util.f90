@@ -847,8 +847,14 @@ do
                 read (buff(equal_pos+1:), *) T_scale
             case ('PASSIVE_SCALAR')
                 read (buff(equal_pos+1:), *) passive_scalar
+            case ('SGS_MODEL_SCAL')
+                read (buff(equal_pos+1:), *) sgs_model_scal
             case ('PR_SGS')
                 read (buff(equal_pos+1:), *) Pr_sgs
+            case ('CS_COUNT_SCAL')
+                read (buff(equal_pos+1:), *) cs_count_scal
+            case ('DYN_INIT_SCAL')
+                read (buff(equal_pos+1:), *) dyn_init_scal
             case default
                 if (coord == 0) write(*,*) 'Found unused data value in '       &
                     // block_name // ' block: ' // buff(1:equal_pos-1)

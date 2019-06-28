@@ -72,16 +72,15 @@ call calc_Sij ()
 
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
-#ifdef PPCFL_DT
-if (sgs_model == 4 .OR. sgs_model==5) then
-    if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
-        lagran_dt = lagran_dt + dt
+if (use_cfl_dt) then
+    if (sgs_model == 4 .OR. sgs_model==5) then
+        if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
+            lagran_dt = lagran_dt + dt
+        endif
     endif
-endif
-#else
+else
 lagran_dt = cs_count*dt
-#endif
-
+end if
 
 if (sgs) then
     ! Traditional Smagorinsky model
