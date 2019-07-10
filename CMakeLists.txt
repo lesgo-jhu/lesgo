@@ -6,12 +6,12 @@ cmake_minimum_required(VERSION 2.8.9)
 
 # Specify Compiler
 # Options: Intel and GNU
-set(CMAKE_Fortran_COMPILER_ID "GNU")
+set(CMAKE_Fortran_COMPILER_ID "Intel")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "default")
+set(hostname "cheyenne")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -88,6 +88,21 @@ elseif (${hostname} STREQUAL "marcc")
     if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
         include_directories(/software/apps/compilers/intel/mkl/include/fftw/)
         link_directories(/software/apps/compilers/intel/mkl/lib/intel64/)
+    # GNU -- These have to be installed locally for now.
+    elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+        include_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/include/)
+        link_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/lib/)
+        if (USE_CGNS)
+            include_directories($ENV{HOME}/cgns/include/)
+            link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
+        endif ()
+    endif ()
+# Cheyenne
+elseif (${hostname} STREQUAL "cheyenne")
+    # Intel
+    if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+        include_directories(/glade/u/apps/ch/opt/fftw3-mpi/3.3.6-pl2/mpt/2.15f/intel/18.0.1/include/)
+        link_directories(/glade/u/apps/ch/opt/fftw3-mpi/3.3.6-pl2/mpt/2.15f/intel/18.0.1/lib/)
     # GNU -- These have to be installed locally for now.
     elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
         include_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/include/)
