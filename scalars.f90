@@ -61,7 +61,8 @@ real(rprec), public :: T_scale = 300._rprec
 integer, public :: lbc_scal = 0
 real(rprec), public :: scal_bot = 300._rprec
 real(rprec), public :: flux_bot = 0._rprec
-real(rprec), public :: abl_height = 200._rprec
+real(rprec), dimension(:), allocatable, public :: ic_z, ic_theta
+integer, public :: ic_nloc
 real(rprec), public :: lapse_rate = 0._rprec
 logical, public :: read_lbc_scal = .false.
 
@@ -110,9 +111,9 @@ allocate ( tstar_lbc(nx, ny) ); tstar_lbc = 0._rprec
 g = g*(z_i/(u_star**2))
 flux_bot = flux_bot/u_star/T_scale
 scal_bot = scal_bot/T_scale
-abl_height = abl_height/z_i
 lapse_rate = lapse_rate/T_scale*z_i
-
+ic_theta = ic_theta/T_scale
+ic_z = ic_z/z_i
 
 ! Read values from file
 if (read_lbc_scal) then
@@ -180,18 +181,15 @@ subroutine ic_scal_les
 !*******************************************************************************
 use param, only : nz, lbz
 use grid_m
+use functions, only : linear_interp
 
 integer :: i
 
 do i = lbz, nz
-    if (grid%z(i) < abl_height) then
-        if (scal_bot < 1._rprec) then
-           theta(:,:,i) = scal_bot + grid%z(i)*(1._rprec - scal_bot)/abl_height
-        else
-           theta(:,:,i) = 1._rprec
-        end if
+    if (grid%z(i) < ic_z(ic_nloc)) then
+        theta(:,:,i) = linear_interp(ic_z, ic_theta, grid%z(i))
     else
-        theta(:,:,i) = 1._rprec + lapse_rate*(grid%z(i) - abl_height)
+        theta(:,:,i) = ic_theta(ic_nloc) + lapse_rate*(grid%z(i) - ic_z(ic_nloc))
     end if
 end do
 

@@ -835,10 +835,12 @@ do
                 read (buff(equal_pos+1:), *) flux_bot
             case ('READ_LBC_SCAL')
                 read (buff(equal_pos+1:), *) read_lbc_scal
-            case ('ABL_HEIGHT')
-                read (buff(equal_pos+1:), *) abl_height
             case ('LAPSE_RATE')
                 read (buff(equal_pos+1:), *) lapse_rate
+            case ('IC_Z')
+                call parse_vector( buff(equal_pos+1:), ic_nloc, ic_z )
+            case ('IC_THETA')
+                call parse_vector( buff(equal_pos+1:), ic_nloc, ic_theta )
             case ('G')
                 read (buff(equal_pos+1:), *) g
             case ('ZO_S')
