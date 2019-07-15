@@ -223,7 +223,7 @@ time_loop: do jt_step = nstart, nsteps
     call coriolis_calc()
 
 #ifdef PPSCALARS
-    call scalars_transport(jt_total)
+    call scalars_transport()
     call buoyancy_force()
 #endif
     call sponge_force()
