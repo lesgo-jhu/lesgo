@@ -282,7 +282,7 @@ end subroutine compute
 subroutine finalize(this)
 !*******************************************************************************
 use grid_m
-use param, only : write_endian, jzmin, jzmax, lbz, path, coord, nproc, nz_tot
+use param, only : write_endian, jzmin, jzmax, lbz, path, coord, nproc
 use string_util
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
