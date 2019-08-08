@@ -71,6 +71,10 @@ logical, public :: dyn_theta1
 logical, public :: dyn_theta2
 ! Dynamically change Ct_prime from input_turbines/Ct_prime.dat
 logical, public :: dyn_Ct_prime
+! Use ADM with rotation
+logical, public :: use_rotation = .true.
+! Tip speed ratio for ADM with rotation
+real(rprec), public :: tip_speed_ratio = 7
 ! disk-avg time scale in seconds (default 600)
 real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
@@ -267,6 +271,7 @@ subroutine turbines_nodes
 ! This subroutine locates nodes for each turbine and builds the arrays: ind,
 ! n_hat, num_nodes, and nodes
 !
+use functions, only : cross_product
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
@@ -282,13 +287,14 @@ integer :: imax, jmax, kmax
 integer :: min_i, max_i, min_j, max_j, min_k, max_k
 integer :: count_i, count_n
 real(rprec), dimension(nz_tot) :: z_tot
+real(rprec), dimension(3) :: temp_vec
 
 #ifdef PPMPI
 real(rprec), dimension(nloc) :: buffer_array
 #endif
 real(rprec), pointer, dimension(:) :: x, y, z
 
-real(rprec) :: filt, search_rad, filt_max
+real(rprec) :: filt, filt_t, search_rad, filt_max
 real(rprec), dimension(nloc) :: sumA, turbine_vol
 
 nullify(x,y,z)
@@ -365,7 +371,7 @@ do s=1,nloc
     count_i = 1
 
     ! Maximum value the filter takes (should be 1/volume)
-    filt_max = wind_farm%turbine(s)%turb_ind_func%val(0._rprec, 0._rprec)
+    call wind_farm%turbine(s)%turb_ind_func%val(0._rprec, 0._rprec, filt_max, r_disk)
 
     do k=k_start,k_end  !global k
         do j=min_j,max_j
@@ -399,10 +405,21 @@ do s=1,nloc
                 !(remaining) length projected onto turbine disk
                 r_disk = sqrt(r*r - r_norm*r_norm)
                 ! get the filter value
-                filt = wind_farm%turbine(s)%turb_ind_func%val(r_disk, r_norm)
+                call wind_farm%turbine(s)%turb_ind_func%val(r_disk, r_norm, filt, filt_t)
 
                 if ( filt > filter_cutoff * filt_max ) then
                     wind_farm%turbine(s)%ind(count_i) = filt
+                    wind_farm%turbine(s)%ind_t(count_i) = filt_t
+                    temp_vec(1) = rx-r_norm*p_nhat1
+                    temp_vec(2) = ry-r_norm*p_nhat2
+                    temp_vec(3) = rz-r_norm*p_nhat3
+                    wind_farm%turbine(s)%e_theta(count_i,:) =                  &
+                        cross_product(wind_farm%turbine(s)%nhat, temp_vec)
+                    wind_farm%turbine(s)%e_theta(count_i,:) =                  &
+                        wind_farm%turbine(s)%e_theta(count_i,:)                &
+                        / sqrt(wind_farm%turbine(s)%e_theta(count_i,1)**2      &
+                        + wind_farm%turbine(s)%e_theta(count_i,2)**2           &
+                        + wind_farm%turbine(s)%e_theta(count_i,3)**2)
                     wind_farm%turbine(s)%nodes(count_i,1) = i2
                     wind_farm%turbine(s)%nodes(count_i,2) = j2
                     wind_farm%turbine(s)%nodes(count_i,3) = k-coord*(nz-1)!local
@@ -429,6 +446,7 @@ call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)
 ! Normalize the indicator function integrate to 1
 do s = 1, nloc
     wind_farm%turbine(s)%ind=wind_farm%turbine(s)%ind(:)/sumA(s)
+    wind_farm%turbine(s)%ind_t=wind_farm%turbine(s)%ind_t(:)/sumA(s)
 end do
 
 ! Cleanup
@@ -442,9 +460,10 @@ subroutine turbines_forcing()
 !
 ! This subroutine applies the drag-disk forcing
 !
-use param, only : pi
+use param, only : pi, lbz
 use sim_param, only : u, v, w, fxa, fya, fza
-use functions, only : linear_interp, interp_to_uv_grid
+use functions, only : linear_interp, interp_to_uv_grid, interp_to_w_grid
+use mpi
 implicit none
 
 character(*), parameter :: sub_name = mod_name // '.turbines_forcing'
@@ -569,6 +588,7 @@ do s=1,nloc
             p_Ct_prime
     end if
 
+
     do l=1,wind_farm%turbine(s)%num_nodes
         i2 = wind_farm%turbine(s)%nodes(l,1)
         j2 = wind_farm%turbine(s)%nodes(l,2)
@@ -577,8 +597,23 @@ do s=1,nloc
         fxa(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(1)*ind2
         fya(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(2)*ind2
         fza(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(3)*ind2
+        if (use_rotation) then
+            ind2 = wind_farm%turbine(s)%ind_t(l)
+            fxa(i2,j2,k2) = fxa(i2,j2,k2)                                      &
+                + p_f_n*wind_farm%turbine(s)%e_theta(l,1)*ind2/tip_speed_ratio
+            fya(i2,j2,k2) = fya(i2,j2,k2)                                      &
+                + p_f_n*wind_farm%turbine(s)%e_theta(l,2)*ind2/tip_speed_ratio
+            fza(i2,j2,k2) = fza(i2,j2,k2)                                      &
+                + p_f_n*wind_farm%turbine(s)%e_theta(l,3)*ind2/tip_speed_ratio
+        end if
     end do
 end do
+
+! Interpolate force onto the w grid
+call mpi_sync_real_array( fxa(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( fya(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( fza(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
+fza = interp_to_w_grid(fza,lbz)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then

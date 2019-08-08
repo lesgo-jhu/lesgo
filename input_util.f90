@@ -718,6 +718,10 @@ do
                 read (buff(equal_pos+1:), *) dyn_theta2
             case ('DYN_CT_PRIME')
                 read (buff(equal_pos+1:), *) dyn_Ct_prime
+            case ('USE_ROTATION')
+                read (buff(equal_pos+1:), *) use_rotation
+            case ('TIP_SPEED_RATIO')
+                read (buff(equal_pos+1:), *) tip_speed_ratio
             case ('T_AVG_DIM')
                 read (buff(equal_pos+1:), *) T_avg_dim
             case ('ALPHA1')

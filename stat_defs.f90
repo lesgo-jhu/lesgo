@@ -72,6 +72,10 @@ type turbine_t
     real(rprec), dimension(3) :: nhat
     ! indicator function - weighting of each node
     real(rprec), dimension(50000) :: ind
+    ! tangential indicator function - weighting of each node
+    real(rprec), dimension(50000) :: ind_t
+    ! vector of tangential direction
+    real(rprec), dimension(50000,3) :: e_theta
     ! object to calculate indicator function
     type(turb_ind_func_t) :: turb_ind_func
     ! (i,j,k) of each included node
