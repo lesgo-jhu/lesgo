@@ -455,7 +455,7 @@ end do
 
 ! Calculate eddy diffusivity
 if (sgs_model_scal == 1) then
-    Kappa_t = Nu_t*Pr_sgs
+    Kappa_t = Nu_t/Pr_sgs
 
 else if (sgs_model_scal == 5) then
     if (use_cfl_dt) then
@@ -500,13 +500,13 @@ if (coord == 0) then
 
         ! Stress free: Kappa_t is stored on w-nodes
         case (0)
-            pi_x(:,:,1) = -(Kappa_t(:,:,1) + Kappa_t(:,:,2))*dTdx(:,:,1)
-            pi_y(:,:,1) = -(Kappa_t(:,:,1) + Kappa_t(:,:,2))*dTdy(:,:,1)
+            pi_x(:,:,1) = -0.5_rprec*(Kappa_t(:,:,1) + Kappa_t(:,:,2))*dTdx(:,:,1)
+            pi_y(:,:,1) = -0.5_rprec*(Kappa_t(:,:,1) + Kappa_t(:,:,2))*dTdy(:,:,1)
 
         ! Wall: Kappa_t is stored on uvp-nodes
         case (1:)
-            pi_x(:,:,1) = -2*Kappa_t(:,:,1)*dTdx(:,:,1)
-            pi_y(:,:,1) = -2*Kappa_t(:,:,1)*dTdy(:,:,1)
+            pi_x(:,:,1) = -Kappa_t(:,:,1)*dTdx(:,:,1)
+            pi_y(:,:,1) = -Kappa_t(:,:,1)*dTdy(:,:,1)
 
     end select
 end if
@@ -517,26 +517,26 @@ if (coord == nproc-1) then
 
       ! Stress free: Kappa_t is stored on w-nodes
       case (0)
-          pi_x(:,:,nz-1) = -(Kappa_t(:,:,nz-1) + Kappa_t(:,:,nz))*dTdx(:,:,nz-1)
-          pi_y(:,:,nz-1) = -(Kappa_t(:,:,nz-1) + Kappa_t(:,:,nz))*dTdy(:,:,nz-1)
-          pi_z(:,:,nz) = -2*Kappa_t(:,:,nz-1)*dTdz(:,:,nz)
+          pi_x(:,:,nz-1) = -0.5_rprec*(Kappa_t(:,:,nz-1) + Kappa_t(:,:,nz))*dTdx(:,:,nz-1)
+          pi_y(:,:,nz-1) = -0.5_rprec*(Kappa_t(:,:,nz-1) + Kappa_t(:,:,nz))*dTdy(:,:,nz-1)
+          pi_z(:,:,nz) = -Kappa_t(:,:,nz-1)*dTdz(:,:,nz)
 
       ! Wall: Kappa_t is stored on uvp-nodes
       case (1:)
-          pi_x(:,:,nz-1) = -2*Kappa_t(:,:,nz-1)*dTdx(:,:,nz-1)
-          pi_y(:,:,nz-1) = -2*Kappa_t(:,:,nz-1)*dTdy(:,:,nz-1)
-          pi_z(:,:,nz) = -2*Kappa_t(:,:,nz-1)*dTdz(:,:,nz)
+          pi_x(:,:,nz-1) = -Kappa_t(:,:,nz-1)*dTdx(:,:,nz-1)
+          pi_y(:,:,nz-1) = -Kappa_t(:,:,nz-1)*dTdy(:,:,nz-1)
+          pi_z(:,:,nz) = -Kappa_t(:,:,nz-1)*dTdz(:,:,nz)
 
       end select
 end if
 
 ! Calculate rest of the domain: Kappa_t is on w nodes
 do k= jz_min, jz_max
-    pi_x(:,:,k) = -(Kappa_t(:,:,k) + Kappa_t(:,:,k+1))*dTdx(:,:,k)
-    pi_y(:,:,k) = -(Kappa_t(:,:,k) + Kappa_t(:,:,k+1))*dTdy(:,:,k)
-    pi_z(:,:,k) = -2*Kappa_t(:,:,k)*dTdz(:,:,k)
+    pi_x(:,:,k) = -0.5_rprec*(Kappa_t(:,:,k) + Kappa_t(:,:,k+1))*dTdx(:,:,k)
+    pi_y(:,:,k) = -0.5_rprec*(Kappa_t(:,:,k) + Kappa_t(:,:,k+1))*dTdy(:,:,k)
+    pi_z(:,:,k) = -Kappa_t(:,:,k)*dTdz(:,:,k)
 end do
-pi_z(:,:,jz_max+1) = -2*Kappa_t(:,:,jz_max+1)*dTdz(:,:,jz_max+1)
+pi_z(:,:,jz_max+1) = -Kappa_t(:,:,jz_max+1)*dTdz(:,:,jz_max+1)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Divergence of heat flux
