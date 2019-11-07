@@ -63,7 +63,7 @@ use scalars, only : buoyancy_force, scalars_transport, scalars_deriv
 #endif
 
 use sponge
-use coriolis, only : coriolis_calc
+use coriolis, only : coriolis_calc, coriolis_forcing, alpha, G
 use messages
 
 implicit none
@@ -431,6 +431,12 @@ time_loop: do jt_step = nstart, nsteps
             write(*,'(1a,E15.7)') '  Cumulative Forcing: ', clock_total_f
             write(*,'(1a,E15.7)') '  Forcing %: ',                             &
                 clock_total_f /clock_total % time
+            if (coriolis_forcing > 0) then
+                write(*,*)
+                write(*,'(1a)') 'Coriolis parameters: '
+                write(*,'(1a,E15.7)') '  G: ', G
+                write(*,'(1a,E15.7)') '  alpha: ', alpha
+            end if            
             write(*,'(a)') '==================================================='
             call write_tau_wall_bot()
         end if

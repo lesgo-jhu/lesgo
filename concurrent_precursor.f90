@@ -21,19 +21,16 @@
 module concurrent_precursor
 !*******************************************************************************
 use types, only : rprec
+use mpi_defs
 implicit none
 
 save
 private
 
-public :: interComm, color, RED, BLUE
 public :: vel_sample_t
-public :: create_mpi_comms_cps, initialize_cps, synchronize_cps, inflow_cond_cps
+public :: initialize_cps, synchronize_cps, inflow_cond_cps
 
 character(*), parameter :: mod_name = 'concurrent_precursor'
-integer, parameter :: RED=0 ! Upstream domain (producer)
-integer, parameter :: BLUE=1 ! Downstream domain (consumer)
-integer :: interComm, color
 
 type vel_sample_type
     integer :: nx
@@ -42,6 +39,9 @@ type vel_sample_type
     integer :: iend
     integer, allocatable, dimension(:) :: iwrap
     real(rprec), allocatable, dimension(:,:,:) :: u, v, w
+#ifdef PPSCALARS
+    real(rprec), allocatable, dimension(:,:,:) :: theta
+#endif
 end type vel_sample_type
 
 type(vel_sample_type), target :: vel_sample_t
@@ -50,49 +50,6 @@ type(vel_sample_type), target :: vel_sample_t
 real(rprec), allocatable, dimension(:) :: alpha, beta
 
 contains
-
-!*******************************************************************************
-subroutine create_mpi_comms_cps( localComm )
-!*******************************************************************************
-!
-! This subroutine does two things. It first splits the MPI_COMM_WORLD
-! communicator into two communicators (localComm). The two new
-! communicators are then bridged to create an intercommunicator
-! (interComm).
-!
-use mpi
-use param, only : ierr
-implicit none
-
-integer, intent(out) :: localComm
-integer :: world_np, world_rank
-integer :: remoteLeader
-integer :: memberKey
-
-! Get number of processors in world comm
-call mpi_comm_size (MPI_COMM_WORLD, world_np, ierr)
-call mpi_comm_rank (MPI_COMM_WORLD, world_rank, ierr)
-
-! Set color and remote leader for intercommunicator interComm
-if (world_rank < world_np / 2 ) then
-    color = RED
-    remoteLeader = world_np / 2
-else
-    color = BLUE
-    remoteLeader = 0
-endif
-
-! Generate member key
-memberKey = modulo(world_rank, world_np / 2)
-
-! Split the world communicator into intracommunicators localComm
-call MPI_Comm_split(MPI_COMM_WORLD, color, memberKey, localComm, ierr)
-
-! Create intercommunicator interComm
-call mpi_intercomm_create( localComm, 0, MPI_COMM_WORLD, remoteLeader,         &
-    1, interComm, ierr)
-
-end subroutine create_mpi_comms_cps
 
 !*******************************************************************************
 subroutine initialize_cps()
@@ -162,6 +119,9 @@ enddo
 allocate( vel_sample_t % u( nx_p, ny, nz ) )
 allocate( vel_sample_t % v( nx_p, ny, nz ) )
 allocate( vel_sample_t % w( nx_p, ny, nz ) )
+#ifdef PPSCALARS
+allocate( vel_sample_t % theta( nx_p, ny, nz ) )
+#endif
 
 nullify( nx_p, istart_p, iplateau_p, iend_p )
 
@@ -175,15 +135,25 @@ use messages
 use param, only : ny, nz
 use param, only : coord, rank_of_coord, status, ierr, MPI_RPREC
 use sim_param, only : u,v,w
+#ifdef PPSCALARS
+use scalars, only : theta
+#endif
+use coriolis, only : coriolis_forcing, alpha, G
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.synchronize_cps'
 integer, pointer :: nx_p
 integer, pointer, dimension(:) :: iwrap_p
 real(rprec), pointer, dimension(:,:,:) :: u_p, v_p, w_p
+#ifdef PPSCALARS
+real(rprec), pointer, dimension(:,:,:) :: theta_p
+#endif
 integer :: sendsize, recvsize
 
 nullify( u_p, v_p, w_p )
+#ifdef PPSCALARS
+nullify( theta_p )
+#endif
 nullify( nx_p, iwrap_p )
 
 iwrap_p  => vel_sample_t % iwrap
@@ -191,6 +161,9 @@ nx_p     => vel_sample_t % nx
 u_p      => vel_sample_t % u
 v_p      => vel_sample_t % v
 w_p      => vel_sample_t % w
+#ifdef PPSCALARS
+theta_p      => vel_sample_t % theta
+#endif
 
 sendsize = nx_p * ny * nz
 recvsize = sendsize
@@ -203,11 +176,23 @@ if( color == BLUE ) then
         rank_of_coord(coord), 2, interComm, status, ierr)
     call mpi_recv( w_p(1,1,1) , recvsize, MPI_RPREC,                           &
         rank_of_coord(coord), 3, interComm, status, ierr)
+#ifdef PPSCALARS
+    call mpi_recv( theta_p(1,1,1) , recvsize, MPI_RPREC,                       &
+        rank_of_coord(coord), 4, interComm, status, ierr)
+#endif
+if (coriolis_forcing>0) then
+    call mpi_recv( G, 1, MPI_RPREC, rank_of_coord(coord), 5, interComm, status, ierr )
+    call mpi_recv( alpha, 1, MPI_RPREC, rank_of_coord(coord), 6, interComm, status, ierr )
+end if
+
 elseif( color == RED ) then
     ! Sample velocity and copy to buffers
     u_p(:,:,:) = u(iwrap_p(:),1:ny,1:nz)
     v_p(:,:,:) = v(iwrap_p(:),1:ny,1:nz)
     w_p(:,:,:) = w(iwrap_p(:),1:ny,1:nz)
+#ifdef PPSCALARS
+    theta_p(:,:,:) = theta(iwrap_p(:),1:ny,1:nz)
+#endif
 
     ! Send sampled velocities to downstream domain (BLUE)
     call mpi_send( u_p(1,1,1), sendsize, MPI_RPREC,                            &
@@ -216,11 +201,23 @@ elseif( color == RED ) then
         rank_of_coord(coord), 2, interComm, ierr )
     call mpi_send( w_p(1,1,1), sendsize, MPI_RPREC,                            &
         rank_of_coord(coord), 3, interComm, ierr )
+#ifdef PPSCALARS
+    call mpi_send( theta_p(1,1,1), sendsize, MPI_RPREC,                        &
+        rank_of_coord(coord), 4, interComm, ierr )
+#endif
+if (coriolis_forcing>0) then
+    call mpi_send( G, 1, MPI_RPREC, rank_of_coord(coord), 5, interComm, ierr )
+    call mpi_send( alpha, 1, MPI_RPREC, rank_of_coord(coord), 6, interComm, ierr )
+end if
+
 else
    call error( sub_name, 'Erroneous color specification')
 endif
 
 nullify( u_p, v_p, w_p )
+#ifdef PPSCALARS
+nullify( theta_p )
+#endif
 nullify( nx_p, iwrap_p )
 
 end subroutine synchronize_cps
@@ -236,6 +233,9 @@ subroutine inflow_cond_cps ()
 use types, only : rprec
 use param, only : nx, ny, nz
 use sim_param, only : u, v, w
+#ifdef PPSCALARS
+use scalars, only : theta
+#endif
 use messages, only : error
 implicit none
 
@@ -245,13 +245,22 @@ integer :: istart_wrap
 integer, pointer :: istart_p
 integer, pointer, dimension(:) :: iwrap_p
 real(rprec), pointer, dimension(:,:,:) :: u_p, v_p, w_p
+#ifdef PPSCALARS
+real(rprec), pointer, dimension(:,:,:) :: theta_p
+#endif
 
 nullify( u_p, v_p, w_p )
+#ifdef PPSCALARS
+nullify( theta_p )
+#endif
 nullify( istart_p, iwrap_p )
 
 u_p        => vel_sample_t % u
 v_p        => vel_sample_t % v
 w_p        => vel_sample_t % w
+#ifdef PPSCALARS
+theta_p        => vel_sample_t % theta
+#endif
 istart_p   => vel_sample_t % istart
 iwrap_p    => vel_sample_t % iwrap
 
@@ -262,10 +271,16 @@ do j = 1, ny
     u(iwrap_p(:),j,k) = alpha(:) * u(istart_wrap,j,k) + beta(:) * u_p(:,j,k)
     v(iwrap_p(:),j,k) = alpha(:) * v(istart_wrap,j,k) + beta(:) * v_p(:,j,k)
     w(iwrap_p(:),j,k) = alpha(:) * w(istart_wrap,j,k) + beta(:) * w_p(:,j,k)
+#ifdef PPSCALARS
+    theta(iwrap_p(:),j,k) = alpha(:) * theta(istart_wrap,j,k) + beta(:) * theta_p(:,j,k)
+#endif
 enddo
 enddo
 
 nullify( u_p, v_p, w_p )
+#ifdef PPSCALARS
+nullify( theta_p )
+#endif
 nullify( istart_p, iwrap_p )
 
 end subroutine inflow_cond_cps

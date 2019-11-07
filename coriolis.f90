@@ -190,7 +190,7 @@ if (coriolis_forcing == 2) then
 #endif
 
     ! Use PID to get new angle
-    alpha = alpha + pid%advance(asin(vbar/sqrt(ubar**2+vbar**2)), dt)*dt
+    alpha = alpha + pid%advance(atan2(vbar,ubar), dt)*dt
 
     ! Set components
     ug = G*cos(alpha)

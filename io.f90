@@ -697,7 +697,7 @@ use param, only : zplane_nloc, zplane_loc
 use param, only : dx, dy
 use param, only : write_endian
 use grid_m
-use sim_param, only : u, v, w, p, txx, txy, tyy, tzz, txz, tyz
+use sim_param, only : u, v, w, p
 use sim_param, only : dwdy, dwdx, dvdx, dudy
 use functions, only : interp_to_w_grid
 #ifdef PPSCALARS
@@ -802,35 +802,6 @@ elseif(itype==2) then
     write(13,rec=1) u(:nx,:ny,1:nz)
     write(13,rec=2) v(:nx,:ny,1:nz)
     write(13,rec=3) w_uv(:nx,:ny,1:nz)
-    close(13)
-#endif
-
-#ifdef PPSCALARS
-    ! Common file name for all output types
-    call string_splice(fname, path //'output/sgs_uv.', jt_total)
-    
-    ! Write binary Output
-    call string_concat(fname, bin_ext)
-    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
-        access='direct', recl=nx*ny*nz*rprec)
-    write(13,rec=1) txx(:nx,:ny,1:nz)
-    write(13,rec=2) txy(:nx,:ny,1:nz)
-    write(13,rec=3) tyy(:nx,:ny,1:nz)
-    write(13,rec=4) tzz(:nx,:ny,1:nz)
-    write(13,rec=5) pi_x(:nx,:ny,1:nz)
-    write(13,rec=6) pi_y(:nx,:ny,1:nz)
-    close(13)
-    
-    ! Common file name for all output types
-    call string_splice(fname, path //'output/sgs_w.', jt_total)
-    
-    ! Write binary Output
-    call string_concat(fname, bin_ext)
-    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
-        access='direct', recl=nx*ny*nz*rprec)
-    write(13,rec=1) txz(:nx,:ny,1:nz)
-    write(13,rec=2) tyz(:nx,:ny,1:nz)
-    write(13,rec=3) pi_z(:nx,:ny,1:nz)
     close(13)
 #endif
     
@@ -1215,6 +1186,7 @@ use turbines, only : turbines_checkpoint
 #ifdef PPSCALARS
 use scalars, only : scalars_checkpoint
 #endif
+use coriolis
 
 ! HIT Inflow
 #ifdef PPHIT
@@ -1278,6 +1250,8 @@ call turbines_checkpoint
 #ifdef PPSCALARS
 call scalars_checkpoint
 #endif
+
+call coriolis_finalize()
 
 !  Update total_time.dat after simulation
 if (coord == 0) then
