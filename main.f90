@@ -63,7 +63,7 @@ use scalars, only : buoyancy_force, scalars_transport, scalars_deriv
 #endif
 
 use sponge
-use coriolis, only : coriolis_calc, coriolis_forcing, alpha, G
+use coriolis, only : coriolis_calc, coriolis_forcing, alpha, G, phi_actual
 use messages
 
 implicit none
@@ -404,7 +404,7 @@ time_loop: do jt_step = nstart, nsteps
         tau_top = maxdummy
 #endif
 
-        if (coord == 0) then
+            if (coord == 0) then
             write(*,*)
             write(*,'(a)') '==================================================='
             write(*,'(a)') 'Time step information:'
@@ -436,6 +436,9 @@ time_loop: do jt_step = nstart, nsteps
                 write(*,'(1a)') 'Coriolis parameters: '
                 write(*,'(1a,E15.7)') '  G: ', G
                 write(*,'(1a,E15.7)') '  alpha: ', alpha
+                if (coriolis_forcing == 2) then
+                    write(*,'(1a,E15.7)') '  wind direction: ', phi_actual
+                end if
             end if            
             write(*,'(a)') '==================================================='
             call write_tau_wall_bot()

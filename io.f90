@@ -700,9 +700,6 @@ use grid_m
 use sim_param, only : u, v, w, p
 use sim_param, only : dwdy, dwdx, dvdx, dudy
 use functions, only : interp_to_w_grid
-#ifdef PPSCALARS
-use scalars, only : pi_x, pi_y, pi_z
-#endif
 
 use stat_defs, only : xplane, yplane
 #ifdef PPMPI

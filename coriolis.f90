@@ -49,6 +49,7 @@ real(rprec), public :: alpha = 0.78539816339
 !   (in radians measured counter-clockwise from x-direction)
 ! height_set -> height of angle set point (dimensional)
 ! Kp, Ki, Kd -> PID controller gains (dimensional)
+integer, public :: pid_time = 0
 real(rprec), public :: phi_set = 0.0
 real(rprec), public :: height_set = 100
 real(rprec), public :: Kp = 1e-4
@@ -63,6 +64,10 @@ real(rprec) :: ug, vg
 
 ! PID controller
 type(pid_t) :: pid
+
+! Rotation rate
+real(rprec) :: pid_rot_rate = 0._rprec
+real(rprec), public :: phi_actual = 0._rprec
 
 ! Determining location of planar-averaging
 logical :: plane_in_coord = .false.
@@ -170,7 +175,7 @@ end subroutine coriolis_finalize
 !*******************************************************************************
 subroutine coriolis_calc
 !*******************************************************************************
-use param, only : MPI_RPREC, comm, ierr, dt, total_time_dim, u_star
+use param, only : MPI_RPREC, comm, ierr, dt, total_time_dim, u_star, jt_total
 use sim_param, only : u, v, RHSx, RHSy, nx, ny, nz
 use functions, only : linear_interp
 use mpi
@@ -180,7 +185,10 @@ if (coriolis_forcing == 2) then
     if (plane_in_coord) then
         ubar = w1*sum(u(1:nx,:,k1))/(nx*ny) + w2*sum(u(1:nx,:,k2))/(nx*ny)
         vbar = w1*sum(v(1:nx,:,k1))/(nx*ny) + w2*sum(v(1:nx,:,k2))/(nx*ny)
-    end if
+    else
+        ubar = 0._rprec
+        vbar = 0._rprec
+    end if  
 
 #ifdef PPMPI
     call MPI_AllReduce(ubar, temp, 1, MPI_RPREC, MPI_SUM, comm, ierr)
@@ -189,12 +197,19 @@ if (coriolis_forcing == 2) then
     vbar = temp
 #endif
 
-    ! Use PID to get new angle
-    alpha = alpha + pid%advance(atan2(vbar,ubar), dt)*dt
+    phi_actual = atan2(vbar,ubar)
+    if (jt_total < pid_time) then
+        ! Use PID to get new angle
+        pid_rot_rate = pid%advance(phi_actual, dt)
+        alpha = alpha + pid_rot_rate*dt
 
-    ! Set components
-    ug = G*cos(alpha)
-    vg = G*sin(alpha)
+        ! Set components
+        ug = G*cos(alpha)
+        vg = G*sin(alpha)
+    else 
+        pid_rot_rate = 0._rprec 
+    end if
+
 else if( coriolis_forcing == 3) then
     ! interpolate
     alpha = linear_interp(t_interp, alpha_interp,                              &
@@ -216,6 +231,11 @@ if (coriolis_forcing > 0) then
     ! Note that ug and vg are non-dimensional (using u_star in param.f90)
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fc * v(:,:,1:nz-1) - fc * vg
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) - fc * u(:,:,1:nz-1) + fc * ug
+    if (coriolis_forcing == 2) then
+        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + pid_rot_rate * v(:,:,1:nz-1)
+        RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) - pid_rot_rate * u(:,:,1:nz-1)
+    end if
+
 end if
 
 end subroutine coriolis_calc

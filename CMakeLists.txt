@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "default")
+set(hostname "panoramix")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -20,7 +20,7 @@ set(READ_ENDIAN "DEFAULT")
 
 # Options to enable various features in the code
 option(USE_MPI "Enable parallelization support." ON)
-option(USE_CPS "Enable concurrent precursor simulations." OFF)
+option(USE_CPS "Enable concurrent precursor simulations." ON)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
 option(USE_STREAKS "Shift the domain in the y (spanwise) direction to eliminate streaks effects on averaging." OFF)
 option(USE_LVLSET "Enable level set." OFF)
@@ -77,13 +77,18 @@ endif ()
 # Include host-specific paths
 #  panoramix
 if (${hostname} STREQUAL "panoramix")
-    include_directories(/opt/cgns-3.2.1-hdf5-mpi/include
-    /opt/hdf5-1.8.12-mpi/include /usr/local/hdf5/include /usr/local/cgns/include
-    /act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include
-    /act/cgns-3.3.0/mpich/gcc-4.7.2/include)
-    link_directories(/opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib
-    /usr/local/hdf5/lib  /usr/local/cgns/lib /act/fftw3/mpich/gcc-4.7.2/lib
-    /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.3.0/mpich/gcc-4.7.2/lib)
+    if (USE_CGNS)
+        include_directories(/opt/cgns-3.2.1-hdf5-mpi/include
+        /opt/hdf5-1.8.12-mpi/include /usr/local/hdf5/include /usr/local/cgns/include
+        /act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include
+        /act/cgns-3.3.0/mpich/gcc-4.7.2/include)
+        link_directories(/opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib
+        /usr/local/hdf5/lib  /usr/local/cgns/lib /act/fftw3/mpich/gcc-4.7.2/lib
+        /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.3.0/mpich/gcc-4.7.2/lib)
+    else (USE_CGNS)
+        include_directories(/act/fftw3/mpich/gcc-8.3.0/include)
+        link_directories(/act/fftw3/mpich/gcc-4.7.2/lib)
+    endif () 
 #  marcc
 elseif (${hostname} STREQUAL "marcc")
     # Intel

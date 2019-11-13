@@ -329,6 +329,8 @@ do
                 read (buff(equal_pos+1:), *) G
             case ('ALPHA')
                 read (buff(equal_pos+1:), *) alpha
+            case ('PID_TIME')
+                read (buff(equal_pos+1:), *) pid_time
             case ('PHI_SET')
                 read (buff(equal_pos+1:), *) phi_set
             case ('HEIGHT_SET')
