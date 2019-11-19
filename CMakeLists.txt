@@ -9,9 +9,9 @@ cmake_minimum_required(VERSION 2.8.9)
 set(CMAKE_Fortran_COMPILER_ID "Intel")
 
 # Set the name of the computer you are compiling on.
-# Supported computers: panoramix, njord, marcc, darwin-brew
+# Supported computers: panoramix, njord, marcc, darwin-brew, cheyenne, stampede
 # Otherwise, default settings are used
-set(hostname "cheyenne")
+set(hostname "stampede")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -112,6 +112,11 @@ elseif (${hostname} STREQUAL "cheyenne")
             link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
         endif ()
     endif ()
+# stampede
+elseif (${hostname} STREQUAL "stampede")
+    # Intel
+        include_directories(/opt/apps/intel18/impi18_0/fftw3/3.3.8/include /opt/intel/mkl/include/intel64/lp64)
+        link_directories(/opt/apps/intel18/impi18_0/fftw3/3.3.8/lib /opt/intel/mkl/lib/intel64_lin)
 #  njord
 elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
