@@ -54,9 +54,7 @@ use level_set_base, only : global_CA_calc
 use turbines, only : turbines_forcing, turbine_vel_init
 #endif
 
-#ifdef PPSTREAKS
 use sgs_param, only : F_LM, F_MM, F_QN, F_NN
-#endif
 
 #ifdef PPSCALARS
 use scalars, only : buoyancy_force, scalars_transport, scalars_deriv
@@ -68,10 +66,8 @@ use messages
 
 implicit none
 
-#ifdef PPSTREAKS
 real(rprec), dimension(:,:,:), allocatable :: dummyu, dummyv, dummyw
 real(rprec), dimension(:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
-#endif
 
 character (*), parameter :: prog_name = 'main'
 
@@ -124,14 +120,14 @@ nstart = jt_total+1
 
 ! Declare variables for shifting the domain
 ! This gets rid of streaks in the domain
-#ifdef PPSTREAKS
-allocate( dummyu     (ld    ,ny, lbz:nz) )
-allocate( dummyv     (ld    ,ny, lbz:nz) )
-allocate( dummyw     (ld    ,ny, lbz:nz) )
-allocate( dummyRHSx  (ld    ,ny, lbz:nz) )
-allocate( dummyRHSy  (ld    ,ny, lbz:nz) )
-allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
-#endif
+if (use_shift) then
+    allocate( dummyu     (ld    ,ny, lbz:nz) )
+    allocate( dummyv     (ld    ,ny, lbz:nz) )
+    allocate( dummyw     (ld    ,ny, lbz:nz) )
+    allocate( dummyRHSx  (ld    ,ny, lbz:nz) )
+    allocate( dummyRHSy  (ld    ,ny, lbz:nz) )
+    allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
+end if
 
 ! BEGIN TIME LOOP
 time_loop: do jt_step = nstart, nsteps
@@ -470,12 +466,14 @@ time_loop: do jt_step = nstart, nsteps
 
        endif
 
+    end if
+
     ! Shift the domain in the y (spanwise) direction
-#ifdef PPSTREAKS
-        if (modulo (jt_total, 1000) == 0) then
+    if (use_shift) then
+        if (modulo (jt_total, shift_base) == 0) then
             if (coord == 0) then
-                write(*,*) '--------------------red shift-------------------'
-            endif
+                write(*,*) 'Shifting domain one grid point in spanwise direction'
+            end if
             dummyu(:,:,:) = u(:,:,:)
             dummyv(:,:,:) = v(:,:,:)
             dummyw(:,:,:) = w(:,:,:)
@@ -515,9 +513,7 @@ time_loop: do jt_step = nstart, nsteps
             dummyu(:,:,:) = F_NN(:,:,:)
             F_NN(:,2:ny,:) = dummyu(:,1:ny-1,:)
             F_NN(:,1,:) = dummyu(:,ny   ,:)
-        endif
-#endif
-
+        end if
     end if
 
 end do time_loop
