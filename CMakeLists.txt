@@ -6,12 +6,12 @@ cmake_minimum_required(VERSION 2.8.9)
 
 # Specify Compiler
 # Options: Intel and GNU
-set(CMAKE_Fortran_COMPILER_ID "GNU")
+set(CMAKE_Fortran_COMPILER_ID "Intel")
 
 # Set the name of the computer you are compiling on.
-# Supported computers: panoramix, njord, marcc, darwin-brew
+# Supported computers: panoramix, njord, marcc, darwin-brew, cheyenne, stampede
 # Otherwise, default settings are used
-set(hostname "panoramix")
+set(hostname "stampede")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -22,7 +22,6 @@ set(READ_ENDIAN "DEFAULT")
 option(USE_MPI "Enable parallelization support." ON)
 option(USE_CPS "Enable concurrent precursor simulations." ON)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
-option(USE_STREAKS "Shift the domain in the y (spanwise) direction to eliminate streaks effects on averaging." OFF)
 option(USE_LVLSET "Enable level set." OFF)
 option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
 option(USE_ATM "Enable actuator line/section model" OFF)
@@ -104,6 +103,26 @@ elseif (${hostname} STREQUAL "marcc")
             link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
         endif ()
     endif ()
+# Cheyenne
+elseif (${hostname} STREQUAL "cheyenne")
+    # Intel
+    if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+        include_directories(/glade/u/apps/ch/opt/fftw3-mpi/3.3.6-pl2/mpt/2.15f/intel/18.0.1/include/)
+        link_directories(/glade/u/apps/ch/opt/fftw3-mpi/3.3.6-pl2/mpt/2.15f/intel/18.0.1/lib/)
+    # GNU -- These have to be installed locally for now.
+    elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+        include_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/include/)
+        link_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/lib/)
+        if (USE_CGNS)
+            include_directories($ENV{HOME}/cgns/include/)
+            link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
+        endif ()
+    endif ()
+# stampede
+elseif (${hostname} STREQUAL "stampede")
+    # Intel
+        include_directories(/opt/apps/intel18/impi18_0/fftw3/3.3.8/include /opt/intel/mkl/include/intel64/lp64)
+        link_directories(/opt/apps/intel18/impi18_0/fftw3/3.3.8/lib /opt/intel/mkl/lib/intel64_lin)
 #  njord
 elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
@@ -149,11 +168,6 @@ if (USE_HIT)
     set(Sources ${Sources} hit_inflow.f90)
     set(exec_name "${exec_name}-HIT")
 endif (USE_HIT)
-
-if (USE_STREAKS)
-    add_definitions(-DPPSTREAKS)
-    set(exec_name "${exec_name}-streaks")
-endif (USE_STREAKS)
 
 if (USE_LVLSET)
     add_definitions(-DPPLVLSET)

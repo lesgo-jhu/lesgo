@@ -113,7 +113,6 @@ elseif (interp_flag) then
     call ic_interp
 #ifdef PPSCALARS
     if (coord == 0) write(*,*) "Interpolatation of restart files with scalars is not yet supported."
-    stop 9
 #endif
 #ifndef PPCPS
 else if (inflow) then
