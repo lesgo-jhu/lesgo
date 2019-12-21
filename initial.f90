@@ -111,9 +111,6 @@ if (initu) then
 elseif (interp_flag) then
     if (coord == 0) write(*,*) '--> Interpolating initial velocity field from file'
     call ic_interp
-#ifdef PPSCALARS
-    if (coord == 0) write(*,*) "Interpolatation of restart files with scalars is not yet supported."
-#endif
 #ifndef PPCPS
 else if (inflow) then
     if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
@@ -148,7 +145,7 @@ end if
 #endif
 
 #ifdef PPSCALARS
-call ic_scal()
+call ic_scal(interp_flag)
 #endif
 
 ! call mpi_barrier(comm, ierr)

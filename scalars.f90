@@ -136,26 +136,36 @@ end if
 end subroutine scalars_init
 
 !*******************************************************************************
-subroutine ic_scal
+subroutine ic_scal(interp_flag)
 !*******************************************************************************
 ! Set initial profile for scalar
 use param, only : coord
 use string_util
 use grid_m
+logical :: interp_flag
 
 fname = path // 'scal.out'
 #ifdef PPMPI
 call string_concat( fname, '.c', coord )
 #endif
 inquire (file=fname, exist=inits)
-inits = .not.inits
+
+if (inits .and. .not.interp_flag) then
+    inits = .true.
+else
+    inits = .false.
+end if
+
 
 if (inits) then
-    write(*,*)  "--> Creating initial boundary layer scalar field with LES BCs"
-    call ic_scal_les
-else
     write(*,*)  "--> Reading initial scalar field from file"
     call ic_scal_file
+elseif (interp_flag) then
+    write(*,*)  "--> Interpolating initial scalar field from file"
+    call ic_scal_interp
+else
+    write(*,*)  "--> Creating initial boundary layer scalar field with LES BCs"
+    call ic_scal_les
 end if
 
 end subroutine ic_scal
@@ -182,7 +192,7 @@ end subroutine ic_scal_file
 !*******************************************************************************
 subroutine ic_scal_les
 !*******************************************************************************
-use param, only : nz, lbz
+use param, only : lbz, nz
 use grid_m
 use functions, only : linear_interp
 
@@ -198,6 +208,126 @@ end do
 
 end subroutine ic_scal_les
 
+!*******************************************************************************
+subroutine ic_scal_interp()
+!*******************************************************************************
+! This subroutine reads the initial conditions from a checkpoint file and
+! interpolates onto the current grid
+!
+use param, only : nx, ny, nz, lbz, read_endian
+use grid_m
+use functions
+integer :: nproc_f, Nx_f, Ny_f, Nz_f
+real(rprec) :: Lx_f, Ly_f, Lz_f
+integer :: i, j, k, z1, z2, ld_f, lh_f, Nz_tot_f
+real(rprec) :: dx_f, dy_f, dz_f
+integer :: i1, i2, j1, j2, k1, k2
+real(rprec) :: ax, ay, az, bx, by, bz, xx, yy
+real(rprec), allocatable, dimension(:) :: x_f, y_f!, z_f, zw_f
+real(rprec), allocatable, dimension(:,:,:) :: theta_f
+character(64) :: ff
+integer :: npr1, npr2, nproc_r, Nz_tot_r
+real(rprec), allocatable, dimension(:) :: z_r, zw_r
+! real(rprec), allocatable, dimension(:,:,:) :: u_r, v_r, w_r
+
+! Read grid information from file
+open(12, file='grid.out', form='unformatted', convert=read_endian)
+read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
+close(12)
+
+! Compute intermediate values
+lh_f = nx_f/2+1
+ld_f = 2*lh_f
+Nz_tot_f = ( nz_f - 1 ) * nproc_f + 1
+dx_f = Lx_f / nx_f
+dy_f = Ly_f / ny_f
+dz_f = Lz_f / (nz_tot_f - 1)
+
+! Figure out which processors actually need to be read
+npr1 = max(floor(grid%z(lbz)/dz_f/Nz_f), 0)
+npr2 = min(ceiling(grid%z(nz)/dz_f/Nz_f), nproc_f-1)
+nproc_r = npr2-npr1+1
+Nz_tot_r = ( nz_f - 1 ) * nproc_r + 1
+! write(*,*) coord, npr1, npr2, nproc_r, Nz_tot_r
+
+! Create file grid
+allocate( z_r(nz_tot_r), zw_r(nz_tot_r))
+do i = 1, nz_tot_r
+    zw_r(i) = (i - 1 + npr1*(nz_f-1)) * dz_f
+    z_r(i) = zw_r(i) + 0.5*dz_f
+end do
+
+! Create file grid
+allocate( x_f(nx_f), y_f(ny_f))
+do i = 1, nx_f
+    x_f(i) = (i-1) * Lx_f/(nx_f)
+end do
+do i = 1, ny_f
+    y_f(i) = (i-1) * Ly_f/ny_f
+end do
+
+! Read velocities from file
+allocate( theta_f(ld_f, ny_f, nz_tot_r) )
+
+! Loop through all levels
+do i = 1, nproc_r
+    ! Set level bounds
+    z1 = nz_tot_f / nproc_f * (i-1) + 1
+    z2 = nz_tot_f / nproc_f * i  + 1
+
+    ! Read from file
+    write(ff,*) i+npr1-1
+    ff = "./scal.out.c"//trim(adjustl(ff))
+    open(12, file=ff,  action='read', form='unformatted')
+    read(12) theta_f(:, :, z1:z2)
+    close(12)
+end do
+
+! Calculate velocities
+do i = 1, nx
+    xx = grid%x(i) - floor(grid%x(i)/Lx_f) * Lx_f
+    i1 = binary_search(x_f, xx)
+    i2 = mod(i1, nx_f) + 1
+    bx = (xx - x_f(i1)) / dx_f
+    ax = 1._rprec - bx
+    do j = 1, ny
+        yy = grid%y(j) - floor(grid%y(j)/Ly_f) * Ly_f
+        j1 = binary_search(y_f, yy)
+        j2 = mod(j1, ny_f) + 1
+        by = (yy - y_f(j1)) / dy_f
+        ay = 1._rprec - by
+        do k = 1, nz
+            ! for u and v
+            k1 = binary_search(z_r, grid%z(k))
+            k2 = k1 + 1
+            if (k1 == nz_tot_r) then
+                theta(i,j,k) = ax*ay*theta_f(i1,j1,k1)                         &
+                             + bx*ay*theta_f(i2,j1,k1)                         &
+                             + ax*by*theta_f(i1,j2,k1)                         &
+                             + bx*by*theta_f(i2,j2,k1)
+            else if (k1 == 0) then
+                theta(i,j,k) = ax*ay*theta_f(i1,j1,k2)                         &
+                             + bx*ay*theta_f(i2,j1,k2)                         &
+                             + ax*by*theta_f(i1,j2,k2)                         &
+                             + bx*by*theta_f(i2,j2,k2)
+            else
+                bz = (grid%z(k) - z_r(k1)) / dz_f
+                az = 1._rprec - bz
+                theta(i,j,k) = ax*ay*az*theta_f(i1,j1,k1)                      &
+                             + bx*ay*az*theta_f(i2,j1,k1)                      &
+                             + ax*by*az*theta_f(i1,j2,k1)                      &
+                             + bx*by*az*theta_f(i2,j2,k1)                      &
+                             + ax*ay*bz*theta_f(i1,j1,k2)                      &
+                             + bx*ay*bz*theta_f(i2,j1,k2)                      &
+                             + ax*by*bz*theta_f(i1,j2,k2)                      &
+                             + bx*by*bz*theta_f(i2,j2,k2)
+            end if
+
+        end do
+    end do
+end do
+
+end subroutine ic_scal_interp
 
 !*******************************************************************************
 subroutine scalars_checkpoint
