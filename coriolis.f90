@@ -93,8 +93,8 @@ integer :: num_t, fid, i
 ! Non-dimensionalize
 G = G/u_star
 fc = fc*z_i/u_star
-Ki = Ki*u_star/z_i
-Kd = Kd*z_i/u_star
+Ki = Ki*z_i/u_star
+Kd = Kd*u_star/z_i
 height_set = height_set/z_i
 
 if (coriolis_forcing == 2) then
@@ -200,8 +200,8 @@ if (coriolis_forcing == 2) then
     phi_actual = atan2(vbar,ubar)
     if (jt_total < pid_time) then
         ! Use PID to get new angle
-        pid_rot_rate = pid%advance(phi_actual, dt)
-        alpha = alpha + pid_rot_rate*dt
+        pid_rot_rate = -pid%advance(phi_actual, dt)
+        alpha = alpha - pid_rot_rate*dt
 
         ! Set components
         ug = G*cos(alpha)

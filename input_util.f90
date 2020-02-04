@@ -847,6 +847,8 @@ do
                 call parse_vector( buff(equal_pos+1:), ic_nloc, ic_z )
             case ('IC_THETA')
                 call parse_vector( buff(equal_pos+1:), ic_nloc, ic_theta )
+            case ('IC_NO_VEL_NOISE_Z')
+                read (buff(equal_pos+1:), *) ic_no_vel_noise_z
             case ('G')
                 read (buff(equal_pos+1:), *) g
             case ('ZO_S')

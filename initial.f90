@@ -484,7 +484,10 @@ use sim_param, only : u, v, w
 use messages, only : error
 use coriolis, only : coriolis_forcing, G, alpha, fc
 #ifdef PPTURBINES
-use turbines, only: turbine_vel_init
+use turbines, only : turbine_vel_init
+#endif
+#ifdef PPSCALARS
+use scalars, only : ic_no_vel_noise_z
 #endif
 
 implicit none
@@ -526,14 +529,16 @@ do jz = 1, nz
     arg = (1._rprec/vonk)*log(z/zo_turbines)
 #endif
 
+    mean_p_force_mag = sqrt(mean_p_force_x**2 + mean_p_force_y**2)
     if (coriolis_forcing > 0) then
-        gamma_e = sqrt(fc/(2*Km/u_star/z_i))
-        u_par = G*(1-exp(-gamma_e*z)*cos(gamma_e*z))
-        u_perp = G*exp(-gamma_e*z)*sin(gamma_e*z)
-        ubar(jz) = u_par*cos(alpha) - u_perp*sin(alpha)
-        vbar(jz) = u_par*sin(alpha) + u_perp*cos(alpha)
+        if (arg < G) then
+            ubar(jz) = arg*cos(alpha)
+            vbar(jz) = arg*sin(alpha)
+        else
+            ubar(jz) = G*cos(alpha)
+            vbar(jz) = G*sin(alpha)
+        endif
     else
-        mean_p_force_mag = sqrt(mean_p_force_x**2 + mean_p_force_y**2)
         if (mean_p_force_mag > 0._rprec) then
             ubar(jz) = arg*mean_p_force_x/mean_p_force_mag
             vbar(jz) = arg*mean_p_force_y/mean_p_force_mag
@@ -575,7 +580,15 @@ do jz = 1, nz
     ! For upside-down half-channel, choose upper wall
     if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1)*z_i - z
 
+#ifdef PPSCALARS
+    if (z > ic_no_vel_noise_z*z_i) then
+        u(:,:,jz) = ubar(jz)
+        v(:,:,jz) = vbar(jz)
+        w(:,:,jz) = 0._rprec
+    elseif (z <= z_i) then
+#else
     if (z <= z_i) then
+#endif
         u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)
         v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i) + vbar(jz)
         w(:,:,jz) = w(:,:,jz) * (1._rprec-z / z_i)

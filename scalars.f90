@@ -64,6 +64,7 @@ integer, public :: lbc_scal = 0
 real(rprec), public :: scal_bot = 300._rprec
 real(rprec), public :: flux_bot = 0._rprec
 real(rprec), dimension(:), allocatable, public :: ic_z, ic_theta
+real(rprec), public :: ic_no_vel_noise_z
 integer, public :: ic_nloc
 real(rprec), public :: lapse_rate = 0._rprec
 logical, public :: read_lbc_scal = .false.
@@ -117,6 +118,7 @@ scal_bot = scal_bot/T_scale
 lapse_rate = lapse_rate/T_scale*z_i
 ic_theta = ic_theta/T_scale
 ic_z = ic_z/z_i
+ic_no_vel_noise_z = ic_no_vel_noise_z/z_i
 
 ! Read values from file
 if (read_lbc_scal) then
