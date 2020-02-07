@@ -98,16 +98,12 @@ real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
 real(rprec), dimension(:), allocatable :: Ct_prime_time
 
 ! Input files
-character(*), parameter :: input_folder = 'input_turbines/'
-character(*), parameter :: param_dat = path // input_folder // 'param.dat'
-character(*), parameter :: theta1_dat = path // input_folder // 'theta1.dat'
-character(*), parameter :: theta2_dat = path // input_folder // 'theta2.dat'
-character(*), parameter :: Ct_prime_dat = path // input_folder // 'Ct_prime.dat'
+character(:), allocatable :: input_folder
+character(:), allocatable :: param_dat, theta1_dat, theta2_dat, Ct_prime_dat
 
 ! Output files
-character(*), parameter :: output_folder = 'turbine/'
-character(*), parameter :: vel_top_dat = path // output_folder // 'vel_top.dat'
-character(*), parameter :: u_d_T_dat = path // output_folder // 'u_d_T.dat'
+character(:), allocatable :: output_folder
+character(:), allocatable :: vel_top_dat , u_d_T_dat
 integer, dimension(:), allocatable :: forcing_fid
 
 ! epsilon used for disk velocity time-averaging
@@ -143,6 +139,16 @@ x => grid % x
 y => grid % y
 z => grid % z
 
+! Input/Output file names
+allocate(input_folder, source = 'input_turbines/')
+allocate(param_dat, source = path // input_folder // 'param.dat')
+allocate(theta1_dat, source = path // input_folder // 'theta1.dat')
+allocate(theta2_dat, source = path // input_folder // 'theta2.dat')
+allocate(Ct_prime_dat, source = path // input_folder // 'Ct_prime.dat')
+allocate(output_folder, source = 'turbine/')
+allocate(vel_top_dat, source = path // output_folder // 'vel_top.dat')
+allocate(u_d_T_dat, source = path // output_folder // 'u_d_T.dat')
+
 ! Allocate and initialize
 nloc = num_x*num_y
 nullify(wind_farm%turbine)
@@ -150,7 +156,7 @@ allocate(wind_farm%turbine(nloc))
 allocate(forcing_fid(nloc))
 
 ! Create turbine directory
-call system("mkdir -vp turbine")
+call system('mkdir -vp ' // path // output_folder)
 
 ! Non-dimensionalize length values by z_i
 height_all = height_all / z_i

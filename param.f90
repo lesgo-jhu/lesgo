@@ -38,10 +38,12 @@ public
 ! GLOBAL PARAMETERS
 !---------------------------------------------------
 integer, parameter :: CHAR_BUFF_LENGTH = 1024 ! Default size of string buffers with unknown length
-character(*), parameter :: PATH = './'
-character(*), parameter :: checkpoint_file = path // 'vel.out'
-character(*), parameter :: checkpoint_tavg_file = path // 'tavg.out'
-character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
+character(:), allocatable :: path
+! character(:), allocatable :: checkpoint_file
+! character(:), allocatable :: checkpoint_tavg_file
+character(:), allocatable :: checkpoint_file
+! character(*), parameter :: checkpoint_tavg_file = path // 'tavg.out'
+! character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
 #ifdef PPWRITE_BIG_ENDIAN
 character(*), parameter :: write_endian = 'BIG_ENDIAN'
 #elif PPWRITE_LITTLE_ENDIAN
@@ -157,7 +159,6 @@ real(rprec) :: dt_dim
 real(rprec) :: tadv1, tadv2
 
 logical :: cumulative_time = .true.
-character (*), parameter :: fcumulative_time = path // 'total_time.dat'
 
 integer :: jt=0                 ! Local time counter
 integer :: jt_total=0           ! Global time counter

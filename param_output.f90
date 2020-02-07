@@ -29,7 +29,7 @@ implicit none
 
 integer :: n
 
-character(*), parameter :: fname = path // 'output/lesgo_param.out'
+character(:), allocatable :: fname
 
 character(*), parameter :: c_fmt = '(a)'
 character(*), parameter :: x2c_fmt = '(2a)'
@@ -50,6 +50,8 @@ character(*), parameter :: if_fmt='(a,i7,e15.7)'
 character(*), parameter :: ix3f_fmt='(a,i7,3e15.7)'
 character(13) :: ch
 
+
+allocate(fname, source=path // 'output/lesgo_param.out')
 open (unit = 2,file = fname, status='unknown',form='formatted',                &
   action='write',position='rewind')
 
@@ -91,7 +93,6 @@ write(2,f_fmt) 'cfl : ', cfl
 write(2,f_fmt) 'dt : ', dt
 #endif
 write(2,l_fmt) 'cumulative_time : ', cumulative_time
-write(2, x2c_fmt) 'fcumulative_time : ', fcumulative_time
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'BOUNDARY/INITIAL CONDITION PARAMETERS'

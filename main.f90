@@ -70,6 +70,8 @@ real(rprec), dimension(:,:,:), allocatable :: dummyu, dummyv, dummyw
 real(rprec), dimension(:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
 
 character (*), parameter :: prog_name = 'main'
+integer :: nca
+character(:), allocatable :: ca
 
 integer :: jt_step, nstart
 real(rprec) :: rmsdivvel, ke, maxcfl, tt
@@ -90,6 +92,17 @@ real(rprec) :: tau_top   ! Used to write top wall stress at first proc
 #ifdef PPMPI
 call mpi_init (ierr)
 #endif
+
+! Get path if needed
+nca = COMMAND_ARGUMENT_COUNT()
+if (nca == 1) then
+    call GET_COMMAND_ARGUMENT(1, length=nca)
+    allocate(character(nca) :: ca)
+    call GET_COMMAND_ARGUMENT(1, value=ca)
+    allocate(path, source = './' // ca // '/')
+else
+    allocate(path, source='./')
+endif
 
 ! Start the clocks, both local and total
 call clock%start
@@ -435,7 +448,7 @@ time_loop: do jt_step = nstart, nsteps
                 if (coriolis_forcing == 2) then
                     write(*,'(1a,E15.7)') '  wind direction: ', phi_actual
                 end if
-            end if            
+            end if
             write(*,'(a)') '==================================================='
             call write_tau_wall_bot()
         end if

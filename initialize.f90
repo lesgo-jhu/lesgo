@@ -79,10 +79,8 @@ use scalars, only : scalars_init
 
 implicit none
 
-character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
-
 ! Create output directory
-if (coord == 0) call system( make_output_dir )
+if (coord == 0) call system( 'mkdir -p ' // path // 'output' )
 
 ! Initialize MPI
 #ifdef PPMPI

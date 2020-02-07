@@ -216,7 +216,7 @@ subroutine ic_scal_interp()
 ! This subroutine reads the initial conditions from a checkpoint file and
 ! interpolates onto the current grid
 !
-use param, only : nx, ny, nz, lbz, read_endian
+use param, only : nx, ny, nz, lbz, read_endian, path
 use grid_m
 use functions
 integer :: nproc_f, Nx_f, Ny_f, Nz_f
@@ -233,7 +233,7 @@ real(rprec), allocatable, dimension(:) :: z_r, zw_r
 ! real(rprec), allocatable, dimension(:,:,:) :: u_r, v_r, w_r
 
 ! Read grid information from file
-open(12, file='grid.out', form='unformatted', convert=read_endian)
+open(12, file=path // 'grid.out', form='unformatted', convert=read_endian)
 read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
 close(12)
 
@@ -279,7 +279,7 @@ do i = 1, nproc_r
 
     ! Read from file
     write(ff,*) i+npr1-1
-    ff = "./scal.out.c"//trim(adjustl(ff))
+    ff = path // "scal.out.c"//trim(adjustl(ff))
     open(12, file=ff,  action='read', form='unformatted')
     read(12) theta_f(:, :, z1:z2)
     close(12)

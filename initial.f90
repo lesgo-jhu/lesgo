@@ -204,13 +204,14 @@ end subroutine ic_uniform
 !*******************************************************************************
 function check_for_interp() result(flag)
 !*******************************************************************************
+use param, only : path
 integer :: Nx_f, Ny_f, Nz_f, nproc_f
 real(rprec) :: Lx_f, Ly_f, Lz_f
 logical :: exst, flag
 
-inquire (file='grid.out', exist=exst)
+inquire (file=path // 'grid.out', exist=exst)
 if (exst) then
-    open(12, file='grid.out', form='unformatted', convert=read_endian)
+    open(12, file= path // 'grid.out', form='unformatted', convert=read_endian)
     read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
     close(12)
     if (nproc_f == nproc .and. Nx_f == Nx .and. Ny_f == Ny .and. Nz_f == Nz    &
@@ -247,6 +248,7 @@ subroutine ic_interp()
 ! This subroutine reads the initial conditions from a checkpoint file and
 ! interpolates onto the current grid
 !
+use param, only : path
 use grid_m
 use functions
 integer :: nproc_f, Nx_f, Ny_f, Nz_f
@@ -263,7 +265,7 @@ real(rprec), allocatable, dimension(:) :: z_r, zw_r
 ! real(rprec), allocatable, dimension(:,:,:) :: u_r, v_r, w_r
 
 ! Read grid information from file
-open(12, file='grid.out', form='unformatted', convert=read_endian)
+open(12, file=path // 'grid.out', form='unformatted', convert=read_endian)
 read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
 close(12)
 
@@ -311,7 +313,7 @@ do i = 1, nproc_r
 
     ! Read from file
     write(ff,*) i+npr1-1
-    ff = "./vel.out.c"//trim(adjustl(ff))
+    ff = path // "vel.out.c"//trim(adjustl(ff))
     open(12, file=ff,  action='read', form='unformatted')
     read(12) u_f(:, :, z1:z2), v_f(:, :, z1:z2), w_f(:, :, z1:z2)
     close(12)

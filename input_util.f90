@@ -31,7 +31,6 @@ public :: read_input_conf
 
 character(*), parameter :: mod_name = 'input_util'
 
-character(*), parameter :: input_conf = path // 'lesgo.conf'
 character(*), parameter :: comment = '!'
 character(*), parameter :: block_entry = '{'
 character(*), parameter :: block_exit = '}'
@@ -61,6 +60,7 @@ implicit none
 
 integer, parameter :: lun = 1
 character (CHAR_BUFF_LENGTH) :: buff
+character(:), allocatable :: input_conf
 integer :: block_entry_pos, block_exit_pos, equal_pos
 integer :: ios
 integer :: line
@@ -69,6 +69,7 @@ logical :: exst
 character(*), parameter :: sub_name = mod_name // '.read_input_conf'
 
 ! Check that the configuration file exists
+allocate(input_conf, source = path // 'lesgo.conf')
 inquire (file=input_conf, exist=exst)
 
 if (exst) then

@@ -55,6 +55,8 @@ contains
     procedure, public :: checkpoint
 end type tavg_t
 
+character(:), allocatable :: checkpoint_tavg_file
+
 contains
 
 !*******************************************************************************
@@ -67,14 +69,18 @@ implicit none
 
 class(tavg_t), intent(inout) :: this
 
-character (*), parameter :: ftavg_in = path // 'tavg.out'
+character(:), allocatable :: ftavg_in
 #ifdef PPMPI
 character (*), parameter :: MPI_suffix = '.c'
 #endif
 character (128) :: fname
-integer :: i, j, k
+! integer :: i, j, k
 
 logical :: exst
+
+! Create file name
+allocate(ftavg_in, source = path // 'tavg.out')
+allocate(checkpoint_tavg_file, source=path // 'tavg.out')
 
 ! Allocate and initialize
 allocate( this%u(nx,ny,lbz:nz) ); this%u(:,:,:) = 0._rprec
@@ -173,11 +179,11 @@ subroutine compute(this)
 !  This subroutine collects the stats for each flow
 !  variable quantity
 !
-use param, only : jzmax, ubc_mom, lbc_mom, coord, nproc
+use param, only : ubc_mom, lbc_mom, coord, nproc
 use sgs_param, only : Cs_opt2
 use sim_param, only : u, v, w, p
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
-use sim_param, only : dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
+use sim_param, only : dudy, dudz, dvdx, dvdz, dwdx, dwdy
 #if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
 use sim_param, only : fxa, fya, fza
 #endif
@@ -186,8 +192,8 @@ implicit none
 
 class(tavg_t), intent(inout) :: this
 
-integer :: i, j, k
-real(rprec) :: u_p, u_p2, v_p, v_p2, w_p, w_p2
+! integer :: i, j, k
+! real(rprec) :: u_p, u_p2, v_p, v_p2, w_p, w_p2
 
 ! Interpolation onto other grids
 w_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
@@ -222,52 +228,85 @@ if(coord==nproc-1 .and. ubc_mom>0) u_w(:,:,nz) = 0._rprec
 if(coord==0       .and. lbc_mom>0) v_w(:,:,1)  = 0._rprec
 if(coord==nproc-1 .and. ubc_mom>0) v_w(:,:,nz) = 0._rprec
 
-do k = lbz, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
-do j = 1, ny
-do i = 1, nx
-    u_p = u(i,j,k)       !! uv grid
-    u_p2= u_w(i,j,k)     !! w grid
-    v_p = v(i,j,k)       !! uv grid
-    v_p2= v_w(i,j,k)     !! w grid
-    w_p = w(i,j,k)       !! w grid
-    w_p2= w_uv(i,j,k)    !! uv grid
+this%u(:,:,:) = this%u(:,:,:) + u(1:nx,1:ny,:)*this%dt          !! uv grid
+this%v(:,:,:) = this%v(:,:,:) + v(1:nx,1:ny,:)*this%dt          !! uv grid
+this%w(:,:,:) = this%w(:,:,:) + w(1:nx,1:ny,:)*this%dt          !! w grid
+this%w_uv(:,:,:) = this%w(:,:,:) + w_uv(1:nx,1:ny,:)*this%dt    !! uv grid
 
-    this%u(i,j,k) = this%u(i,j,k) + u_p * this%dt !! uv grid
-    this%v(i,j,k) = this%v(i,j,k) + v_p * this%dt !! uv grid
-    this%w(i,j,k) = this%w(i,j,k) + w_p * this%dt !! w grid
-    this%w_uv(i,j,k) = this%w_uv(i,j,k) + w_p2 * this%dt !! uv grid
+this%u2(:,:,:) = this%u2(:,:,:) + u(1:nx,1:ny,:)*u(1:nx,1:ny,:)*this%dt     !! uv grid
+this%v2(:,:,:) = this%v2(:,:,:) + v(1:nx,1:ny,:)*v(1:nx,1:ny,:)*this%dt     !! uv grid
+this%w2(:,:,:) = this%w2(:,:,:) + w(1:nx,1:ny,:)*w(1:nx,1:ny,:)*this%dt     !! w grid
+this%uv(:,:,:) = this%uv(:,:,:) + u(1:nx,1:ny,:)*v(1:nx,1:ny,:)*this%dt     !! uv grid
+this%uw(:,:,:) = this%uw(:,:,:) + u_w(1:nx,1:ny,:)*w(1:nx,1:ny,:)*this%dt   !! w grid
+this%vw(:,:,:) = this%vw(:,:,:) + v_w(1:nx,1:ny,:)*w(1:nx,1:ny,:)*this%dt   !! w grid
 
-    ! Note: compute u'w' on w-grid because stresses on w-grid --pj
-    this%u2(i,j,k) = this%u2(i,j,k) + u_p * u_p * this%dt !! uv grid
-    this%v2(i,j,k) = this%v2(i,j,k) + v_p * v_p * this%dt !! uv grid
-    this%w2(i,j,k) = this%w2(i,j,k) + w_p * w_p * this%dt !! w grid
-    this%uv(i,j,k) = this%uv(i,j,k) + u_p * v_p * this%dt !! uv grid
-    this%uw(i,j,k) = this%uw(i,j,k) + u_p2 * w_p * this%dt !! w grid
-    this%vw(i,j,k) = this%vw(i,j,k) + v_p2 * w_p * this%dt !! w grid
+this%txx(:,:,:) = this%txx(:,:,:) + txx(1:nx,1:ny,:)*this%dt    !! uv grid
+this%tyy(:,:,:) = this%tyy(:,:,:) + tyy(1:nx,1:ny,:)*this%dt    !! uv grid
+this%tzz(:,:,:) = this%tzz(:,:,:) + tzz(1:nx,1:ny,:)*this%dt    !! uv grid
+this%txy(:,:,:) = this%txy(:,:,:) + txy(1:nx,1:ny,:)*this%dt    !! uv grid
+this%txz(:,:,:) = this%txz(:,:,:) + txz(1:nx,1:ny,:)*this%dt    !! w grid
+this%tyz(:,:,:) = this%tyz(:,:,:) + tyz(1:nx,1:ny,:)*this%dt    !! w grid
 
-    this%txx(i,j,k) = this%txx(i,j,k) + txx(i,j,k) * this%dt !! uv grid
-    this%tyy(i,j,k) = this%tyy(i,j,k) + tyy(i,j,k) * this%dt !! uv grid
-    this%tzz(i,j,k) = this%tzz(i,j,k) + tzz(i,j,k) * this%dt !! uv grid
-    this%txy(i,j,k) = this%txy(i,j,k) + txy(i,j,k) * this%dt !! uv grid
-    this%txz(i,j,k) = this%txz(i,j,k) + txz(i,j,k) * this%dt !! w grid
-    this%tyz(i,j,k) = this%tyz(i,j,k) + tyz(i,j,k) * this%dt !! w grid
-
-    this%p(i,j,k) = this%p(i,j,k) + pres_real(i,j,k) * this%dt
+this%p(:,:,:) = this%p(:,:,:) + pres_real(1:nx,1:ny,:)*this%dt
 
 #if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-    this%fx(i,j,k) = this%fx(i,j,k) + fxa(i,j,k) * this%dt
-    this%fy(i,j,k) = this%fy(i,j,k) + fya(i,j,k) * this%dt
-    this%fz(i,j,k) = this%fz(i,j,k) + fza_uv(i,j,k) * this%dt
+this%fx(:,:,1:) = this%fx(:,:,1:) + fxa(1:nx,1:ny,1:)*this%dt
+this%fy(:,:,1:) = this%fy(:,:,1:) + fya(1:nx,1:ny,1:)*this%dt
+this%fz(:,:,1:) = this%fz(:,:,1:) + fza_uv(1:nx,1:ny,1:)*this%dt
 #endif
 
-    this%cs_opt2(i,j,k) = this%cs_opt2(i,j,k) + Cs_opt2(i,j,k) * this%dt
-    
-    this%vortx(i,j,k) = this%vortx(i,j,k) + vortx(i,j,k) * this%dt
-    this%vorty(i,j,k) = this%vorty(i,j,k) + vorty(i,j,k) * this%dt
-    this%vortz(i,j,k) = this%vortz(i,j,k) + vortz(i,j,k) * this%dt
-end do
-end do
-end do
+this%cs_opt2(:,:,1:) = this%cs_opt2(:,:,1:) + Cs_opt2(1:nx,1:ny,1:)*this%dt
+
+this%vortx(:,:,:) = this%vortx(:,:,:) + vortx(1:nx,1:ny,:) * this%dt
+this%vorty(:,:,:) = this%vorty(:,:,:) + vorty(1:nx,1:ny,:) * this%dt
+this%vortz(:,:,:) = this%vortz(:,:,:) + vortz(1:nx,1:ny,:) * this%dt
+!
+! do k = lbz, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
+! do j = 1, ny
+! do i = 1, nx
+!     u_p = u(i,j,k)       !! uv grid
+!     u_p2= u_w(i,j,k)     !! w grid
+!     v_p = v(i,j,k)       !! uv grid
+!     v_p2= v_w(i,j,k)     !! w grid
+!     w_p = w(i,j,k)       !! w grid
+!     w_p2= w_uv(i,j,k)    !! uv grid
+
+    ! this%u(i,j,k) = this%u(i,j,k) + u_p * this%dt !! uv grid
+    ! this%v(i,j,k) = this%v(i,j,k) + v_p * this%dt !! uv grid
+    ! this%w(i,j,k) = this%w(i,j,k) + w_p * this%dt !! w grid
+    ! this%w_uv(i,j,k) = this%w_uv(i,j,k) + w_p2 * this%dt !! uv grid
+
+    ! Note: compute u'w' on w-grid because stresses on w-grid --pj
+    ! this%u2(i,j,k) = this%u2(i,j,k) + u_p * u_p * this%dt !! uv grid
+    ! this%v2(i,j,k) = this%v2(i,j,k) + v_p * v_p * this%dt !! uv grid
+    ! this%w2(i,j,k) = this%w2(i,j,k) + w_p * w_p * this%dt !! w grid
+    ! this%uv(i,j,k) = this%uv(i,j,k) + u_p * v_p * this%dt !! uv grid
+    ! this%uw(i,j,k) = this%uw(i,j,k) + u_p2 * w_p * this%dt !! w grid
+    ! this%vw(i,j,k) = this%vw(i,j,k) + v_p2 * w_p * this%dt !! w grid
+
+    ! this%txx(i,j,k) = this%txx(i,j,k) + txx(i,j,k) * this%dt !! uv grid
+    ! this%tyy(i,j,k) = this%tyy(i,j,k) + tyy(i,j,k) * this%dt !! uv grid
+    ! this%tzz(i,j,k) = this%tzz(i,j,k) + tzz(i,j,k) * this%dt !! uv grid
+    ! this%txy(i,j,k) = this%txy(i,j,k) + txy(i,j,k) * this%dt !! uv grid
+    ! this%txz(i,j,k) = this%txz(i,j,k) + txz(i,j,k) * this%dt !! w grid
+    ! this%tyz(i,j,k) = this%tyz(i,j,k) + tyz(i,j,k) * this%dt !! w grid
+
+    ! this%p(i,j,k) = this%p(i,j,k) + pres_real(i,j,k) * this%dt
+
+! #if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
+!     this%fx(i,j,k) = this%fx(i,j,k) + fxa(i,j,k) * this%dt
+!     this%fy(i,j,k) = this%fy(i,j,k) + fya(i,j,k) * this%dt
+!     this%fz(i,j,k) = this%fz(i,j,k) + fza_uv(i,j,k) * this%dt
+! #endif
+!
+!     this%cs_opt2(i,j,k) = this%cs_opt2(i,j,k) + Cs_opt2(i,j,k) * this%dt
+
+    ! this%vortx(i,j,k) = this%vortx(i,j,k) + vortx(i,j,k) * this%dt
+    ! this%vorty(i,j,k) = this%vorty(i,j,k) + vorty(i,j,k) * this%dt
+    ! this%vortz(i,j,k) = this%vortz(i,j,k) + vortz(i,j,k) * this%dt
+! end do
+! end do
+! end do
 
 ! Update this%total_time for variable time stepping
 this%total_time = this%total_time + this%dt
@@ -281,7 +320,7 @@ end subroutine compute
 subroutine finalize(this)
 !*******************************************************************************
 use grid_m
-use param, only : write_endian, jzmin, jzmax, lbz, path, coord, nproc
+use param, only : write_endian, lbz, path, coord, nproc
 use string_util
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -298,7 +337,7 @@ character(64) :: bin_ext
 character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_pres
 character(64) :: fname_f, fname_rs, fname_cs, fname_vort
 
-integer :: i,j,k
+! integer :: i,j,k
 ! Where to end with nz index.
 integer :: nz_end
 
@@ -375,38 +414,33 @@ call mpi_barrier(comm, ierr)
 #endif
 
 !  Perform time averaging operation
-do k = jzmin, jzmax
-do j = 1, Ny
-do i = 1, Nx
-    this%u(i,j,k) = this%u(i,j,k) /  this%total_time
-    this%v(i,j,k) = this%v(i,j,k) /  this%total_time
-    this%w(i,j,k) = this%w(i,j,k) /  this%total_time
-    this%u_w(i,j,k)  = this%u_w(i,j,k)  /  this%total_time
-    this%v_w(i,j,k)  = this%v_w(i,j,k)  /  this%total_time
-    this%w_uv(i,j,k) = this%w_uv(i,j,k) /  this%total_time
-    this%u2(i,j,k) = this%u2(i,j,k) /  this%total_time
-    this%v2(i,j,k) = this%v2(i,j,k) /  this%total_time
-    this%w2(i,j,k) = this%w2(i,j,k) /  this%total_time
-    this%uv(i,j,k) = this%uv(i,j,k) /  this%total_time
-    this%uw(i,j,k) = this%uw(i,j,k) /  this%total_time
-    this%vw(i,j,k) = this%vw(i,j,k) /  this%total_time
-    this%txx(i,j,k) = this%txx(i,j,k) /  this%total_time
-    this%tyy(i,j,k) = this%tyy(i,j,k) /  this%total_time
-    this%tzz(i,j,k) = this%tzz(i,j,k) /  this%total_time
-    this%txy(i,j,k) = this%txy(i,j,k) /  this%total_time
-    this%txz(i,j,k) = this%txz(i,j,k) /  this%total_time
-    this%tyz(i,j,k) = this%tyz(i,j,k) /  this%total_time
-    this%p(i,j,k) = this%p(i,j,k) /  this%total_time
-    this%fx(i,j,k) = this%fx(i,j,k) /  this%total_time
-    this%fy(i,j,k) = this%fy(i,j,k) /  this%total_time
-    this%fz(i,j,k) = this%fz(i,j,k) /  this%total_time
-    this%cs_opt2(i,j,k) = this%cs_opt2(i,j,k) /  this%total_time
-    this%vortx(i,j,k) = this%vortx(i,j,k) /  this%total_time
-    this%vorty(i,j,k) = this%vorty(i,j,k) /  this%total_time
-    this%vortz(i,j,k) = this%vortz(i,j,k) /  this%total_time
-end do
-end do
-end do
+this%u(:,:,:) = this%u(:,:,:) /  this%total_time
+this%v(:,:,:) = this%v(:,:,:) /  this%total_time
+this%w(:,:,:) = this%w(:,:,:) /  this%total_time
+this%u_w(:,:,:)  = this%u_w(:,:,:)  /  this%total_time
+this%v_w(:,:,:)  = this%v_w(:,:,:)  /  this%total_time
+this%w_uv(:,:,:) = this%w_uv(:,:,:) /  this%total_time
+this%u2(:,:,:) = this%u2(:,:,:) /  this%total_time
+this%v2(:,:,:) = this%v2(:,:,:) /  this%total_time
+this%w2(:,:,:) = this%w2(:,:,:) /  this%total_time
+this%uv(:,:,:) = this%uv(:,:,:) /  this%total_time
+this%uw(:,:,:) = this%uw(:,:,:) /  this%total_time
+this%vw(:,:,:) = this%vw(:,:,:) /  this%total_time
+this%txx(:,:,:) = this%txx(:,:,:) /  this%total_time
+this%tyy(:,:,:) = this%tyy(:,:,:) /  this%total_time
+this%tzz(:,:,:) = this%tzz(:,:,:) /  this%total_time
+this%txy(:,:,:) = this%txy(:,:,:) /  this%total_time
+this%txz(:,:,:) = this%txz(:,:,:) /  this%total_time
+this%tyz(:,:,:) = this%tyz(:,:,:) /  this%total_time
+this%p(:,:,:) = this%p(:,:,:) /  this%total_time
+this%fx(:,:,:) = this%fx(:,:,:) /  this%total_time
+this%fy(:,:,:) = this%fy(:,:,:) /  this%total_time
+this%fz(:,:,:) = this%fz(:,:,:) /  this%total_time
+this%cs_opt2(:,:,:) = this%cs_opt2(:,:,:) /  this%total_time
+this%vortx(:,:,:) = this%vortx(:,:,:) /  this%total_time
+this%vorty(:,:,:) = this%vorty(:,:,:) /  this%total_time
+this%vortz(:,:,:) = this%vortz(:,:,:) /  this%total_time
+
 
 #ifdef PPMPI
 call mpi_barrier( comm, ierr )
@@ -504,7 +538,7 @@ call write_parallel_cgns(fname_vort,nx,ny,nz- nz_end,nz_tot,                   &
     (/ 'VorticityX', 'VorticityY', 'VorticityZ' /),                            &
     (/ this%vortx(1:nx,1:ny,1:nz-nz_end),                                      &
        this%vorty(1:nx,1:ny,1:nz-nz_end),                                      &
-       this%vortz(1:nx,1:ny,1:nz-nz_end) /) 
+       this%vortz(1:nx,1:ny,1:nz-nz_end) /)
 
 #else
 ! Write binary data
@@ -633,7 +667,7 @@ subroutine checkpoint(this)
 ! for intermediate checkpoints and by 'tavg_finalize' at the end of the
 ! simulation.
 !
-use param, only : checkpoint_tavg_file, write_endian, coord
+use param, only : write_endian, coord
 use string_util
 implicit none
 
