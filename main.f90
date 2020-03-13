@@ -39,6 +39,7 @@ use cfl_util
 use sgs_stag_util, only : sgs_stag
 use forcing
 use functions, only: get_tau_wall_bot, get_tau_wall_top
+use shift
 
 #ifdef PPMPI
 use mpi
@@ -54,8 +55,6 @@ use level_set_base, only : global_CA_calc
 use turbines, only : turbines_forcing, turbine_vel_init
 #endif
 
-use sgs_param, only : F_LM, F_MM, F_QN, F_NN
-
 #ifdef PPSCALARS
 use scalars, only : buoyancy_force, scalars_transport, scalars_deriv
 #endif
@@ -65,9 +64,6 @@ use coriolis, only : coriolis_calc, coriolis_forcing, alpha, G, phi_actual
 use messages
 
 implicit none
-
-real(rprec), dimension(:,:,:), allocatable :: dummyu, dummyv, dummyw
-real(rprec), dimension(:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
 
 character (*), parameter :: prog_name = 'main'
 integer :: nca
@@ -130,17 +126,6 @@ call clock_total%start
 ! If new simulation jt_total=0 by definition, if restarting jt_total
 ! provided by total_time.dat
 nstart = jt_total+1
-
-! Declare variables for shifting the domain
-! This gets rid of streaks in the domain
-if (use_shift) then
-    allocate( dummyu     (ld    ,ny, lbz:nz) )
-    allocate( dummyv     (ld    ,ny, lbz:nz) )
-    allocate( dummyw     (ld    ,ny, lbz:nz) )
-    allocate( dummyRHSx  (ld    ,ny, lbz:nz) )
-    allocate( dummyRHSy  (ld    ,ny, lbz:nz) )
-    allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
-end if
 
 ! BEGIN TIME LOOP
 time_loop: do jt_step = nstart, nsteps
@@ -366,6 +351,9 @@ time_loop: do jt_step = nstart, nsteps
     if (global_CA_calc) call level_set_global_CA()
 #endif
 
+    ! Shift the domain. This gets rid of streaks in the domain
+    call shift_domain()
+
     ! Write output files
     call output_loop()
 
@@ -479,54 +467,6 @@ time_loop: do jt_step = nstart, nsteps
 
        endif
 
-    end if
-
-    ! Shift the domain in the y (spanwise) direction
-    if (use_shift) then
-        if (modulo (jt_total, shift_base) == 0) then
-            if (coord == 0) then
-                write(*,*) 'Shifting domain one grid point in spanwise direction'
-            end if
-            dummyu(:,:,:) = u(:,:,:)
-            dummyv(:,:,:) = v(:,:,:)
-            dummyw(:,:,:) = w(:,:,:)
-
-            dummyRHSx(:,:,:) = RHSx(:,:,:)
-            dummyRHSy(:,:,:) = RHSy(:,:,:)
-            dummyRHSz(:,:,:) = RHSz(:,:,:)
-
-            u(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            v(:,2:ny,:) = dummyv(:,1:ny-1,:)
-            w(:,2:ny,:) = dummyw(:,1:ny-1,:)
-
-            RHSx(:,2:ny,:) = dummyRHSx(:,1:ny-1,:)
-            RHSy(:,2:ny,:) = dummyRHSy(:,1:ny-1,:)
-            RHSz(:,2:ny,:) = dummyRHSz(:,1:ny-1,:)
-
-            u(:,1,:) = dummyu(:,ny,:)
-            v(:,1,:) = dummyv(:,ny,:)
-            w(:,1,:) = dummyw(:,ny,:)
-
-            RHSx(:,1,:) = dummyRHSx(:,ny,:)
-            RHSy(:,1,:) = dummyRHSy(:,ny,:)
-            RHSz(:,1,:) = dummyRHSz(:,ny,:)
-
-            dummyu(:,:,:) = F_LM(:,:,:)
-            F_LM(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_LM(:,1,:) = dummyu(:,ny   ,:)
-
-            dummyu(:,:,:) = F_MM(:,:,:)
-            F_MM(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_MM(:,1,:) = dummyu(:,ny   ,:)
-
-            dummyu(:,:,:) = F_QN(:,:,:)
-            F_QN(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_QN(:,1,:) = dummyu(:,ny   ,:)
-
-            dummyu(:,:,:) = F_NN(:,:,:)
-            F_NN(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_NN(:,1,:) = dummyu(:,ny   ,:)
-        end if
     end if
 
 end do time_loop

@@ -36,6 +36,7 @@ use param, only : MPI_COMM_WORLD, ierr
 #else
 use param, only : chcoord, nproc
 #endif
+use shift
 
 use cfl_util
 use io, only : output_init
@@ -163,6 +164,7 @@ call scalars_init()
 #endif
 
 call sponge_init()
+call shift_init()
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! Initialize the kx,ky arrays

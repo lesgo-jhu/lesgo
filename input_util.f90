@@ -422,6 +422,7 @@ subroutine flow_cond_block()
 !*******************************************************************************
 use param
 use sponge
+use shift
 
 #ifdef PPHIT
 ! Type hit has all the information inside
