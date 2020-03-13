@@ -199,9 +199,10 @@ logical :: uniform_inflow = .false.
 real(rprec) :: inflow_velocity = 1.0_rprec
 
 ! Use shifting to eliminate streaks in time average
-! The domain will be shifted by one spanwise grid point every shift_base steps
+! The domain will be shifted by shift_n spanwise grid point every shift_base steps
 logical :: use_shift = .false.
 integer :: shift_base = 1000
+integer :: shift_n = 1
 
 ! if true, imposes a pressure gradient in the x-direction to force the flow
 logical :: use_mean_p_force = .true.

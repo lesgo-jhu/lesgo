@@ -477,6 +477,8 @@ do
                 read (buff(equal_pos+1:), *) use_shift
             case ('SHIFT_BASE')
                 read (buff(equal_pos+1:), *) shift_base
+            case ('SHIFT_N')
+                read (buff(equal_pos+1:), *) shift_n
             case ('USE_MEAN_P_FORCE')
                 read (buff(equal_pos+1:), *) use_mean_p_force
             case ('EVAL_MEAN_P_FORCE')
