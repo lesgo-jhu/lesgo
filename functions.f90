@@ -28,8 +28,8 @@ save
 private
 
 public interp_to_uv_grid, trilinear_interp, trilinear_interp_w, binary_search, &
-    bilinear_interp, linear_interp, cell_indx, buff_indx, interp_to_w_grid,    &
-    get_tau_wall_bot, get_tau_wall_top, count_lines
+    bilinear_interp, linear_interp, cross_product, cell_indx, buff_indx,       &
+    interp_to_w_grid, get_tau_wall_bot, get_tau_wall_top, count_lines
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -794,6 +794,18 @@ do i = 1, N
 end do
 
 end function linear_interp_aa
+
+!*******************************************************************************
+function cross_product(u,v)
+!*******************************************************************************
+! Calculate the cross product of 2 vectors
+real(rprec), intent(in) :: u(3), v(3)
+real(rprec) :: cross_product(3)
+cross_product(1) = u(2)*v(3)-u(3)*v(2)
+cross_product(2) = u(3)*v(1)-u(1)*v(3)
+cross_product(3) = u(1)*v(2)-u(2)*v(1)
+
+end function cross_product
 
 !*******************************************************************************
 function binary_search(arr,val) result(low)
