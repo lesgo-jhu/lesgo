@@ -21,16 +21,10 @@
 module hit_inflow
 !*******************************************************************************
 ! This module provides homogenous isotrophic inflow for lesgo
-
-! Real precision from LESGO
 use types, only : rprec
-
-! Data from LESGO
 use param, only : ny, nz, dt
-
-! Grid definition (LESGO)
 use grid_m
-
+use fringe
 implicit none
 
 public :: hit, inflow_HIT, initialize_HIT
@@ -78,15 +72,15 @@ end type hit_t
 ! Declare turbine array variable
 type(hit_t), target :: hit
 
+type(fringe_t) :: hit_fringe
+
 contains
 
 !*******************************************************************************
 subroutine initialize_HIT ()
 !*******************************************************************************
-!
 !  This initializes the HIT case by reading input and allocating arrays
-!
-implicit none
+use param, only : fringe_region_end, fringe_region_len
 
 ! Grid size in HIT data
 real(rprec) :: dx, dy, dz
@@ -144,17 +138,15 @@ call extract_HIT_data()
 ! Read the restart file if present
 call hit_read_restart()
 
+! Create fringe
+hit_fringe = fringe_t(fringe_region_end, fringe_region_len)
+
 end subroutine initialize_HIT
 
 !*******************************************************************************
 subroutine extract_HIT_data ()
 !*******************************************************************************
-!
 !  This extracts the data from the input files
-!
-
-implicit none
-
 integer :: readFile=19  ! File number to read
 integer :: i, j, k
 
@@ -197,9 +189,7 @@ end subroutine extract_HIT_data
 !*******************************************************************************
 subroutine compute_HIT_plane_data ()
 !*******************************************************************************
-!
 !  This interploates the HIT data for each plane
-!
 
 ! Inflow velocity
 use param, only : inflow_velocity
@@ -243,60 +233,34 @@ end subroutine compute_HIT_plane_data
 !*******************************************************************************
 subroutine inflow_HIT ()
 !*******************************************************************************
-!
 !  Enforces prescribed inflow condition based on an uniform inflow
 !  velocity with Homogeneous Isotropic Inflow.
-!
 use param, only : nx, ny, nz
 use sim_param, only : u, v, w
-use messages, only : error
-use fringe_util
-implicit none
 
 integer :: i, i_w
-integer :: istart, istart_w
-integer :: iplateau
-integer :: iend, iend_w
-
-real (rprec) :: alpha, beta
 
 ! Compute the velocity at a plane
 call compute_HIT_plane_data ()
 
-!--these may be out of 1, ..., nx
-call fringe_init( istart, iplateau, iend )
-
-!--wrapped versions
-iend_w = modulo (iend - 1, nx) + 1
-istart_w = modulo (istart - 1, nx) + 1
-
-! Set end of domain (uniform inflow + turbulence)
-u(iend_w, :, :) = hit % u_plane(:,:)
-v(iend_w, :, :) = hit % v_plane(:,:)
-w(iend_w, :, :) = hit % w_plane(:,:)
-
-!--skip istart since we know vel at istart, iend already
-do i = istart + 1, iend - 1
-
-  i_w = modulo (i - 1, nx) + 1
-
-  beta = fringe_weighting( i, istart, iplateau )
-  alpha = 1.0_rprec - beta
-
-  u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * hit % u_plane(:,:)
-  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * hit % v_plane(:,:)
-  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * hit % w_plane(:,:)
-
+! Copy plane data to simulation domain
+do i = 1, hit_fringe%nx
+    i_w = hit_fringe%iwrap(i)
+    u(i_w,1:ny,1:nz) = hit_fringe%alpha(i) * u(i_w,1:ny,1:nz)                  \
+        + hit_fringe%beta(i) * hit%u_plane(:,:)
+    v(i_w,1:ny,1:nz) = hit_fringe%alpha(i) * v(i_w,1:ny,1:nz)                  \
+        + hit_fringe%beta(i) * hit%v_plane(:,:)
+    w(i_w,1:ny,1:nz) = hit_fringe%alpha(i) * w(i_w,1:ny,1:nz)                  \
+        + hit_fringe%beta(i) * hit%w_plane(:,:)
 end do
 
 end subroutine inflow_HIT
 
 !*******************************************************************************
 subroutine hit_write_restart()
-! This subroutine writes the hit restart information
-!*******************************************************************************
-implicit none
 
+!*******************************************************************************
+! This subroutine writes the hit restart information
 integer :: restartFile=21 ! File to write restart data
 
 ! Open the file
@@ -314,9 +278,8 @@ end subroutine hit_write_restart
 
 !*******************************************************************************
 subroutine hit_read_restart()
-! This subroutine reads the hit restart information
 !*******************************************************************************
-implicit none
+! This subroutine reads the hit restart information
 
 integer :: restartFile=27 ! File to write restart data
 logical :: file_exists  ! Flag to check if restart file exists
@@ -342,10 +305,11 @@ end subroutine hit_read_restart
 
 !*******************************************************************************
 function interpolate3D(xp, yp, zp, x, y, z, u)
+!*******************************************************************************
 ! This function does a trilinear intepolation
 ! xp, yp, zp - 3D point to intepolate
 ! x, y, z - vectors for doing interpolation
-!*******************************************************************************
+
 real(rprec) :: interpolate3D
 real(rprec), dimension(:), intent(in) :: x, y, z
 real(rprec), dimension(:,:,:), intent(in) :: u
@@ -480,4 +444,3 @@ interpolate3D = c0 * (1.-zd) + c1 * zd
 end function interpolate3D
 
 end module hit_inflow
-

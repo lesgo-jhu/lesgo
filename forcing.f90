@@ -39,7 +39,7 @@ save
 
 private
 
-public :: forcing_random, forcing_applied, forcing_induced, inflow_cond, project
+public :: forcing_random, forcing_applied, forcing_induced, project
 
 contains
 
@@ -146,53 +146,6 @@ call level_set_forcing ()
 end subroutine forcing_induced
 
 !*******************************************************************************
-subroutine inflow_cond ()
-!*******************************************************************************
-!
-!  Enforces prescribed inflow condition based on an uniform inflow
-!  velocity.
-!
-use types, only : rprec
-use param, only : inflow_velocity, nx, ny, nz
-use sim_param, only : u, v, w
-use messages, only : error
-use fringe_util
-implicit none
-
-integer :: i, i_w
-integer :: istart, istart_w
-integer :: iplateau
-integer :: iend, iend_w
-
-real(rprec) :: alpha, beta
-
-!--these may be out of 1, ..., nx
-call fringe_init( istart, iplateau, iend )
-
-!--wrapped versions
-iend_w = modulo (iend - 1, nx) + 1
-istart_w = modulo (istart - 1, nx) + 1
-
-! Set end of domain
-u(iend_w, :, :) = inflow_velocity
-v(iend_w, :, :) = 0._rprec
-w(iend_w, :, :) = 0._rprec
-
-!--skip istart since we know vel at istart, iend already
-do i = istart + 1, iend - 1
-    i_w = modulo (i - 1, nx) + 1
-
-    beta = fringe_weighting( i, istart, iplateau )
-    alpha = 1.0_rprec - beta
-
-    u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * inflow_velocity
-    v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz)
-    w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz)
-end do
-
-end subroutine inflow_cond
-
-!*******************************************************************************
 subroutine project ()
 !*******************************************************************************
 !
@@ -201,11 +154,10 @@ subroutine project ()
 use param
 use sim_param
 use messages
+use inflow, only : apply_inflow
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-#ifdef PPCPS
-use concurrent_precursor, only : synchronize_cps, inflow_cond_cps
-#endif
+
 #endif
 implicit none
 
@@ -254,15 +206,7 @@ end do
 end do
 end do
 
-! Cases for CPS, Isotropic Turbulence and Uniform inflow
-#ifdef PPCPS
-call synchronize_cps()
-if( inflow ) call inflow_cond_cps()
-#elif defined(PPHIT)
-if( inflow ) call inflow_HIT()
-#else
-if ( inflow ) call inflow_cond ()
-#endif
+call apply_inflow()
 
 !--left this stuff last, so BCs are still enforced, no matter what
 !  inflow_cond does

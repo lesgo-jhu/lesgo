@@ -187,7 +187,7 @@ real(rprec) :: utop = 0.0_rprec   ! nondimensional
 real(rprec) :: zo = 0.0001_rprec ! nondimensional
 
 ! prescribed inflow:
-logical :: inflow = .false.
+logical :: use_inflow = .false.
 ! if inflow is true the following should be set:
 ! position of right end of fringe region, as a fraction of L_x
 real(rprec) :: fringe_region_end  = 1.0_rprec

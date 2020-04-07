@@ -48,6 +48,7 @@ use grid_m
 use fft, only : init_fft
 use io, only : openfiles
 use coriolis
+use inflow, only : inflow_init
 
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
@@ -158,6 +159,8 @@ call initialize_HIT()
 call level_set_base_init()
 call level_set_init()
 #endif
+
+call inflow_init
 
 #ifdef PPSCALARS
 call scalars_init()

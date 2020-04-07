@@ -112,7 +112,7 @@ elseif (interp_flag) then
     if (coord == 0) write(*,*) '--> Interpolating initial velocity field from file'
     call ic_interp
 #ifndef PPCPS
-else if (inflow) then
+else if (use_inflow) then
     if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
     call ic_uniform
 #ifdef PPSCALARS

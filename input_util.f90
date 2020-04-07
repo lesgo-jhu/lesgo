@@ -466,8 +466,8 @@ do
                 read (buff(equal_pos+1:), *) sponge_height
             case ('ZO')
                 read (buff(equal_pos+1:), *) zo
-            case ('INFLOW')
-                read (buff(equal_pos+1:), *) inflow
+            case ('USE_INFLOW')
+                read (buff(equal_pos+1:), *) use_inflow
             case ('FRINGE_REGION_END')
                 read (buff(equal_pos+1:), *) fringe_region_end
             case ('FRINGE_REGION_LEN')
