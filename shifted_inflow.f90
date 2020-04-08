@@ -69,6 +69,7 @@ use sim_param, only : u, v, w
 #ifdef PPSCALARS
 use scalars, only : theta
 #endif
+integer :: i, i_w
 
 ! Sample and shift velocity
 u_s(:,shift_n+1:ny,:) = u(sample_fringe%iwrap(:),1:ny-shift_n,1:nz)
@@ -83,12 +84,19 @@ theta_s(:,1:shift_n,:) = theta(sample_fringe%iwrap(:),ny-shift_n+1:ny,1:nz)
 #endif
 
 ! Apply inflow conditions
-u(apply_fringe%iwrap,1:ny,1:nz) = u_s
-v(apply_fringe%iwrap,1:ny,1:nz) = v_s
-w(apply_fringe%iwrap,1:ny,1:nz) = w_s
+do i = 1, apply_fringe%nx
+    i_w = apply_fringe%iwrap(i)
+    u(i_w,1:ny,1:nz) = apply_fringe%alpha(i) * u(i_w,1:ny,1:nz)                  &
+        + apply_fringe%beta(i) * u_s(i,1:ny,1:nz)
+    v(i_w,1:ny,1:nz) = apply_fringe%alpha(i) * v(i_w,1:ny,1:nz)                  &
+        + apply_fringe%beta(i) * v_s(i,1:ny,1:nz)
+    w(i_w,1:ny,1:nz) = apply_fringe%alpha(i) * w(i_w,1:ny,1:nz)                  &
+        + apply_fringe%beta(i) * w_s(i,1:ny,1:nz)
 #ifdef PPSCALARS
-theta(apply_fringe%iwrap,1:ny,1:nz) = theta_s
+    theta(i_w,1:ny,1:nz) = apply_fringe%alpha(i) * theta(i_w,1:ny,1:nz)          &
+        + apply_fringe%beta(i) * theta_s(i,1:ny,1:nz)
 #endif
+end do
 
 end subroutine inflow_shifted
 

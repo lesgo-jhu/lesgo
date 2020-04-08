@@ -61,11 +61,13 @@ if( color == BLUE ) then
     cps_fringe = fringe_t(fringe_region_end, fringe_region_len)
     call mpi_send(cps_fringe%nx , 1, MPI_INTEGER,                              &
         rank_of_coord(coord), 1, interComm, ierr )
-else
+elseif( color == RED) then
     call mpi_recv(i , 1, MPI_INTEGER,                                          &
         rank_of_coord(coord), 1, interComm, status, ierr)
     fringe_region_len = (i - 0.5_rprec)*dx/L_x
     cps_fringe = fringe_t(sampling_region_end, fringe_region_len)
+else
+   call error(sub_name, 'Erroneous color specification')
 endif
 
 ! Allocate the sample block
