@@ -422,7 +422,6 @@ subroutine flow_cond_block()
 !*******************************************************************************
 use param
 use sponge
-use shift
 
 #ifdef PPHIT
 ! Type hit has all the information inside
@@ -466,18 +465,16 @@ do
                 read (buff(equal_pos+1:), *) sponge_height
             case ('ZO')
                 read (buff(equal_pos+1:), *) zo
-            case ('USE_INFLOW')
-                read (buff(equal_pos+1:), *) use_inflow
+            case ('INFLOW_TYPE')
+                read (buff(equal_pos+1:), *) inflow_type
             case ('FRINGE_REGION_END')
                 read (buff(equal_pos+1:), *) fringe_region_end
             case ('FRINGE_REGION_LEN')
                 read (buff(equal_pos+1:), *) fringe_region_len
             case ('INFLOW_VELOCITY')
                 read (buff(equal_pos+1:), *) inflow_velocity
-            case ('USE_SHIFT')
-                read (buff(equal_pos+1:), *) use_shift
-            case ('SHIFT_BASE')
-                read (buff(equal_pos+1:), *) shift_base
+            case ('SAMPLING_REGION_END')
+                read (buff(equal_pos+1:), *) sampling_region_end
             case ('SHIFT_N')
                 read (buff(equal_pos+1:), *) shift_n
             case ('USE_MEAN_P_FORCE')

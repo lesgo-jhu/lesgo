@@ -20,10 +20,10 @@ set(READ_ENDIAN "DEFAULT")
 
 # Options to enable various features in the code
 option(USE_MPI "Enable parallelization support." ON)
-option(USE_CPS "Enable concurrent precursor simulations." OFF)
-option(USE_HIT "Enable homogeneous isotropic turbulence input." ON)
+option(USE_CPS "Enable concurrent precursor simulations." ON)
+option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
 option(USE_LVLSET "Enable level set." OFF)
-option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
+option(USE_TURBINES "Enable actuator disk model without rotation." ON)
 option(USE_ATM "Enable actuator line/section model" OFF)
 option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging, using Taylor timescale." OFF)
 option(USE_SAFETYMODE "Set extra safety measures." ON)
@@ -144,7 +144,7 @@ set (Sources cfl_util.f90 clocks.f90 convec.f90 coriolis.f90 derivatives.f90 div
      initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90
      interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90
      messages.f90 param.f90 param_output.f90 pid.f90
-     press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90 shift.f90
+     press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90 shifted_inflow.f90
      sgs_param.f90 sgs_stag_util.f90 sim_param.f90 sponge.f90 stat_defs.f90
      std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90
      time_average.f90 types.f90 wallstress.f90 init_random_seed.f90
@@ -236,12 +236,12 @@ endif (READ_ENDIAN STREQUAL "BIG")
 
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    #set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
-    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp -O0 -g -traceback -no-wrap-margin -assume byterecl")
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
+    #set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp -O0 -g -traceback -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    #set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall -fcheck=all")
-    set (CMAKE_Fortran_FLAGS "-cpp -O0 -g -fbacktrace -fall-intrinsics -Wall -fcheck=all")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall -fcheck=all")
+    #set (CMAKE_Fortran_FLAGS "-cpp -O0 -g -fbacktrace -fall-intrinsics -Wall -fcheck=all")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 # main lesgo executable

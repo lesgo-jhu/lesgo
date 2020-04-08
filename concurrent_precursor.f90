@@ -29,7 +29,7 @@ save
 private
 
 public :: vel_sample_t
-public :: initialize_cps, synchronize_cps, inflow_cond_cps
+public :: initialize_cps, synchronize_cps, inflow_cps
 
 character(*), parameter :: mod_name = 'concurrent_precursor'
 
@@ -49,7 +49,7 @@ contains
 subroutine initialize_cps()
 !*******************************************************************************
 use param, only : nx, ny, nz, dx, L_x, coord, rank_of_coord, status, ierr
-use param, only : fringe_region_end, fringe_region_len
+use param, only : fringe_region_end, fringe_region_len, sampling_region_end
 use messages
 use mpi
 implicit none
@@ -65,7 +65,7 @@ else
     call mpi_recv(i , 1, MPI_INTEGER,                                          &
         rank_of_coord(coord), 1, interComm, status, ierr)
     fringe_region_len = (i - 0.5_rprec)*dx/L_x
-    cps_fringe = fringe_t(fringe_region_end, fringe_region_len)
+    cps_fringe = fringe_t(sampling_region_end, fringe_region_len)
 endif
 
 ! Allocate the sample block
@@ -170,7 +170,7 @@ nullify(theta_p)
 end subroutine synchronize_cps
 
 !*******************************************************************************
-subroutine inflow_cond_cps ()
+subroutine inflow_cps ()
 !*******************************************************************************
 !
 !  Enforces prescribed inflow condition from an inlet velocity field
@@ -224,6 +224,6 @@ nullify(u_p, v_p, w_p)
 nullify(theta_p)
 #endif
 
-end subroutine inflow_cond_cps
+end subroutine inflow_cps
 
 end module concurrent_precursor

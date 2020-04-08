@@ -39,7 +39,6 @@ use cfl_util
 use sgs_stag_util, only : sgs_stag
 use forcing
 use functions, only: get_tau_wall_bot, get_tau_wall_top
-use shift
 
 #ifdef PPMPI
 use mpi
@@ -350,9 +349,6 @@ time_loop: do jt_step = nstart, nsteps
 #ifdef PPLVLSET
     if (global_CA_calc) call level_set_global_CA()
 #endif
-
-    ! Shift the domain. This gets rid of streaks in the domain
-    call shift_domain()
 
     ! Write output files
     call output_loop()

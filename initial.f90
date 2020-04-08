@@ -111,14 +111,12 @@ if (initu) then
 elseif (interp_flag) then
     if (coord == 0) write(*,*) '--> Interpolating initial velocity field from file'
     call ic_interp
-#ifndef PPCPS
-else if (use_inflow) then
+else if (inflow_type == 1) then
     if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
     call ic_uniform
 #ifdef PPSCALARS
     if (coord == 0) write(*,*) "Uniform inflow with scalars is not yet supported."
     stop 9
-#endif
 #endif
 else if (lbc_mom==1) then
     if (coord == 0) write(*,*) '--> Creating initial laminar profile ',&
@@ -186,7 +184,6 @@ end if
 
 contains
 
-#ifndef PPCPS
 !*******************************************************************************
 subroutine ic_uniform()
 !*******************************************************************************
@@ -199,7 +196,6 @@ v = 0._rprec
 w = 0._rprec
 
 end subroutine ic_uniform
-#endif
 
 !*******************************************************************************
 function check_for_interp() result(flag)

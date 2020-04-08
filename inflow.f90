@@ -21,14 +21,15 @@
 module inflow
 !*******************************************************************************
 use types, only : rprec
-use param, only : use_inflow
+use param, only : inflow_type
 use fringe
 #ifdef PPCPS
-use concurrent_precursor, only : synchronize_cps, inflow_cond_cps
+use concurrent_precursor, only : synchronize_cps, inflow_cps
 #endif
 #ifdef PPHIT
 use hit_inflow
 #endif
+use shifted_inflow
 implicit none
 
 private
@@ -43,7 +44,24 @@ subroutine inflow_init
 !*******************************************************************************
 use param, only : fringe_region_end, fringe_region_len
 
-uniform_fringe = fringe_t(fringe_region_end, fringe_region_len)
+select case (inflow_type)
+    ! uniform
+    case (1)
+        uniform_fringe = fringe_t(fringe_region_end, fringe_region_len)
+#ifdef PPHIT
+    ! HIT
+    case (2)
+        call inflow_HIT()
+#endif
+    ! shifted
+    case (3)
+        call shifted_inflow_init()
+#ifdef PPCPS
+    ! CPS
+    case (4)
+        call inflow_cps()
+#endif
+end select
 
 end subroutine inflow_init
 
@@ -51,20 +69,33 @@ end subroutine inflow_init
 subroutine apply_inflow
 !*******************************************************************************
 
-! Cases for CPS, Isotropic Turbulence and Uniform inflow
 #ifdef PPCPS
 call synchronize_cps()
-if (use_inflow) call inflow_cond_cps()
-#elif defined(PPHIT)
-if (use_inflow) call inflow_HIT()
-#else
-if (use_inflow) call uniform_inflow_cond()
 #endif
+
+select case (inflow_type)
+    ! uniform
+    case (1)
+        call inflow_uniform()
+#ifdef PPHIT
+    ! HIT
+    case (2)
+        call inflow_HIT()
+#endif
+    ! shifted
+    case (3)
+        call inflow_shifted()
+#ifdef PPCPS
+    ! CPS
+    case (4)
+        call inflow_cps()
+#endif
+end select
 
 end subroutine apply_inflow
 
 !*******************************************************************************
-subroutine uniform_inflow_cond ()
+subroutine inflow_uniform ()
 !*******************************************************************************
 !  Enforces prescribed inflow condition based on an uniform inflow
 !  velocity.
@@ -81,6 +112,6 @@ do i = 1, uniform_fringe%nx
     w(i_w,1:ny,1:nz) = uniform_fringe%alpha(i) * w(i_w,1:ny,1:nz)
 end do
 
-end subroutine uniform_inflow_cond
+end subroutine inflow_uniform
 
 end module inflow

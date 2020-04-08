@@ -187,16 +187,20 @@ real(rprec) :: utop = 0.0_rprec   ! nondimensional
 real(rprec) :: zo = 0.0001_rprec ! nondimensional
 
 ! prescribed inflow:
-logical :: use_inflow = .false.
+integer :: inflow_type = 0
 ! if inflow is true the following should be set:
 ! position of right end of fringe region, as a fraction of L_x
 real(rprec) :: fringe_region_end  = 1.0_rprec
 ! length of fringe region as a fraction of L_x
 real(rprec) :: fringe_region_len = 0.125_rprec
 
-! Use uniform inflow instead of concurrent precursor inflow
-logical :: uniform_inflow = .false.
+! Uniform inflow velocity
 real(rprec) :: inflow_velocity = 1.0_rprec
+
+! Shifted periodic boundary conditions setting
+! End of sampling region as a fraction of L_x
+real(rprec) :: sampling_region_end = 0.625
+integer :: shift_n = 1
 
 ! if true, imposes a pressure gradient in the x-direction to force the flow
 logical :: use_mean_p_force = .true.

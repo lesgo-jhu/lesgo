@@ -200,7 +200,7 @@ do jz = 1,nz
     endif
 
     ! Inflow
-    if (use_inflow) then
+    if (inflow_type > 0) then
         iend = floor (fringe_region_end * nx + 1._rprec)
         istart = floor ((fringe_region_end - fringe_region_len) * nx + 1._rprec)
 
