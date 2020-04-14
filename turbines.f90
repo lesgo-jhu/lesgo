@@ -73,7 +73,7 @@ logical, public :: dyn_theta2
 ! Dynamically change Ct_prime from input_turbines/Ct_prime.dat
 logical, public :: dyn_Ct_prime
 ! Use ADM with rotation
-logical, public :: use_rotation = .true.
+logical, public :: use_rotation = .false.
 ! Tip speed ratio for ADM with rotation
 real(rprec), public :: tip_speed_ratio = 7
 ! disk-avg time scale in seconds (default 600)
