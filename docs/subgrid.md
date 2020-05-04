@@ -6,8 +6,8 @@ part of the subgrid stress tensor
 
 where \\( \tilde S_{ij} = \frac{1}{2} \left( \partial_j \tilde u_i + \partial_i
 \tilde u_j \right) \\) is the resolved strain rate tensor. The eddy viscosity is
-usually given using the Smagorinsky relationship \\( \nu_T = C_{s,\Delta}
-\Delta^2  \| \tilde{S} \| \\), where the strain rate magintude is
+usually given using the Smagorinsky relationship \\( \nu_T = (C_{s,\Delta}
+\Delta)^2  \| \tilde{S} \| \\), where the strain rate magintude is
 \\( \| \tilde{S} \| = \sqrt{ 2\tilde S_{ij} \tilde S_{ij} }\\).
 
 LESGO includes five subgrid models to determine the coefficient

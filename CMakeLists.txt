@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew, cheyenne, stampede
 # Otherwise, default settings are used
-set(hostname "darwin-brew")
+set(hostname "default")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -20,10 +20,10 @@ set(READ_ENDIAN "DEFAULT")
 
 # Options to enable various features in the code
 option(USE_MPI "Enable parallelization support." ON)
-option(USE_CPS "Enable concurrent precursor simulations." ON)
+option(USE_CPS "Enable concurrent precursor simulations." OFF)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
 option(USE_LVLSET "Enable level set." OFF)
-option(USE_TURBINES "Enable actuator disk model without rotation." ON)
+option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
 option(USE_ATM "Enable actuator line/section model" OFF)
 option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging, using Taylor timescale." OFF)
 option(USE_SAFETYMODE "Set extra safety measures." ON)
@@ -48,9 +48,11 @@ find_program(WHICH NAMES which)
 exec_program(${WHICH} ARGS ${compiler_name} OUTPUT_VARIABLE compiler_path)
 set(CMAKE_Fortran_COMPILER ${compiler_path})
 
+set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR})
+
 # Project details
 enable_language (Fortran)
-project (lesgo)
+project(lesgo)
 set(exec_name "lesgo")
 
 # Library links
