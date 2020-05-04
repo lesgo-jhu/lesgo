@@ -31,7 +31,6 @@ public :: read_input_conf
 
 character(*), parameter :: mod_name = 'input_util'
 
-character(*), parameter :: input_conf = path // 'lesgo.conf'
 character(*), parameter :: comment = '!'
 character(*), parameter :: block_entry = '{'
 character(*), parameter :: block_exit = '}'
@@ -61,6 +60,7 @@ implicit none
 
 integer, parameter :: lun = 1
 character (CHAR_BUFF_LENGTH) :: buff
+character(:), allocatable :: input_conf
 integer :: block_entry_pos, block_exit_pos, equal_pos
 integer :: ios
 integer :: line
@@ -69,6 +69,7 @@ logical :: exst
 character(*), parameter :: sub_name = mod_name // '.read_input_conf'
 
 ! Check that the configuration file exists
+allocate(input_conf, source = path // 'lesgo.conf')
 inquire (file=input_conf, exist=exst)
 
 if (exst) then
@@ -94,6 +95,8 @@ do
             call domain_block()
         case ('MODEL')
             call model_block()
+        case ('CORIOLIS')
+            call coriolis_block()
         case ('TIME')
             call time_block()
         case ('FLOW_COND')
@@ -107,6 +110,10 @@ do
 #ifdef PPTURBINES
         case ('TURBINES')
             call turbines_block()
+#endif
+#ifdef PPSCALARS
+        case ('SCALARS')
+            call scalars_block()
 #endif
         case default
             if (coord == 0) write(*,*) 'Found unused input block: '//          &
@@ -272,14 +279,6 @@ do
                 read (buff(equal_pos+1:), *) u_star
             case ('VONK')
                 read (buff(equal_pos+1:), *) vonk
-            case ('CORIOLIS_FORCING')
-                read (buff(equal_pos+1:), *) coriolis_forcing
-            case ('CORIOL')
-                read (buff(equal_pos+1:), *) coriol
-            case ('UG')
-                read (buff(equal_pos+1:), *) ug
-            case ('VG')
-                read (buff(equal_pos+1:), *) vg
             case ('NU_MOLEC')
                 read (buff(equal_pos+1:), *) nu_molec
             case ('MOLEC')
@@ -296,9 +295,70 @@ do
         call error( sub_name, block_name //                                    &
             ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
     endif
+
 enddo
 
+
 end subroutine model_block
+
+!*******************************************************************************
+subroutine coriolis_block()
+!*******************************************************************************
+use param
+use coriolis
+implicit none
+
+character(*), parameter :: block_name = 'CORIOLIS'
+
+do
+    call readline( lun, line, buff, block_entry_pos, block_exit_pos,           &
+        equal_pos, ios )
+
+    if (ios /= 0) call error( sub_name, 'Bad read in block')
+
+    if (block_exit_pos == 0) then
+
+        ! Check that the data entry conforms to correct format
+        call checkentry()
+
+        select case (uppercase(buff(1:equal_pos-1)))
+            case ('CORIOLIS_FORCING')
+                read (buff(equal_pos+1:), *) coriolis_forcing
+            case ('FC')
+                read (buff(equal_pos+1:), *) fc
+            case ('G')
+                read (buff(equal_pos+1:), *) G
+            case ('ALPHA')
+                read (buff(equal_pos+1:), *) alpha
+            case ('PID_TIME')
+                read (buff(equal_pos+1:), *) pid_time
+            case ('PHI_SET')
+                read (buff(equal_pos+1:), *) phi_set
+            case ('HEIGHT_SET')
+                read (buff(equal_pos+1:), *) height_set
+            case ('KP')
+                read (buff(equal_pos+1:), *) Kp
+            case ('KI')
+                read (buff(equal_pos+1:), *) Ki
+            case ('KD')
+                read (buff(equal_pos+1:), *) Kd
+            case ('REPEAT_INTERVAL')
+                read (buff(equal_pos+1:), *) repeat_interval
+            case default
+                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                    // block_name // ' block: ' // buff(1:equal_pos-1)
+        end select
+    elseif( block_exit_pos == 1 ) then
+        return
+    else
+        call error( sub_name, block_name //                                    &
+            ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+    endif
+
+enddo
+
+
+end subroutine coriolis_block
 
 !*******************************************************************************
 subroutine time_block()
@@ -361,6 +421,7 @@ end subroutine  time_block
 subroutine flow_cond_block()
 !*******************************************************************************
 use param
+use sponge
 
 #ifdef PPHIT
 ! Type hit has all the information inside
@@ -370,8 +431,6 @@ use hit_inflow, only : hit
 implicit none
 
 character(*), parameter :: block_name = 'FLOW_COND'
-
-real(rprec) :: val_read
 
 do
     call readline( lun, line, buff, block_entry_pos, block_exit_pos,           &
@@ -398,16 +457,26 @@ do
                 Read (buff(equal_pos+1:), *) ubot
             case ('UTOP')
                 Read (buff(equal_pos+1:), *) utop
+            case ('USE_SPONGE')
+                read (buff(equal_pos+1:), *) use_sponge
+            case ('SPONGE_FREQUENCY')
+                read (buff(equal_pos+1:), *) sponge_frequency
+            case ('SPONGE_HEIGHT')
+                read (buff(equal_pos+1:), *) sponge_height
             case ('ZO')
                 read (buff(equal_pos+1:), *) zo
-            case ('INFLOW')
-                read (buff(equal_pos+1:), *) inflow
+            case ('INFLOW_TYPE')
+                read (buff(equal_pos+1:), *) inflow_type
             case ('FRINGE_REGION_END')
                 read (buff(equal_pos+1:), *) fringe_region_end
             case ('FRINGE_REGION_LEN')
                 read (buff(equal_pos+1:), *) fringe_region_len
             case ('INFLOW_VELOCITY')
                 read (buff(equal_pos+1:), *) inflow_velocity
+            case ('SAMPLING_REGION_END')
+                read (buff(equal_pos+1:), *) sampling_region_end
+            case ('SHIFT_N')
+                read (buff(equal_pos+1:), *) shift_n
             case ('USE_MEAN_P_FORCE')
                 read (buff(equal_pos+1:), *) use_mean_p_force
             case ('EVAL_MEAN_P_FORCE')
@@ -463,11 +532,13 @@ do
         end select
     elseif (block_exit_pos == 1) then
         if( use_mean_p_force .AND. eval_mean_p_force ) then
-            val_read = mean_p_force_x
             ! Evaluate the mean pressure force
-            mean_p_force_x = 1.0_rprec / L_z
-            if (coord == 0 .AND. abs( val_read - mean_p_force_x ) >= thresh)     &
-                call mesg(sub_name, 'Reseting mean_p_force_x to: ', mean_p_force_x)
+            mean_p_force_x = mean_p_force_x / sqrt(mean_p_force_x**2 + mean_p_force_y**2) / L_z
+            mean_p_force_y = mean_p_force_y / sqrt(mean_p_force_x**2 + mean_p_force_y**2) / L_z
+            if (coord == 0) then
+                call mesg(sub_name, 'Setting mean_p_force_x to: ', mean_p_force_x)
+                call mesg(sub_name, 'Setting mean_p_force_y to: ', mean_p_force_y)
+            end if
         endif
         return
     else
@@ -714,6 +785,10 @@ do
                 read (buff(equal_pos+1:), *) dyn_theta2
             case ('DYN_CT_PRIME')
                 read (buff(equal_pos+1:), *) dyn_Ct_prime
+            case ('USE_ROTATION')
+                read (buff(equal_pos+1:), *) use_rotation
+            case ('TIP_SPEED_RATIO')
+                read (buff(equal_pos+1:), *) tip_speed_ratio
             case ('T_AVG_DIM')
                 read (buff(equal_pos+1:), *) T_avg_dim
             case ('ALPHA1')
@@ -739,6 +814,69 @@ do
 enddo
 
 end subroutine turbines_block
+#endif
+
+#ifdef PPSCALARS
+!*******************************************************************************
+subroutine scalars_block()
+!*******************************************************************************
+use scalars
+implicit none
+
+character(*), parameter :: block_name = 'SCALARS'
+
+do
+    call readline( lun, line, buff, block_entry_pos, block_exit_pos,           &
+        equal_pos, ios )
+
+    if (ios /= 0) call error( sub_name, 'Bad read in block')
+
+    if (block_exit_pos == 0) then
+
+        ! Check that the data entry conforms to correct format
+        call checkentry()
+
+        select case (uppercase(buff(1:equal_pos-1)))
+
+            case ('LBC_SCAL')
+                read (buff(equal_pos+1:), *) lbc_scal
+            case ('SCAL_BOT')
+                read (buff(equal_pos+1:), *) scal_bot
+            case ('FLUX_BOT')
+                read (buff(equal_pos+1:), *) flux_bot
+            case ('READ_LBC_SCAL')
+                read (buff(equal_pos+1:), *) read_lbc_scal
+            case ('LAPSE_RATE')
+                read (buff(equal_pos+1:), *) lapse_rate
+            case ('IC_Z')
+                call parse_vector( buff(equal_pos+1:), ic_nloc, ic_z )
+            case ('IC_THETA')
+                call parse_vector( buff(equal_pos+1:), ic_nloc, ic_theta )
+            case ('IC_NO_VEL_NOISE_Z')
+                read (buff(equal_pos+1:), *) ic_no_vel_noise_z
+            case ('G')
+                read (buff(equal_pos+1:), *) g
+            case ('ZO_S')
+                read (buff(equal_pos+1:), *) zo_s
+            case ('T_SCALE')
+                read (buff(equal_pos+1:), *) T_scale
+            case ('PASSIVE_SCALAR')
+                read (buff(equal_pos+1:), *) passive_scalar
+            case ('PR_SGS')
+                read (buff(equal_pos+1:), *) Pr_sgs
+            case default
+                if (coord == 0) write(*,*) 'Found unused data value in '       &
+                    // block_name // ' block: ' // buff(1:equal_pos-1)
+        end select
+    elseif (block_exit_pos == 1) then
+        return
+    else
+        call error( sub_name, block_name //                                    &
+            ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+    endif
+enddo
+
+end subroutine scalars_block
 #endif
 
 !*******************************************************************************

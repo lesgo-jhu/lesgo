@@ -54,20 +54,19 @@ use level_set_base, only : global_CA_calc
 use turbines, only : turbines_forcing, turbine_vel_init
 #endif
 
-#ifdef PPSTREAKS
-use sgs_param, only: F_LM, F_MM, F_QN, F_NN
+#ifdef PPSCALARS
+use scalars, only : buoyancy_force, scalars_transport, scalars_deriv
 #endif
 
+use sponge
+use coriolis, only : coriolis_calc, coriolis_forcing, alpha, G, phi_actual
 use messages
 
 implicit none
 
-#ifdef PPSTREAKS
-real(rprec), dimension(:,:,:), allocatable :: dummyu, dummyv, dummyw
-real(rprec), dimension(:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
-#endif
-
 character (*), parameter :: prog_name = 'main'
+integer :: nca
+character(:), allocatable :: ca
 
 integer :: jt_step, nstart
 real(rprec) :: rmsdivvel, ke, maxcfl, tt
@@ -88,6 +87,17 @@ real(rprec) :: tau_top   ! Used to write top wall stress at first proc
 #ifdef PPMPI
 call mpi_init (ierr)
 #endif
+
+! Get path if needed
+nca = COMMAND_ARGUMENT_COUNT()
+if (nca == 1) then
+    call GET_COMMAND_ARGUMENT(1, length=nca)
+    allocate(character(nca) :: ca)
+    call GET_COMMAND_ARGUMENT(1, value=ca)
+    allocate(path, source = './' // ca // '/')
+else
+    allocate(path, source='./')
+endif
 
 ! Start the clocks, both local and total
 call clock%start
@@ -115,17 +125,6 @@ call clock_total%start
 ! If new simulation jt_total=0 by definition, if restarting jt_total
 ! provided by total_time.dat
 nstart = jt_total+1
-
-! Declare variables for shifting the domain
-! This gets rid of streaks in the domain
-#ifdef PPSTREAKS
-allocate( dummyu     (ld    ,ny, lbz:nz) )
-allocate( dummyv     (ld    ,ny, lbz:nz) )
-allocate( dummyw     (ld    ,ny, lbz:nz) )
-allocate( dummyRHSx  (ld    ,ny, lbz:nz) )
-allocate( dummyRHSy  (ld    ,ny, lbz:nz) )
-allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
-#endif
 
 ! BEGIN TIME LOOP
 time_loop: do jt_step = nstart, nsteps
@@ -172,6 +171,10 @@ time_loop: do jt_step = nstart, nsteps
     !  except bottom coord, only 1:nz-1
     call ddz_w(w, dwdz, lbz)
 
+#ifdef PPSCALARS
+    call scalars_deriv()
+#endif
+
     ! Calculate wall stress and derivatives at the wall
     ! (txz, tyz, dudz, dvdz at jz=1)
     ! using the velocity log-law
@@ -196,7 +199,7 @@ time_loop: do jt_step = nstart, nsteps
     ! Compute divergence of SGS shear stresses
     ! the divt's and the diagonal elements of t are not equivalenced
     ! in this version. Provides divtz 1:nz-1, except 1:nz at top process
-    call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
+    call divstress_uv(divtx, divty, txx, txy, txz, tyy, tyz)
     call divstress_w(divtz, txz, tyz, tzz)
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
@@ -210,16 +213,13 @@ time_loop: do jt_step = nstart, nsteps
     RHSz(:,:,1:nz-1) = -RHSz(:,:,1:nz-1) - divtz(:,:,1:nz-1)
     if (coord == nproc-1) RHSz(:,:,nz) = -RHSz(:,:,nz)-divtz(:,:,nz)
 
-    ! Coriolis: add forcing to RHS
-    if (coriolis_forcing) then
-        ! This is to put in the coriolis forcing using coriol,ug and vg as
-        ! precribed in param.f90. (ug,vg) specfies the geostrophic wind vector
-        ! Note that ug and vg are non-dimensional (using u_star in param.f90)
-        RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) +                                  &
-            coriol * v(:,:,1:nz-1) - coriol * vg
-        RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) -                                  &
-            coriol * u(:,:,1:nz-1) + coriol * ug
-    end if
+    call coriolis_calc()
+
+#ifdef PPSCALARS
+    call scalars_transport()
+    call buoyancy_force()
+#endif
+    call sponge_force()
 
     !--calculate u^(*) (intermediate vel field)
     !  at this stage, p, dpdx_i are from previous time step
@@ -274,9 +274,9 @@ time_loop: do jt_step = nstart, nsteps
         ! if initu, then this is read from the initialization file
         ! else for the first step put RHS_f=RHS
         !--i.e. at first step, take an Euler step
-        RHSx_f=RHSx
-        RHSy_f=RHSy
-        RHSz_f=RHSz
+        RHSx_f = RHSx
+        RHSy_f = RHSy
+        RHSz_f = RHSz
     end if
 
     !//////////////////////////////////////////////////////
@@ -397,12 +397,13 @@ time_loop: do jt_step = nstart, nsteps
         tau_top = maxdummy
 #endif
 
-        if (coord == 0) then
+            if (coord == 0) then
             write(*,*)
             write(*,'(a)') '==================================================='
             write(*,'(a)') 'Time step information:'
             write(*,'(a,i9)') '  Iteration: ', jt_total
             write(*,'(a,E15.7)') '  Time step: ', dt
+            write(*,'(a,E15.7)') '  Dimensional time: ', total_time_dim
             write(*,'(a,E15.7)') '  CFL: ', maxcfl
             write(*,'(a,2E15.7)') '  AB2 TADV1, TADV2: ', tadv1, tadv2
             write(*,*)
@@ -423,12 +424,23 @@ time_loop: do jt_step = nstart, nsteps
             write(*,'(1a,E15.7)') '  Cumulative Forcing: ', clock_total_f
             write(*,'(1a,E15.7)') '  Forcing %: ',                             &
                 clock_total_f /clock_total % time
+            if (coriolis_forcing > 0) then
+                write(*,*)
+                write(*,'(1a)') 'Coriolis parameters: '
+                write(*,'(1a,E15.7)') '  G: ', G
+                write(*,'(1a,E15.7)') '  alpha: ', alpha
+                if (coriolis_forcing == 2) then
+                    write(*,'(1a,E15.7)') '  wind direction: ', phi_actual
+                end if
+            end if
             write(*,'(a)') '==================================================='
             call write_tau_wall_bot()
         end if
         if(coord == nproc-1) then
             call write_tau_wall_top()
         end if
+
+        call mpi_barrier(comm, ierr)
 
         ! Check if we are to check the allowable runtime
         if (runtime > 0) then
@@ -450,54 +462,6 @@ time_loop: do jt_step = nstart, nsteps
             endif
 
        endif
-
-    ! Shift the domain in the y (spanwise) direction
-#ifdef PPSTREAKS
-        if (modulo (jt_total, 1000) == 0) then
-            if (coord == 0) then
-                write(*,*) '--------------------red shift-------------------'
-            endif
-            dummyu(:,:,:) = u(:,:,:)
-            dummyv(:,:,:) = v(:,:,:)
-            dummyw(:,:,:) = w(:,:,:)
-
-            dummyRHSx(:,:,:) = RHSx(:,:,:)
-            dummyRHSy(:,:,:) = RHSy(:,:,:)
-            dummyRHSz(:,:,:) = RHSz(:,:,:)
-
-            u(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            v(:,2:ny,:) = dummyv(:,1:ny-1,:)
-            w(:,2:ny,:) = dummyw(:,1:ny-1,:)
-
-            RHSx(:,2:ny,:) = dummyRHSx(:,1:ny-1,:)
-            RHSy(:,2:ny,:) = dummyRHSy(:,1:ny-1,:)
-            RHSz(:,2:ny,:) = dummyRHSz(:,1:ny-1,:)
-
-            u(:,1,:) = dummyu(:,ny,:)
-            v(:,1,:) = dummyv(:,ny,:)
-            w(:,1,:) = dummyw(:,ny,:)
-
-            RHSx(:,1,:) = dummyRHSx(:,ny,:)
-            RHSy(:,1,:) = dummyRHSy(:,ny,:)
-            RHSz(:,1,:) = dummyRHSz(:,ny,:)
-
-            dummyu(:,:,:) = F_LM(:,:,:)
-            F_LM(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_LM(:,1,:) = dummyu(:,ny   ,:)
-
-            dummyu(:,:,:) = F_MM(:,:,:)
-            F_MM(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_MM(:,1,:) = dummyu(:,ny   ,:)
-
-            dummyu(:,:,:) = F_QN(:,:,:)
-            F_QN(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_QN(:,1,:) = dummyu(:,ny   ,:)
-
-            dummyu(:,:,:) = F_NN(:,:,:)
-            F_NN(:,2:ny,:) = dummyu(:,1:ny-1,:)
-            F_NN(:,1,:) = dummyu(:,ny   ,:)
-        endif
-#endif
 
     end if
 

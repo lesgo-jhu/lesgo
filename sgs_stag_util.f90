@@ -72,16 +72,15 @@ call calc_Sij ()
 
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
-#ifdef PPCFL_DT
-if (sgs_model == 4 .OR. sgs_model==5) then
-    if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
-        lagran_dt = lagran_dt + dt
+if (use_cfl_dt) then
+    if (sgs_model == 4 .OR. sgs_model==5) then
+        if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
+            lagran_dt = lagran_dt + dt
+        endif
     endif
-endif
-#else
+else
 lagran_dt = cs_count*dt
-#endif
-
+end if
 
 if (sgs) then
     ! Traditional Smagorinsky model
@@ -246,7 +245,7 @@ if (coord == 0) then
             if (sgs) then
                 do jy = 1, ny
                 do jx = 1, nx
-                   ! Total viscosity
+                    ! Total viscosity
                     const = 0.5_rprec*(Nu_t(jx,jy,1) + Nu_t(jx,jy,2)) + nu
                     txx(jx,jy,1) = -const*(S11(jx,jy,1) + S11(jx,jy,2))
                     txy(jx,jy,1) = -const*(S12(jx,jy,1) + S12(jx,jy,2))

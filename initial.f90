@@ -39,6 +39,9 @@ use string_util, only : string_concat
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 #endif
+#ifdef PPSCALARS
+use scalars, only : ic_scal, theta
+#endif
 
 implicit none
 
@@ -108,10 +111,12 @@ if (initu) then
 elseif (interp_flag) then
     if (coord == 0) write(*,*) '--> Interpolating initial velocity field from file'
     call ic_interp
-#ifndef PPCPS
-else if (inflow) then
-        if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
-        call ic_uniform
+else if (inflow_type == 1) then
+    if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
+    call ic_uniform
+#ifdef PPSCALARS
+    if (coord == 0) write(*,*) "Uniform inflow with scalars is not yet supported."
+    stop 9
 #endif
 else if (lbc_mom==1) then
     if (coord == 0) write(*,*) '--> Creating initial laminar profile ',&
@@ -137,16 +142,31 @@ if (cumulative_time) then
 end if
 #endif
 
+#ifdef PPSCALARS
+call ic_scal(interp_flag)
+#endif
+
 ! call mpi_barrier(comm, ierr)
 ! stop
 
 ! Write averaged vertical profiles to standard output
-do jz = 1, nz-1
+do jz = 1, nz
+#ifdef PPSCALARS
+    write(6,7780) jz+coord*(nz-1), sum (u(1:nx, :, jz)) / (nx * ny),               &
+                  sum (v(1:nx, :, jz)) / (nx * ny),                            &
+                  sum (w(1:nx, :, jz)) / (nx * ny),                            &
+                  sum (theta(1:nx, :, jz)) / (nx * ny)
+#else
     write(6,7780) jz+coord*(nz-1), sum (u(1:nx, :, jz)) / (nx * ny),               &
                   sum (v(1:nx, :, jz)) / (nx * ny),                            &
                   sum (w(1:nx, :, jz)) / (nx * ny)
+#endif
 end do
+#ifdef PPSCALARS
+7780 format('jz, ubar, vbar, wbar, thetabar:',(1x,I3,1x,F9.4,1x,F9.4,1x,F9.4,1x,F9.4))
+#else
 7780 format('jz, ubar, vbar, wbar:',(1x,I3,1x,F9.4,1x,F9.4,1x,F9.4))
+#endif
 
 #ifdef PPMPI
 ! Exchange ghost node information for u, v, and w
@@ -164,7 +184,6 @@ end if
 
 contains
 
-#ifndef PPCPS
 !*******************************************************************************
 subroutine ic_uniform()
 !*******************************************************************************
@@ -177,18 +196,18 @@ v = 0._rprec
 w = 0._rprec
 
 end subroutine ic_uniform
-#endif
 
 !*******************************************************************************
 function check_for_interp() result(flag)
 !*******************************************************************************
+use param, only : path
 integer :: Nx_f, Ny_f, Nz_f, nproc_f
 real(rprec) :: Lx_f, Ly_f, Lz_f
 logical :: exst, flag
 
-inquire (file='grid.out', exist=exst)
+inquire (file=path // 'grid.out', exist=exst)
 if (exst) then
-    open(12, file='grid.out', form='unformatted', convert=read_endian)
+    open(12, file= path // 'grid.out', form='unformatted', convert=read_endian)
     read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
     close(12)
     if (nproc_f == nproc .and. Nx_f == Nx .and. Ny_f == Ny .and. Nz_f == Nz    &
@@ -225,6 +244,7 @@ subroutine ic_interp()
 ! This subroutine reads the initial conditions from a checkpoint file and
 ! interpolates onto the current grid
 !
+use param, only : path
 use grid_m
 use functions
 integer :: nproc_f, Nx_f, Ny_f, Nz_f
@@ -241,7 +261,7 @@ real(rprec), allocatable, dimension(:) :: z_r, zw_r
 ! real(rprec), allocatable, dimension(:,:,:) :: u_r, v_r, w_r
 
 ! Read grid information from file
-open(12, file='grid.out', form='unformatted', convert=read_endian)
+open(12, file=path // 'grid.out', form='unformatted', convert=read_endian)
 read(12) nproc_f, Nx_f, Ny_f, Nz_f, Lx_f, Ly_f, Lz_f
 close(12)
 
@@ -267,8 +287,6 @@ do i = 1, nz_tot_r
     z_r(i) = zw_r(i) + 0.5*dz_f
 end do
 
-! write(*,*) coord, ./bzw_r
-
 ! Create file grid
 allocate( x_f(nx_f), y_f(ny_f))
 do i = 1, nx_f
@@ -291,7 +309,7 @@ do i = 1, nproc_r
 
     ! Read from file
     write(ff,*) i+npr1-1
-    ff = "./vel.out.c"//trim(adjustl(ff))
+    ff = path // "vel.out.c"//trim(adjustl(ff))
     open(12, file=ff,  action='read', form='unformatted')
     read(12) u_f(:, :, z1:z2), v_f(:, :, z1:z2), w_f(:, :, z1:z2)
     close(12)
@@ -462,15 +480,20 @@ use types,only:rprec
 use param
 use sim_param, only : u, v, w
 use messages, only : error
+use coriolis, only : coriolis_forcing, G, alpha, fc
 #ifdef PPTURBINES
-use turbines, only: turbine_vel_init
+use turbines, only : turbine_vel_init
+#endif
+#ifdef PPSCALARS
+use scalars, only : ic_no_vel_noise_z
 #endif
 
 implicit none
 integer :: jz, jz_abs
-real(rprec), dimension(nz) :: ubar
-real(rprec) :: rms, sigma_rv, arg, arg2, z
-real(rprec) :: angle
+real(rprec), dimension(nz) :: ubar, vbar
+real(rprec) :: rms, sigma_rv, arg, z, mean_p_force_mag
+real(rprec) :: gamma_e, u_par, u_perp
+real(rprec), parameter :: Km = 5._rprec
 
 character(*), parameter :: sub_name = 'ic'
 
@@ -491,8 +514,7 @@ do jz = 1, nz
     if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1) - z
 
     ! IC in equilibrium with rough surface (rough dominates in effective zo)
-    arg2 = z/zo
-    arg = (1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
+    arg = (1._rprec/vonk)*log(z/zo)
 
 #ifdef PPLVLSET
     ! Kludge to adjust magnitude of velocity profile
@@ -502,18 +524,26 @@ do jz = 1, nz
 
 #ifdef PPTURBINES
     call turbine_vel_init (zo_turbines)
-    arg2 = z/zo_turbines
-    arg = (1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
+    arg = (1._rprec/vonk)*log(z/zo_turbines)
 #endif
 
-    if (coriolis_forcing) then
-        if (z > 0.5_rprec) then
-            ubar(jz) = ug
+    mean_p_force_mag = sqrt(mean_p_force_x**2 + mean_p_force_y**2)
+    if (coriolis_forcing > 0) then
+        if (arg < G) then
+            ubar(jz) = arg*cos(alpha)
+            vbar(jz) = arg*sin(alpha)
         else
-            ubar(jz) = arg/30._rprec
-        end if
+            ubar(jz) = G*cos(alpha)
+            vbar(jz) = G*sin(alpha)
+        endif
     else
-        ubar(jz) = arg
+        if (mean_p_force_mag > 0._rprec) then
+            ubar(jz) = arg*mean_p_force_x/mean_p_force_mag
+            vbar(jz) = arg*mean_p_force_y/mean_p_force_mag
+        else
+            ubar(jz) = arg
+            vbar(jz) = 0._rprec
+        endif
     end if
 end do
 
@@ -531,12 +561,6 @@ u = rms / sigma_rv * (u - 0.5_rprec)
 v = rms / sigma_rv * (v - 0.5_rprec)
 w = rms / sigma_rv * (w - 0.5_rprec)
 
-! Modify angle of bulk flow based on pressure gradient
-if (mean_p_force_x == 0._rprec) then
-    angle = 3.14159265358979323846_rprec/2._rprec
-else
-    angle = atan(mean_p_force_y/mean_p_force_x)
-end if
 
 ! Rescale noise depending on distance from wall and mean log profile
 ! z is in meters
@@ -554,13 +578,21 @@ do jz = 1, nz
     ! For upside-down half-channel, choose upper wall
     if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1)*z_i - z
 
+#ifdef PPSCALARS
+    if (z > ic_no_vel_noise_z*z_i) then
+        u(:,:,jz) = ubar(jz)
+        v(:,:,jz) = vbar(jz)
+        w(:,:,jz) = 0._rprec
+    elseif (z <= z_i) then
+#else
     if (z <= z_i) then
-        u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)*cos(angle)
-        v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)*sin(angle)
+#endif
+        u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)
+        v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i) + vbar(jz)
         w(:,:,jz) = w(:,:,jz) * (1._rprec-z / z_i)
     else
-        u(:,:,jz) = u(:,:,jz) * 0.01_rprec + ubar(jz)*cos(angle)
-        v(:,:,jz) = v(:,:,jz) * 0.01_rprec + ubar(jz)*sin(angle)
+        u(:,:,jz) = u(:,:,jz) * 0.01_rprec + ubar(jz)
+        v(:,:,jz) = v(:,:,jz) * 0.01_rprec + vbar(jz)
         w(:,:,jz) = w(:,:,jz) * 0.01_rprec
     end if
 end do

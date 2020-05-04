@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 2.8.9)
 set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
-# Supported computers: panoramix, njord, marcc, darwin-brew
+# Supported computers: panoramix, njord, marcc, darwin-brew, cheyenne, stampede
 # Otherwise, default settings are used
 set(hostname "default")
 
@@ -22,13 +22,13 @@ set(READ_ENDIAN "DEFAULT")
 option(USE_MPI "Enable parallelization support." ON)
 option(USE_CPS "Enable concurrent precursor simulations." OFF)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
-option(USE_STREAKS "Shift the domain in the y (spanwise) direction to eliminate streaks effects on averaging." OFF)
 option(USE_LVLSET "Enable level set." OFF)
 option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
 option(USE_ATM "Enable actuator line/section model" OFF)
 option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging, using Taylor timescale." OFF)
 option(USE_SAFETYMODE "Set extra safety measures." ON)
 option(USE_CGNS "Enable CGNS data output." OFF)
+option(USE_SCALARS "Enable scalar transport module." OFF)
 
 # Enable verbose mode
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -89,7 +89,7 @@ if (${hostname} STREQUAL "panoramix")
     else (USE_CGNS)
         include_directories(/act/fftw3/mpich/gcc-8.3.0/include)
         link_directories(/act/fftw3/mpich/gcc-4.7.2/lib)
-    endif ()    
+    endif ()
 #  marcc
 elseif (${hostname} STREQUAL "marcc")
     # Intel
@@ -105,6 +105,26 @@ elseif (${hostname} STREQUAL "marcc")
             link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
         endif ()
     endif ()
+# Cheyenne
+elseif (${hostname} STREQUAL "cheyenne")
+    # Intel
+    if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+        include_directories(/glade/u/apps/ch/opt/fftw3-mpi/3.3.6-pl2/mpt/2.15f/intel/18.0.1/include/)
+        link_directories(/glade/u/apps/ch/opt/fftw3-mpi/3.3.6-pl2/mpt/2.15f/intel/18.0.1/lib/)
+    # GNU -- These have to be installed locally for now.
+    elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+        include_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/include/)
+        link_directories(/software/apps/fftw3/3.3.8/gcc/5.5.0/lib/)
+        if (USE_CGNS)
+            include_directories($ENV{HOME}/cgns/include/)
+            link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
+        endif ()
+    endif ()
+# stampede
+elseif (${hostname} STREQUAL "stampede")
+    # Intel
+        include_directories(/opt/apps/intel18/impi18_0/fftw3/3.3.8/include /opt/intel/mkl/include/intel64/lp64)
+        link_directories(/opt/apps/intel18/impi18_0/fftw3/3.3.8/lib /opt/intel/mkl/lib/intel64_lin)
 #  njord
 elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
@@ -120,14 +140,14 @@ elseif (${hostname} STREQUAL "default")
 endif ()
 
 # List common sources
-set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
+set (Sources cfl_util.f90 clocks.f90 convec.f90 coriolis.f90 derivatives.f90 divstress_uv.f90
      divstress_w.f90 emul_complex.f90 fft.f90 finalize.f90
-     forcing.f90 fringe_util.f90 functions.f90 grid.f90
+     forcing.f90 fringe.f90 functions.f90 grid.f90 inflow.f90
      initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90
      interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90
-     messages.f90 param.f90 param_output.f90
-     press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90
-     sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90
+     messages.f90 param.f90 param_output.f90 pid.f90
+     press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90 shifted_inflow.f90
+     sgs_param.f90 sgs_stag_util.f90 sim_param.f90 sponge.f90 stat_defs.f90
      std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90
      time_average.f90 types.f90 wallstress.f90 init_random_seed.f90
      iwmles.f90)
@@ -150,11 +170,6 @@ if (USE_HIT)
     set(Sources ${Sources} hit_inflow.f90)
     set(exec_name "${exec_name}-HIT")
 endif (USE_HIT)
-
-if (USE_STREAKS)
-    add_definitions(-DPPSTREAKS)
-    set(exec_name "${exec_name}-streaks")
-endif (USE_STREAKS)
 
 if (USE_LVLSET)
     add_definitions(-DPPLVLSET)
@@ -198,6 +213,12 @@ if (USE_CGNS)
     link_libraries(cgns hdf5)
     set(exec_name "${exec_name}-cgns")
 endif (USE_CGNS)
+
+if (USE_SCALARS)
+    add_definitions(-DPPSCALARS)
+    set(exec_name "${exec_name}-scalars")
+    set(Sources ${Sources} scalars.f90 stability.f90)
+endif (USE_SCALARS)
 
 if (WRITE_ENDIAN STREQUAL "LITTLE")
     add_definitions(-DPPWRITE_LITTLE_ENDIAN)

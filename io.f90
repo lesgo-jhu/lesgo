@@ -22,7 +22,7 @@ module io
 use types, only : rprec
 use param, only : ld, nx, ny, nz, nz_tot, path, coord, rank, nproc, jt_total
 use param, only : total_time, total_time_dim, lbz, jzmin, jzmax
-use param, only : cumulative_time, fcumulative_time
+use param, only : cumulative_time
 use sim_param , only : w, dudz, dvdz
 use sgs_param , only : Cs_opt2
 use string_util
@@ -52,17 +52,23 @@ integer :: nz_end
 ! time averaging
 type(tavg_t) :: tavg
 
+character(:), allocatable :: fcumulative_time
+
 contains
 
 !*******************************************************************************
 subroutine openfiles()
 !*******************************************************************************
-use param, only : use_cfl_dt, dt, cfl_f
+use param, only : use_cfl_dt, dt, cfl_f, checkpoint_file
 implicit none
 logical :: exst
 
 ! Temporary values used to read time step and CFL from file
 real(rprec) :: dt_r, cfl_r
+
+! Create file names
+allocate(fcumulative_time, source = path // 'total_time.dat')
+allocate(checkpoint_file , source = path // 'vel.out')
 
 if (cumulative_time) then
     inquire (file=fcumulative_time, exist=exst)
@@ -710,6 +716,9 @@ use param, only : ny, nz, dz
 use level_set_base, only : phi
 use sim_param, only : fx, fy, fz, fxa, fya, fza
 #endif
+#ifdef PPSCALARS
+use scalars, only : theta
+#endif
 
 implicit none
 
@@ -876,6 +885,26 @@ elseif(itype==2) then
 
      deallocate(pres_real)
 
+#ifdef PPSCALARS
+    ! Common file name for all output types
+    call string_splice(fname, path //'output/theta.', jt_total)
+#if defined(PPCGNS) && defined(PPMPI)
+    ! Write CGNS Output
+    call string_concat(fname, '.cgns')
+    call write_parallel_cgns(fname, nx, ny, nz - nz_end, nz_tot,               &
+     (/ 1, 1,   (nz-1)*coord + 1 /),                                           &
+     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                              &
+     x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
+     1, (/ 'Theta' /), (/ theta(1:nx,1:ny,1:(nz-nz_end)) /) )
+#else
+    ! Write binary Output
+    call string_concat(fname, bin_ext)
+    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
+     access='direct', recl=nx*ny*nz*rprec)
+    write(13,rec=1) theta(:nx,:ny,1:nz)
+    close(13)
+#endif
+#endif
 
 !  Write instantaneous x-plane values
 elseif(itype==3) then
@@ -1144,7 +1173,7 @@ end subroutine inst_write
 subroutine checkpoint ()
 !*******************************************************************************
 use iwmles
-use param, only : nz, checkpoint_file, tavg_calc, lbc_mom, L_x, L_y, L_z
+use param, only : nz, checkpoint_file, tavg_calc, lbc_mom, L_x, L_y, L_z, path
 #ifdef PPMPI
 use param, only : comm, ierr
 #endif
@@ -1157,6 +1186,10 @@ use string_util, only : string_concat
 #if PPUSE_TURBINES
 use turbines, only : turbines_checkpoint
 #endif
+#ifdef PPSCALARS
+use scalars, only : scalars_checkpoint
+#endif
+use coriolis
 
 ! HIT Inflow
 #ifdef PPHIT
@@ -1183,7 +1216,7 @@ close(11)
 
 ! Open grid.out for final output
 if (coord == 0) then
-    open(11, file='grid.out', form='unformatted', convert=write_endian)
+    open(11, file= path // 'grid.out', form='unformatted', convert=write_endian)
     write(11) nproc, Nx, Ny, Nz, L_x, L_y, L_z
     close(11)
 end if
@@ -1216,6 +1249,12 @@ end if
 #if PPUSE_TURBINES
 call turbines_checkpoint
 #endif
+
+#ifdef PPSCALARS
+call scalars_checkpoint
+#endif
+
+call coriolis_finalize()
 
 !  Update total_time.dat after simulation
 if (coord == 0) then

@@ -29,7 +29,7 @@ implicit none
 
 integer :: n
 
-character(*), parameter :: fname = path // 'output/lesgo_param.out'
+character(:), allocatable :: fname
 
 character(*), parameter :: c_fmt = '(a)'
 character(*), parameter :: x2c_fmt = '(2a)'
@@ -50,6 +50,8 @@ character(*), parameter :: if_fmt='(a,i7,e15.7)'
 character(*), parameter :: ix3f_fmt='(a,i7,3e15.7)'
 character(13) :: ch
 
+
+allocate(fname, source=path // 'output/lesgo_param.out')
 open (unit = 2,file = fname, status='unknown',form='formatted',                &
   action='write',position='rewind')
 
@@ -75,8 +77,8 @@ write(2,i_fmt) 'cs_count : ', cs_count
 write(2,i_fmt) 'ifilter : ', ifilter
 write(2,x2f_fmt) 'u_star : ', u_star
 write(2,f_fmt) 'vonk : ', vonk
-write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
-write(2,x3f_fmt) 'coriol : ', coriol, ug, vg
+! write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
+! write(2,x3f_fmt) 'coriol : ', coriol, ug, vg
 write(2,f_fmt) 'nu_molec : ', nu_molec
 write(2,x3l_fmt) 'molec, sgs : ', molec, sgs
 write(2,c_fmt) ''
@@ -91,7 +93,6 @@ write(2,f_fmt) 'cfl : ', cfl
 write(2,f_fmt) 'dt : ', dt
 #endif
 write(2,l_fmt) 'cumulative_time : ', cumulative_time
-write(2, x2c_fmt) 'fcumulative_time : ', fcumulative_time
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'BOUNDARY/INITIAL CONDITION PARAMETERS'
@@ -103,7 +104,7 @@ write(2,i_fmt) 'ubc_mom : ', ubc_mom
 write(2,f_fmt) 'ubot : ', ubot
 write(2,f_fmt) 'utop : ', utop
 write(2,f_fmt) 'zo : ', zo
-write(2,l_fmt) 'inflow : ', inflow
+write(2,l_fmt) 'inflow_type : ', inflow_type
 write(2,f_fmt) 'fringe_region_end : ', fringe_region_end
 write(2,f_fmt) 'fringe_region_len : ', fringe_region_len
 write(2,f_fmt) 'inflow_velocity : ', inflow_velocity

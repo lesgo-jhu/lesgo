@@ -38,10 +38,12 @@ public
 ! GLOBAL PARAMETERS
 !---------------------------------------------------
 integer, parameter :: CHAR_BUFF_LENGTH = 1024 ! Default size of string buffers with unknown length
-character(*), parameter :: PATH = './'
-character(*), parameter :: checkpoint_file = path // 'vel.out'
-character(*), parameter :: checkpoint_tavg_file = path // 'tavg.out'
-character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
+character(:), allocatable :: path
+! character(:), allocatable :: checkpoint_file
+! character(:), allocatable :: checkpoint_tavg_file
+character(:), allocatable :: checkpoint_file
+! character(*), parameter :: checkpoint_tavg_file = path // 'tavg.out'
+! character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
 #ifdef PPWRITE_BIG_ENDIAN
 character(*), parameter :: write_endian = 'BIG_ENDIAN'
 #elif PPWRITE_LITTLE_ENDIAN
@@ -133,12 +135,6 @@ real(rprec) :: u_star = 0.45_rprec
 ! von Karman constant
 real(rprec) :: vonk = 0.4_rprec
 
-! Coriolis stuff
-! coriol=non-dim coriolis parameter,
-! ug=horiz geostrophic vel, vg=transverse geostrophic vel
-logical :: coriolis_forcing = .true.
-real(rprec) :: coriol = 1.0e-4_rprec, ug=1.0_rprec, vg=0.0_rprec
-
 ! nu_molec is dimensional m^2/s
 real(rprec) :: nu_molec = 1.14e-5_rprec
 
@@ -163,7 +159,6 @@ real(rprec) :: dt_dim
 real(rprec) :: tadv1, tadv2
 
 logical :: cumulative_time = .true.
-character (*), parameter :: fcumulative_time = path // 'total_time.dat'
 
 integer :: jt=0                 ! Local time counter
 integer :: jt_total=0           ! Global time counter
@@ -192,19 +187,24 @@ real(rprec) :: utop = 0.0_rprec   ! nondimensional
 real(rprec) :: zo = 0.0001_rprec ! nondimensional
 
 ! prescribed inflow:
-logical :: inflow = .false.
+integer :: inflow_type = 0
 ! if inflow is true the following should be set:
 ! position of right end of fringe region, as a fraction of L_x
 real(rprec) :: fringe_region_end  = 1.0_rprec
 ! length of fringe region as a fraction of L_x
 real(rprec) :: fringe_region_len = 0.125_rprec
 
-! Use uniform inflow instead of concurrent precursor inflow
-logical :: uniform_inflow = .false.
+! Uniform inflow velocity
 real(rprec) :: inflow_velocity = 1.0_rprec
+
+! Shifted periodic boundary conditions setting
+! End of sampling region as a fraction of L_x
+real(rprec) :: sampling_region_end = 0.625
+integer :: shift_n = 1
 
 ! if true, imposes a pressure gradient in the x-direction to force the flow
 logical :: use_mean_p_force = .true.
+
 ! Specify whether mean_p_force should be evaluated as 1/L_z
 logical :: eval_mean_p_force = .false.
 real(rprec) :: mean_p_force_x = 1.0_rprec

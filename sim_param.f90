@@ -20,7 +20,7 @@
 module sim_param
 !*******************************************************************************
 use types, only : rprec
-use param, only : ld, ny, nz, lbz
+use param, only : ld, nx, ny, nz, lbz, u_star
 implicit none
 
 save
@@ -35,6 +35,8 @@ real(rprec), dimension(:,:,:), allocatable :: u, v, w,                         &
     txz, tyz, tzz, divtx, divty, divtz,                                        &
     fx, fy, fz, fxa, fya, fza
 real(rprec), target, dimension(:,:,:), allocatable :: p
+
+real(rprec), dimension(:,:), allocatable :: ustar_lbc
 
 contains
 
@@ -90,6 +92,8 @@ allocate ( fx(ld, ny, nz) ); fx = 0.0_rprec
 allocate ( fy(ld, ny, nz) ); fy = 0.0_rprec
 allocate ( fz(ld, ny, nz) ); fz = 0.0_rprec
 #endif
+
+allocate( ustar_lbc(nx, ny) ); ustar_lbc = u_star
 
 sim_param_initialized = .true.
 

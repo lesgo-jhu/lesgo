@@ -28,6 +28,7 @@ use grid_m
 use messages
 use string_util
 use turbine_indicator
+use functions, only : count_lines
 use stat_defs, only : wind_farm
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array
@@ -71,6 +72,10 @@ logical, public :: dyn_theta1
 logical, public :: dyn_theta2
 ! Dynamically change Ct_prime from input_turbines/Ct_prime.dat
 logical, public :: dyn_Ct_prime
+! Use ADM with rotation
+logical, public :: use_rotation = .false.
+! Tip speed ratio for ADM with rotation
+real(rprec), public :: tip_speed_ratio = 7
 ! disk-avg time scale in seconds (default 600)
 real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
@@ -97,16 +102,12 @@ real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
 real(rprec), dimension(:), allocatable :: Ct_prime_time
 
 ! Input files
-character(*), parameter :: input_folder = 'input_turbines/'
-character(*), parameter :: param_dat = path // input_folder // 'param.dat'
-character(*), parameter :: theta1_dat = path // input_folder // 'theta1.dat'
-character(*), parameter :: theta2_dat = path // input_folder // 'theta2.dat'
-character(*), parameter :: Ct_prime_dat = path // input_folder // 'Ct_prime.dat'
+character(:), allocatable :: input_folder
+character(:), allocatable :: param_dat, theta1_dat, theta2_dat, Ct_prime_dat
 
 ! Output files
-character(*), parameter :: output_folder = 'turbine/'
-character(*), parameter :: vel_top_dat = path // output_folder // 'vel_top.dat'
-character(*), parameter :: u_d_T_dat = path // output_folder // 'u_d_T.dat'
+character(:), allocatable :: output_folder
+character(:), allocatable :: vel_top_dat , u_d_T_dat
 integer, dimension(:), allocatable :: forcing_fid
 
 ! epsilon used for disk velocity time-averaging
@@ -142,6 +143,16 @@ x => grid % x
 y => grid % y
 z => grid % z
 
+! Input/Output file names
+allocate(input_folder, source = 'input_turbines/')
+allocate(param_dat, source = path // input_folder // 'param.dat')
+allocate(theta1_dat, source = path // input_folder // 'theta1.dat')
+allocate(theta2_dat, source = path // input_folder // 'theta2.dat')
+allocate(Ct_prime_dat, source = path // input_folder // 'Ct_prime.dat')
+allocate(output_folder, source = 'turbine/')
+allocate(vel_top_dat, source = path // output_folder // 'vel_top.dat')
+allocate(u_d_T_dat, source = path // output_folder // 'u_d_T.dat')
+
 ! Allocate and initialize
 nloc = num_x*num_y
 nullify(wind_farm%turbine)
@@ -149,7 +160,7 @@ allocate(wind_farm%turbine(nloc))
 allocate(forcing_fid(nloc))
 
 ! Create turbine directory
-call system("mkdir -vp turbine")
+call system('mkdir -vp ' // path // output_folder)
 
 ! Non-dimensionalize length values by z_i
 height_all = height_all / z_i
@@ -267,6 +278,7 @@ subroutine turbines_nodes
 ! This subroutine locates nodes for each turbine and builds the arrays: ind,
 ! n_hat, num_nodes, and nodes
 !
+use functions, only : cross_product
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
@@ -282,13 +294,14 @@ integer :: imax, jmax, kmax
 integer :: min_i, max_i, min_j, max_j, min_k, max_k
 integer :: count_i, count_n
 real(rprec), dimension(nz_tot) :: z_tot
+real(rprec), dimension(3) :: temp_vec
 
 #ifdef PPMPI
 real(rprec), dimension(nloc) :: buffer_array
 #endif
 real(rprec), pointer, dimension(:) :: x, y, z
 
-real(rprec) :: filt, search_rad, filt_max
+real(rprec) :: filt, filt_t, search_rad, filt_max
 real(rprec), dimension(nloc) :: sumA, turbine_vol
 
 nullify(x,y,z)
@@ -365,7 +378,7 @@ do s=1,nloc
     count_i = 1
 
     ! Maximum value the filter takes (should be 1/volume)
-    filt_max = wind_farm%turbine(s)%turb_ind_func%val(0._rprec, 0._rprec)
+    call wind_farm%turbine(s)%turb_ind_func%val(0._rprec, 0._rprec, filt_max, r_disk)
 
     do k=k_start,k_end  !global k
         do j=min_j,max_j
@@ -399,10 +412,21 @@ do s=1,nloc
                 !(remaining) length projected onto turbine disk
                 r_disk = sqrt(r*r - r_norm*r_norm)
                 ! get the filter value
-                filt = wind_farm%turbine(s)%turb_ind_func%val(r_disk, r_norm)
+                call wind_farm%turbine(s)%turb_ind_func%val(r_disk, r_norm, filt, filt_t)
 
                 if ( filt > filter_cutoff * filt_max ) then
                     wind_farm%turbine(s)%ind(count_i) = filt
+                    wind_farm%turbine(s)%ind_t(count_i) = filt_t
+                    temp_vec(1) = rx-r_norm*p_nhat1
+                    temp_vec(2) = ry-r_norm*p_nhat2
+                    temp_vec(3) = rz-r_norm*p_nhat3
+                    wind_farm%turbine(s)%e_theta(count_i,:) =                  &
+                        cross_product(wind_farm%turbine(s)%nhat, temp_vec)
+                    wind_farm%turbine(s)%e_theta(count_i,:) =                  &
+                        wind_farm%turbine(s)%e_theta(count_i,:)                &
+                        / sqrt(wind_farm%turbine(s)%e_theta(count_i,1)**2      &
+                        + wind_farm%turbine(s)%e_theta(count_i,2)**2           &
+                        + wind_farm%turbine(s)%e_theta(count_i,3)**2)
                     wind_farm%turbine(s)%nodes(count_i,1) = i2
                     wind_farm%turbine(s)%nodes(count_i,2) = j2
                     wind_farm%turbine(s)%nodes(count_i,3) = k-coord*(nz-1)!local
@@ -429,6 +453,7 @@ call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)
 ! Normalize the indicator function integrate to 1
 do s = 1, nloc
     wind_farm%turbine(s)%ind=wind_farm%turbine(s)%ind(:)/sumA(s)
+    wind_farm%turbine(s)%ind_t=wind_farm%turbine(s)%ind_t(:)/sumA(s)
 end do
 
 ! Cleanup
@@ -442,9 +467,10 @@ subroutine turbines_forcing()
 !
 ! This subroutine applies the drag-disk forcing
 !
-use param, only : pi
+use param, only : pi, lbz
 use sim_param, only : u, v, w, fxa, fya, fza
-use functions, only : linear_interp, interp_to_uv_grid
+use functions, only : linear_interp, interp_to_uv_grid, interp_to_w_grid
+use mpi
 implicit none
 
 character(*), parameter :: sub_name = mod_name // '.turbines_forcing'
@@ -569,6 +595,7 @@ do s=1,nloc
             p_Ct_prime
     end if
 
+
     do l=1,wind_farm%turbine(s)%num_nodes
         i2 = wind_farm%turbine(s)%nodes(l,1)
         j2 = wind_farm%turbine(s)%nodes(l,2)
@@ -577,8 +604,23 @@ do s=1,nloc
         fxa(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(1)*ind2
         fya(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(2)*ind2
         fza(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(3)*ind2
+        if (use_rotation) then
+            ind2 = wind_farm%turbine(s)%ind_t(l)
+            fxa(i2,j2,k2) = fxa(i2,j2,k2)                                      &
+                + p_f_n*wind_farm%turbine(s)%e_theta(l,1)*ind2/tip_speed_ratio
+            fya(i2,j2,k2) = fya(i2,j2,k2)                                      &
+                + p_f_n*wind_farm%turbine(s)%e_theta(l,2)*ind2/tip_speed_ratio
+            fza(i2,j2,k2) = fza(i2,j2,k2)                                      &
+                + p_f_n*wind_farm%turbine(s)%e_theta(l,3)*ind2/tip_speed_ratio
+        end if
     end do
 end do
+
+! Interpolate force onto the w grid
+call mpi_sync_real_array( fxa(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( fya(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( fza(1:nx,1:ny,lbz:nz), 0, MPI_SYNC_DOWNUP )
+fza = interp_to_w_grid(fza,lbz)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
@@ -887,43 +929,5 @@ if (dyn_Ct_prime) then
 end if
 
 end subroutine read_control_files
-
-!*******************************************************************************
-function count_lines(fname) result(N)
-!*******************************************************************************
-!
-! This function counts the number of lines in a file
-!
-use messages
-use param, only : CHAR_BUFF_LENGTH
-implicit none
-character(*), intent(in) :: fname
-logical :: exst
-integer :: fid, ios
-integer :: N
-
-character(*), parameter :: sub_name = mod_name // '.count_lines'
-
-! Check if file exists and open
-inquire (file = trim(fname), exist = exst)
-if (.not. exst) then
-    call error (sub_name, 'file ' // trim(fname) // 'does not exist')
-end if
-open(newunit=fid, file=trim(fname), status='unknown', form='formatted',        &
-    position='rewind')
-
-! count number of lines and close
-ios = 0
-N = 0
-do
-    read(fid, *, IOstat = ios)
-    if (ios /= 0) exit
-    N = N + 1
-end do
-
-! Close file
-close(fid)
-
-end function count_lines
 
 end module turbines
