@@ -231,7 +231,9 @@ if(coord==nproc-1 .and. ubc_mom>0) v_w(:,:,nz) = 0._rprec
 this%u(:,:,:) = this%u(:,:,:) + u(1:nx,1:ny,:)*this%dt          !! uv grid
 this%v(:,:,:) = this%v(:,:,:) + v(1:nx,1:ny,:)*this%dt          !! uv grid
 this%w(:,:,:) = this%w(:,:,:) + w(1:nx,1:ny,:)*this%dt          !! w grid
-this%w_uv(:,:,:) = this%w(:,:,:) + w_uv(1:nx,1:ny,:)*this%dt    !! uv grid
+this%w_uv(:,:,:) = this%w_uv(:,:,:) + w_uv(1:nx,1:ny,:)*this%dt !! uv grid
+this%u_w(:,:,:) = this%u_w(:,:,:) + u_w(1:nx,1:ny,:)*this%dt    !! w grid
+this%v_w(:,:,:) = this%v_w(:,:,:) + v_w(1:nx,1:ny,:)*this%dt    !! w grid
 
 this%u2(:,:,:) = this%u2(:,:,:) + u(1:nx,1:ny,:)*u(1:nx,1:ny,:)*this%dt     !! uv grid
 this%v2(:,:,:) = this%v2(:,:,:) + v(1:nx,1:ny,:)*v(1:nx,1:ny,:)*this%dt     !! uv grid
