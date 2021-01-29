@@ -9,9 +9,9 @@ cmake_minimum_required(VERSION 2.8.9)
 set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
-# Supported computers: panoramix, njord, marcc, darwin-brew, cheyenne, stampede
+# Supported computers: rockfish, panoramix, njord, marcc, darwin-brew, cheyenne, stampede
 # Otherwise, default settings are used
-set(hostname "default")
+set(hostname "rockfish")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -20,15 +20,15 @@ set(READ_ENDIAN "DEFAULT")
 
 # Options to enable various features in the code
 option(USE_MPI "Enable parallelization support." ON)
-option(USE_CPS "Enable concurrent precursor simulations." OFF)
+option(USE_CPS "Enable concurrent precursor simulations." ON)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
 option(USE_LVLSET "Enable level set." OFF)
-option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
+option(USE_TURBINES "Enable actuator disk model without rotation." ON)
 option(USE_ATM "Enable actuator line/section model" OFF)
 option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging, using Taylor timescale." OFF)
 option(USE_SAFETYMODE "Set extra safety measures." ON)
 option(USE_CGNS "Enable CGNS data output." OFF)
-option(USE_SCALARS "Enable scalar transport module." OFF)
+option(USE_SCALARS "Enable scalar transport module." ON)
 
 # Enable verbose mode
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -65,6 +65,17 @@ if (${hostname} STREQUAL "marcc")
 else()
     link_libraries(fftw3)
 endif()
+
+if (${hostname} STREQUAL "rockfish")
+    if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+	    set(CMAKE_Fortran_COMPILER ${compiler_path})
+	    set(CMAKE_C_COMPILER gcc)
+	    set(CMAKE_CXX_COMPILER g++)
+    else()
+        link_libraries(fftw3)
+    endif()
+endif()
+
 
 # Common include and link directories
 include_directories(/usr/local/include)
@@ -105,6 +116,23 @@ elseif (${hostname} STREQUAL "marcc")
             link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
         endif ()
     endif ()
+
+#  rockfish
+elseif (${hostname} STREQUAL "rockfish")
+    # Intel
+    if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+        include_directories(/data/apps/linux-centos8-cascadelake/intel-19.1.2.254/fftw-3.3.8-wxxony3sfn4vctui2jomkwlzs6jfnvqr/include/)
+        link_directories(/data/apps/linux-centos8-cascadelake/intel-19.1.2.254/fftw-3.3.8-wxxony3sfn4vctui2jomkwlzs6jfnvqr/lib/)
+    # GNU -- These have to be installed locally for now.
+    elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+        include_directories(/data/apps/linux-centos8-cascadelake/gcc-9.3.0/fftw-3.3.8-uxkh4w5nrgeviv2ooaorhcuolbtbosyi/include/)
+        link_directories(/data/apps/linux-centos8-cascadelake/gcc-9.3.0/fftw-3.3.8-uxkh4w5nrgeviv2ooaorhcuolbtbosyi/lib/)
+        if (USE_CGNS)
+            include_directories($ENV{HOME}/cgns/include/)
+            link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
+        endif ()
+    endif ()
+
 # Cheyenne
 elseif (${hostname} STREQUAL "cheyenne")
     # Intel
