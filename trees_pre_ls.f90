@@ -33,11 +33,11 @@ use trees_global_fmask_ls, only : global_fmask_init, calc_global_fmask_ta
 implicit none
 
 !character (*), parameter :: ftrees_conf = path // 'trees.conf'
-character (*), parameter :: fdraw_out = path // 'draw_tree_array.dat'
-character (*), parameter :: fphi_out = path // 'phi.dat'
-character (*), parameter :: fphi_raw_out = path // 'phi.out'
-character (*), parameter :: fbrindex_out = path // 'brindex.dat'
-character (*), parameter :: fbrindex_raw_out = path // 'brindex.out'
+character (:), allocatable :: fdraw_out 
+character (:), allocatable :: fphi_out 
+character (:), allocatable :: fphi_raw_out 
+character (:), allocatable :: fbrindex_out 
+character (:), allocatable :: fbrindex_raw_out 
 
 logical, parameter :: do_write_ascii = .false.
 logical, parameter :: do_calc_global_fmask = .false.
@@ -63,6 +63,11 @@ real (rprec), allocatable :: phi(:, :, :)
 real (rprec) :: x, y, z
 
 !---------------------------------------------------------------------
+allocate(fdraw_out,        source = path // 'draw_tree_array.dat')
+allocate(fphi_out,         source = path // 'phi.dat')
+allocate(fphi_raw_out,     source = path // 'phi.out')
+allocate(fbrindex_out,     source = path // 'brindex.dat')
+allocate(fbrindex_raw_out, source = path // 'brindex.out')
 
 ! Now load the lesgo case information from lesgo.conf
 call read_input_conf()

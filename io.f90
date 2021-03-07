@@ -735,10 +735,6 @@ real(rprec), dimension(:,:,:), allocatable :: pres_real
 #ifndef PPCGNS
 character(64) :: bin_ext
 
-#ifdef PPLVLSET
-real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
-#endif
-
 #ifdef PPMPI
 call string_splice(bin_ext, '.c', coord, '.bin')
 #else
@@ -1078,6 +1074,8 @@ subroutine force_tot()
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 #endif
 implicit none
+
+real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 
 ! Zero bogus values
 fx(:,:,nz) = 0._rprec

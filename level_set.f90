@@ -122,8 +122,8 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_init'
 
-character (*), parameter :: fphi_in_base = path // 'phi.out'
-character (*), parameter :: fnorm_out_base = path // 'norm.dat'
+character (:), allocatable :: fphi_in_base 
+character (:), allocatable :: fnorm_out_base 
 character (*), parameter :: MPI_suffix = '.c'
 
 integer, parameter :: lun = 1
@@ -139,7 +139,8 @@ logical :: exst, opn
 real (rp) :: x, y, z
 
 !---------------------------------------------------------------------
-
+allocate(fphi_in_base, source = path // 'phi.out')
+allocate(fnorm_out_base, source = path // 'norm.dat')
 
 ! This is extremely kludgy. This function will write to phi.out, which will
 ! subsequently be read in. Future developers should fix this.
@@ -281,7 +282,7 @@ use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_vel_err'
-character(*), parameter :: fname_write = path // 'output/level_set_vel_err.dat'
+character(:), allocatable :: fname_write
 
 integer :: i,j,k
 integer :: uv_err_navg, w_err_navg
@@ -290,6 +291,8 @@ real(rprec) :: u_err, v_err, w_err
 real(rprec) :: u_err_global, v_err_global, w_err_global
 #endif
 integer :: fid
+
+allocate(fname_write, source = path // 'output/level_set_vel_err.dat')
 
 !  Initialize values
 uv_err_navg = 0
@@ -793,7 +796,7 @@ use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.extrap_tau_simple'
-character (*), parameter :: fprefix = path // 'output/extrap_tau_simple.'
+character (:), allocatable :: fprefix
 character (*), parameter :: fmta3r = '(a,3(es12.5,1x))'
 character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 
@@ -825,6 +828,8 @@ real (rp) :: txx2, txy2, txz2, tyy2, tyz2, tzz2
 real (rp) :: wgt
 real (rp) :: x(nd), x1(nd), x2(nd)
 real (rp) :: n_hat(nd)
+
+allocate(fprefix, source = path // 'output/extrap_tau_simple.')
 
 !---------------------------------------------------------------------
 ! Set default values
@@ -3037,7 +3042,7 @@ implicit none
 ! include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_global_CA'
-character (*), parameter :: fCA_out = path // 'output/global_CA.dat'
+character (:), allocatable :: fCA_out
 
 integer, parameter :: lun = 99  !--keep open between calls
 
@@ -3049,6 +3054,8 @@ real (rp) :: Uinf   !--velocity scale used in calculation of CA
 real (rp) :: CxA, CyA, CzA ! Normalized for coefficients times frontal area
 real (rp) :: f_Cx, f_Cy, f_Cz      !--drag and lift forces
 real (rp) :: f_Cx_global, f_Cy_global, f_Cz_global, Uinf_global
+
+allocate(fCA_out, source = path // 'output/global_CA.dat')
 
 !---------------------------------------------------------------------
 
@@ -3745,7 +3752,7 @@ use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz,             &
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.interp_tau'
-character (*), parameter :: fprefix = path // 'output/interp_tau.'
+character (:), allocatable :: fprefix
 character (*), parameter :: fmta3r = '(a,3(es12.5,1x))'
 character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 
@@ -3780,7 +3787,7 @@ real (rp) :: x(nd), xv(nd)
 character(1024) :: msg
 
 !---------------------------------------------------------------------
-
+allocate(fprefix, source = path // 'output/interp_tau.')
 
 ! Set default values
 imn = 1

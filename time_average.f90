@@ -322,7 +322,7 @@ end subroutine compute
 subroutine finalize(this)
 !*******************************************************************************
 use grid_m
-use param, only : write_endian, lbz, path, coord, nproc
+use param, only : write_endian, lbz, path, coord, nproc, nz_tot
 use string_util
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -540,7 +540,7 @@ call write_parallel_cgns(fname_vort,nx,ny,nz- nz_end,nz_tot,                   &
     (/ 'VorticityX', 'VorticityY', 'VorticityZ' /),                            &
     (/ this%vortx(1:nx,1:ny,1:nz-nz_end),                                      &
        this%vorty(1:nx,1:ny,1:nz-nz_end),                                      &
-       this%vortz(1:nx,1:ny,1:nz-nz_end) /)
+       this%vortz(1:nx,1:ny,1:nz-nz_end) /))
 
 #else
 ! Write binary data
